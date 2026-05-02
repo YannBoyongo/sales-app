@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+[x-cloak] {
+    display: none !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .dashboard-open-session-blink {
+        animation: dashboard-open-session-blink 2s ease-in-out infinite;
+    }
+
+    .dashboard-open-session-count-blink {
+        animation: dashboard-open-session-count-blink 2s ease-in-out infinite;
+    }
+}
+
+@keyframes dashboard-open-session-blink {
+    0%,
+    100% {
+        background-color: rgb(255 255 255);
+    }
+
+    50% {
+        background-color: rgb(254 243 199);
+    }
+}
+
+@keyframes dashboard-open-session-count-blink {
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
+}
+
+/* Bordure diagonale entre le formulaire et la photo (écran large) */
+@media (min-width: 1024px) {
+    .login-hero-diagonal {
+        clip-path: polygon(22% 0, 100% 0, 100% 100%, 0 100%);
+    }
+}

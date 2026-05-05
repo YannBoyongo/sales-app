@@ -12,7 +12,7 @@ return new class extends Migration
         Schema::create('sales', function (Blueprint $table) {
             $table->id();
             $table->string('reference', 20)->unique();
-            $table->foreignId('sales_session_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->string('payment_type', 20);
             $table->foreignId('client_id')->nullable()->constrained()->nullOnDelete();
@@ -20,18 +20,18 @@ return new class extends Migration
             $table->timestamp('sold_at');
             $table->timestamps();
 
-            $table->index(['sales_session_id', 'sold_at']);
+            $table->index(['branch_id', 'sold_at']);
             $table->index(['payment_type', 'sold_at']);
         });
 
         Schema::table('sale_items', function (Blueprint $table) {
-            $table->foreignId('sale_id')->nullable()->after('sales_session_id')->constrained()->nullOnDelete();
+            $table->foreignId('sale_id')->nullable()->after('branch_id')->constrained()->nullOnDelete();
             $table->index(['sale_id', 'id']);
         });
 
         // Backfill existing lines: each historical line becomes its own sale.
         $rows = DB::table('sale_items')
-            ->select('id', 'sales_session_id', 'user_id', 'payment_type', 'client_id', 'line_total', 'created_at')
+            ->select('id', 'branch_id', 'user_id', 'payment_type', 'client_id', 'line_total', 'created_at')
             ->orderBy('id')
             ->get();
 
@@ -39,7 +39,7 @@ return new class extends Migration
             $reference = sprintf('LEGACY-%06d', (int) $row->id);
             $saleId = DB::table('sales')->insertGetId([
                 'reference' => $reference,
-                'sales_session_id' => $row->sales_session_id,
+                'branch_id' => $row->branch_id,
                 'user_id' => $row->user_id,
                 'payment_type' => $row->payment_type ?? 'cash',
                 'client_id' => $row->client_id,

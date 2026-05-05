@@ -8,9 +8,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class StockTransfer extends Model
 {
+    public const SCOPE_INTERNAL = 'internal';
+
+    public const SCOPE_EXTERNAL = 'external';
+
     protected $fillable = [
         'from_location_id',
         'to_location_id',
+        'transfer_scope',
         'transferred_at',
         'user_id',
         'notes',
@@ -46,5 +51,24 @@ class StockTransfer extends Model
     public function stockMovements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    public function isInternal(): bool
+    {
+        return $this->transfer_scope === self::SCOPE_INTERNAL;
+    }
+
+    public function isExternal(): bool
+    {
+        return $this->transfer_scope === self::SCOPE_EXTERNAL;
+    }
+
+    public static function scopeLabel(string $scope): string
+    {
+        return match ($scope) {
+            self::SCOPE_INTERNAL => 'Interne',
+            self::SCOPE_EXTERNAL => 'Externe',
+            default => $scope,
+        };
     }
 }

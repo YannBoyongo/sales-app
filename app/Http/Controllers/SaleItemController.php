@@ -3,21 +3,21 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Department;
-use App\Models\Location;
+use App\Models\PosShift;
+use App\Models\PosTerminal;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
-use App\Models\SalesSession;
 use App\Models\Stock;
 use App\Models\StockMovement;
+use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
-use App\Support\Money;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Date;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -25,69 +25,129 @@ class SaleItemController extends Controller
 {
     use RespectsUserBranch;
 
-    public function show(SalesSession $salesSession, SaleItem $saleItem): View
+    public function show(Branch $branch, SaleItem $saleItem): View
     {
-        $this->ensureUserCanAccessSalesSession($salesSession);
-        abort_unless((int) $saleItem->sales_session_id === (int) $salesSession->id, 404);
+        $this->ensureUserCanAccessBranchModel($branch);
+        abort_unless((int) $saleItem->branch_id === (int) $branch->id, 404);
 
         $saleItem->load([
             'product.department',
             'location',
             'user',
             'client',
-            'salesSession.branch',
+            'branch',
         ]);
 
-        return view('sale_items.show', compact('salesSession', 'saleItem'));
+        return view('sale_items.show', compact('branch', 'saleItem'));
     }
 
-    public function create(SalesSession $salesSession): View
+    public function chooseTerminal(Branch $branch): View|RedirectResponse
     {
-        $this->ensureUserCanAccessSalesSession($salesSession);
+        $this->ensureUserCanAccessBranchModel($branch);
+        abort_unless(auth()->user()?->canAccessPosSales(), 403);
 
-        if (! $salesSession->isOpen()) {
-            abort(403, 'Impossible d’enregistrer une vente sur une session fermée.');
+        $terminals = $this->posTerminalsForUser($branch);
+        if ($terminals->isEmpty()) {
+            abort(403, 'Aucun terminal POS accessible pour cette branche.');
         }
 
-        $locations = Location::query()
-            ->where('branch_id', $salesSession->branch_id)
-            ->orderBy('name')
-            ->get(['id', 'name', 'branch_id']);
+        $user = auth()->user();
+        // Administrateurs / comptables : toujours afficher la liste des terminaux (sélection explicite).
+        if ($terminals->count() === 1 && ! $user?->canBypassBranchScope()) {
+            return redirect()->route('pos-terminal.workspace', [$branch, $terminals->first()]);
+        }
 
-        $saleCatalog = Department::query()
-            ->whereHas('products', function ($q) {
+        $canPickAnotherBranch = $this->branchesForUser()->count() > 1;
+        $openTerminalIds = $this->openPosTerminalIds($terminals);
+        $openIds = array_flip($openTerminalIds);
+
+        return view('sale_entry.choose-terminal', compact('branch', 'terminals', 'canPickAnotherBranch', 'openIds'));
+    }
+
+    public function chooseDepartment(Branch $branch, PosTerminal $posTerminal): View|RedirectResponse
+    {
+        $this->ensurePosTerminalForBranch($posTerminal, $branch);
+        $this->ensureUserCanAccessPosTerminal($posTerminal);
+
+        $openShift = $posTerminal->openShift();
+        if ($openShift === null) {
+            return redirect()
+                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->with('warning', 'Ouvrez une session de caisse avant de vendre.');
+        }
+
+        $pointOfSale = $posTerminal->location;
+        abort_unless($pointOfSale !== null, 404);
+
+        $departments = Department::query()
+            ->whereHas('products', function ($q) use ($branch) {
                 $this->applyProductBranchScope($q);
+                $this->applyProductScopeForBranch($q, $branch);
             })
-            ->with(['products' => function ($q) {
-                $this->applyProductBranchScope($q);
-                $q->select(['id', 'department_id', 'name', 'unit_price'])
-                    ->orderBy('name');
-            }])
             ->orderBy('name')
-            ->get()
-            ->map(fn (Department $d) => [
-                'id' => $d->id,
-                'name' => $d->name,
-                'products' => $d->products->map(fn (Product $p) => [
-                    'id' => $p->id,
-                    'label' => $p->name.' — '.Money::usd($p->unit_price),
-                    'unit_price' => (float) $p->unit_price,
-                ])->values()->all(),
-            ])
-            ->values()
-            ->all();
+            ->get(['id', 'name']);
 
-        $productsCountQuery = Product::query();
-        $this->applyProductBranchScope($productsCountQuery);
-        $productsCount = $productsCountQuery->count();
+        $canPickAnotherBranch = $this->branchesForUser()->count() > 1;
 
-        $saleLineRows = $this->normalizedSaleLineRowsFromOld();
+        return view('sale_entry.choose-department', compact('branch', 'posTerminal', 'pointOfSale', 'departments', 'canPickAnotherBranch'));
+    }
+
+    public function create(Branch $branch, PosTerminal $posTerminal, Department $department): View|RedirectResponse
+    {
+        $this->ensurePosTerminalForBranch($posTerminal, $branch);
+        $this->ensureUserCanAccessPosTerminal($posTerminal);
+
+        $openShift = $posTerminal->openShift();
+        if ($openShift === null) {
+            return redirect()
+                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->with('warning', 'Ouvrez une session de caisse avant de vendre.');
+        }
+
+        $pointOfSale = $posTerminal->location;
+        abort_unless($pointOfSale !== null, 404);
+
+        $products = Product::query()
+            ->where('department_id', $department->id);
+        $this->applyProductBranchScope($products);
+        $this->applyProductScopeForBranch($products, $branch);
+        $products = $products
+            ->select(['id', 'department_id', 'name', 'unit_price'])
+            ->orderBy('name')
+            ->get();
+
+        abort_if($products->isEmpty(), 404);
+
+        $stockAtPos = Stock::query()
+            ->where('location_id', $pointOfSale->id)
+            ->whereIn('product_id', $products->pluck('id'))
+            ->pluck('quantity', 'product_id');
+
+        $saleCatalog = [[
+            'id' => $department->id,
+            'name' => $department->name,
+            'products' => $products->map(fn (Product $p) => [
+                'id' => $p->id,
+                'label' => $p->name.' — '.Money::usd($p->unit_price),
+                'unit_price' => (float) $p->unit_price,
+                'stock_qty' => (int) ($stockAtPos[$p->id] ?? 0),
+            ])->values()->all(),
+        ]];
+
+        $productsCount = $products->count();
 
         $clients = Client::query()->orderBy('name')->limit(200)->get(['id', 'name', 'phone']);
 
+        $saleLineRows = collect($this->normalizedSaleLineRowsFromOld())
+            ->map(fn (array $r, int $i) => [...$r, '_key' => 'row-'.$i.'-'.substr(sha1((string) microtime(true).$i), 0, 8)])
+            ->values()
+            ->all();
+
         return view('sale_items.create', compact(
-            'salesSession',
-            'locations',
+            'branch',
+            'posTerminal',
+            'pointOfSale',
+            'department',
             'saleCatalog',
             'saleLineRows',
             'productsCount',
@@ -95,25 +155,37 @@ class SaleItemController extends Controller
         ));
     }
 
-    public function store(Request $request, SalesSession $salesSession): RedirectResponse
+    public function store(Request $request, Branch $branch, PosTerminal $posTerminal, Department $department): RedirectResponse
     {
-        $this->ensureUserCanAccessSalesSession($salesSession);
+        $this->ensurePosTerminalForBranch($posTerminal, $branch);
+        $this->ensureUserCanAccessPosTerminal($posTerminal);
 
-        if (! $salesSession->isOpen()) {
-            return back()->withErrors(['sale' => 'Impossible d’enregistrer une vente sur une session fermée.']);
+        $pointOfSale = $posTerminal->location;
+        abort_unless($pointOfSale !== null, 404);
+
+        $openShift = $posTerminal->openShift();
+        if ($openShift === null) {
+            return redirect()
+                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->with('warning', 'Session de caisse fermée ou non ouverte.');
         }
+
+        $departmentId = (int) $department->id;
 
         $data = $request->validate([
             'payment_type' => ['required', 'in:cash,credit'],
             'client_name' => ['nullable', 'string', 'max:255'],
             'client_phone' => ['nullable', 'string', 'max:50'],
             'items' => ['required', 'array', 'min:1'],
+            'items.*.department_id' => ['required', 'integer', Rule::in([$departmentId])],
             'items.*.product_id' => ['required', 'exists:products,id'],
-            'items.*.location_id' => ['required', 'exists:locations,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'apply_sale_discount' => ['nullable', 'boolean'],
+            'apply_sale_discount' => ['sometimes', 'boolean'],
             'sale_discount_amount' => [
-                Rule::requiredIf(fn () => $request->boolean('apply_sale_discount')),
+                Rule::requiredIf(function () use ($request) {
+                    return $request->has('apply_sale_discount')
+                        && filter_var($request->input('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN);
+                }),
                 'nullable',
                 'numeric',
                 'min:0',
@@ -123,13 +195,23 @@ class SaleItemController extends Controller
         $pendingDiscountAfterSave = false;
 
         try {
-            DB::transaction(function () use ($request, $salesSession, $data, &$pendingDiscountAfterSave) {
+            DB::transaction(function () use ($request, $branch, $departmentId, $pointOfSale, $posTerminal, $openShift, $data, &$pendingDiscountAfterSave) {
+                $openShift = PosShift::query()
+                    ->whereKey($openShift->id)
+                    ->where('pos_terminal_id', $posTerminal->id)
+                    ->whereNull('closed_at')
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
                 $paymentType = $data['payment_type'];
 
                 $clientName = trim((string) ($data['client_name'] ?? ''));
                 $clientPhone = trim((string) ($data['client_phone'] ?? ''));
 
                 $clientId = null;
+                $saleClientName = null;
+                $saleClientPhone = null;
+
                 if ($paymentType === 'credit') {
                     if ($clientName === '') {
                         throw new RuntimeException('Le nom du client est obligatoire pour une vente à crédit.');
@@ -140,29 +222,39 @@ class SaleItemController extends Controller
                         $client->update(['phone' => $clientPhone]);
                     }
                     $clientId = $client->id;
+                } else {
+                    $saleClientName = $clientName !== '' ? $clientName : null;
+                    $saleClientPhone = $clientPhone !== '' ? $clientPhone : null;
                 }
 
                 $saleReference = $this->nextSaleReference();
                 $sale = Sale::create([
                     'reference' => $saleReference,
-                    'sales_session_id' => $salesSession->id,
+                    'branch_id' => $branch->id,
+                    'pos_shift_id' => $openShift->id,
                     'user_id' => $request->user()->id,
                     'payment_type' => $paymentType,
                     'client_id' => $clientId,
+                    'client_name' => $saleClientName,
+                    'client_phone' => $saleClientPhone,
                     'total_amount' => 0,
                     'sold_at' => now(),
                 ]);
 
                 $saleTotal = '0.00';
                 foreach ($data['items'] as $row) {
-                    $product = Product::query()->lockForUpdate()->findOrFail((int) $row['product_id']);
-                    $location = Location::query()->lockForUpdate()->findOrFail((int) $row['location_id']);
-                    if ((int) $location->branch_id !== (int) $salesSession->branch_id) {
-                        throw new RuntimeException('Un des emplacements n’appartient pas à la branche de la session.');
-                    }
+                    $product = Product::query()
+                        ->lockForUpdate()
+                        ->whereKey((int) $row['product_id'])
+                        ->where('department_id', $departmentId)
+                        ->where(function ($q) use ($branch) {
+                            $this->applyProductBranchScope($q);
+                            $this->applyProductScopeForBranch($q, $branch);
+                        })
+                        ->firstOrFail();
 
                     $qty = (int) $row['quantity'];
-                    Stock::modifyQuantity($product->id, $location->id, -$qty);
+                    Stock::modifyQuantity($product->id, $pointOfSale->id, -$qty);
 
                     $unit = (string) $product->unit_price;
                     $lineTotal = bcmul($unit, (string) $qty, 2);
@@ -171,8 +263,8 @@ class SaleItemController extends Controller
                     $saleItem = SaleItem::create([
                         'reference' => null,
                         'sale_id' => $sale->id,
-                        'sales_session_id' => $salesSession->id,
-                        'location_id' => $location->id,
+                        'branch_id' => $branch->id,
+                        'location_id' => $pointOfSale->id,
                         'product_id' => $product->id,
                         'user_id' => $request->user()->id,
                         'quantity' => $qty,
@@ -187,18 +279,18 @@ class SaleItemController extends Controller
                         'type' => 'exit',
                         'product_id' => $product->id,
                         'quantity' => $qty,
-                        'from_location_id' => $location->id,
+                        'from_location_id' => $pointOfSale->id,
                         'to_location_id' => null,
                         'user_id' => $request->user()->id,
-                        'sales_session_id' => $salesSession->id,
                         'sale_item_id' => $saleItem->id,
-                        'notes' => 'Vente '.$saleReference.' — session #'.$salesSession->id,
+                        'notes' => 'Vente '.$saleReference.' — '.$branch->name,
                     ]);
                 }
 
                 $subtotal = $saleTotal;
-                $applyDiscount = $request->boolean('apply_sale_discount');
-                $isAdmin = (bool) $request->user()->is_admin;
+                $applyDiscount = $request->has('apply_sale_discount')
+                    && filter_var($request->input('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN);
+                $isAdmin = $request->user()->isAdmin();
 
                 if ($applyDiscount) {
                     $discountStr = number_format((float) ($data['sale_discount_amount'] ?? 0), 2, '.', '');
@@ -259,69 +351,65 @@ class SaleItemController extends Controller
             : 'Vente enregistrée et stock mis à jour.';
 
         return redirect()
-            ->route('sales-sessions.show', $salesSession)
+            ->route('pos-terminal.workspace', [$branch, $posTerminal])
             ->with('success', $success);
     }
 
     /**
-     * @return list<array{department_id: string, product_id: string, location_id: string, quantity: int}>
+     * @return list<array{department_id: string, product_id: string, quantity: int}>
      */
     private function normalizedSaleLineRowsFromOld(): array
     {
         $old = old('items');
         if (! is_array($old) || $old === []) {
-            return [[
-                'department_id' => '',
-                'product_id' => '',
-                'location_id' => '',
-                'quantity' => 1,
-            ]];
+            return [];
         }
 
         return collect($old)->map(function (array $row) {
-            $deptId = isset($row['department_id']) ? (string) $row['department_id'] : '';
-            if ($deptId === '' && ! empty($row['product_id'])) {
-                $deptId = (string) (Product::query()->whereKey((int) $row['product_id'])->value('department_id') ?? '');
+            $productIdRaw = $row['product_id'] ?? null;
+            $hasProductId = filled($productIdRaw);
+
+            $deptId = filled($row['department_id'] ?? null) ? (string) $row['department_id'] : '';
+            if ($deptId === '' && $hasProductId) {
+                $deptId = (string) (Product::query()->whereKey((int) $productIdRaw)->value('department_id') ?? '');
             }
 
             return [
                 'department_id' => $deptId,
-                'product_id' => isset($row['product_id']) ? (string) $row['product_id'] : '',
-                'location_id' => isset($row['location_id']) ? (string) $row['location_id'] : '',
+                'product_id' => $hasProductId ? (string) $productIdRaw : '',
                 'quantity' => (int) ($row['quantity'] ?? 1),
             ];
         })->all();
     }
 
+    /**
+     * Global unique sale code: SL00001, SL00002, … (atomic, transaction-safe).
+     */
     private function nextSaleReference(): string
     {
-        $now = Date::now();
-        $saleDate = $now->toDateString();
+        return (string) DB::transaction(function () {
+            $row = DB::table('sale_code_sequences')->where('id', 1)->lockForUpdate()->first();
 
-        $counter = DB::table('sale_reference_counters')
-            ->where('sale_date', $saleDate)
-            ->lockForUpdate()
-            ->first();
+            if (! $row) {
+                DB::table('sale_code_sequences')->insert([
+                    'id' => 1,
+                    'last_number' => 0,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+                $last = 0;
+            } else {
+                $last = (int) $row->last_number;
+            }
 
-        if (! $counter) {
-            DB::table('sale_reference_counters')->insert([
-                'sale_date' => $saleDate,
-                'last_number' => 0,
-                'created_at' => $now,
-                'updated_at' => $now,
-            ]);
-            $counter = (object) ['last_number' => 0];
-        }
+            $next = $last + 1;
 
-        $nextNumber = ((int) $counter->last_number) + 1;
-
-        DB::table('sale_reference_counters')
-            ->where('sale_date', $saleDate)
-            ->update([
-                'last_number' => $nextNumber,
-                'updated_at' => $now,
+            DB::table('sale_code_sequences')->where('id', 1)->update([
+                'last_number' => $next,
+                'updated_at' => now(),
             ]);
 
-        return sprintf('%s-%06d', $now->format('ymd'), $nextNumber);
+            return sprintf('SL%05d', $next);
+        });
     }
 }

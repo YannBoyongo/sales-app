@@ -6,13 +6,13 @@
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Facturation</p>
             <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">Vente {{ $sale->reference }}</h1>
             <p class="mt-2 text-sm text-neutral-600">
-                Session #{{ $salesSession->id }} · {{ $sale->session->branch->name }} · {{ $sale->sold_at->translatedFormat('d/m/Y à H:i') }}
+                {{ $branch->name }} · {{ $sale->sold_at->translatedFormat('d/m/Y à H:i') }}
             </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('sales.print-large', [$salesSession, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer facture A4</a>
-            <a href="{{ route('sales.print-small', [$salesSession, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer ticket POS</a>
-            <a href="{{ route('sales-sessions.show', $salesSession) }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Retour à la session</a>
+            <a href="{{ route('sales.print-large', [$branch, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer facture A4</a>
+            <a href="{{ route('sales.print-small', [$branch, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer ticket POS</a>
+            <a href="{{ route('sales.overview') }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Liste des ventes</a>
         </div>
     </div>
 
@@ -36,14 +36,14 @@
                     @endif
                 @endif
             </p>
-            <p class="mt-2 text-xs text-amber-900/90">Le total enregistré pour la session reste le sous-total jusqu’à décision d’un administrateur.</p>
-            @if (auth()->user()->is_admin)
+            <p class="mt-2 text-xs text-amber-900/90">Le total enregistré reste le sous-total jusqu’à décision d’un administrateur.</p>
+            @if (auth()->user()->canApproveSaleDiscounts())
                 <div class="mt-4 flex flex-wrap gap-2">
-                    <form action="{{ route('sales.approve-discount', [$salesSession, $sale]) }}" method="POST" onsubmit="return confirm('Approuver cette remise ?');">
+                    <form action="{{ route('sales.approve-discount', [$branch, $sale]) }}" method="POST" onsubmit="return confirm('Approuver cette remise ?');">
                         @csrf
                         <x-primary-button type="submit">Approuver la remise</x-primary-button>
                     </form>
-                    <form action="{{ route('sales.reject-discount', [$salesSession, $sale]) }}" method="POST" onsubmit="return confirm('Refuser la remise ? La vente sera confirmée sans remise.');">
+                    <form action="{{ route('sales.reject-discount', [$branch, $sale]) }}" method="POST" onsubmit="return confirm('Refuser la remise ? La vente sera confirmée sans remise.');">
                         @csrf
                         <x-secondary-button type="submit">Refuser la remise</x-secondary-button>
                     </form>
@@ -94,9 +94,24 @@
                         @endif
                     </p>
                 </div>
+                @if ($sale->posShift && $sale->posShift->posTerminal)
+                    <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                        <p class="text-xs text-neutral-500">Session POS</p>
+                        <p class="mt-1 text-sm font-medium text-neutral-900">{{ $sale->posShift->posTerminal->name }}</p>
+                        <p class="mt-1 text-xs text-neutral-500">
+                            Ouverte {{ $sale->posShift->opened_at->translatedFormat('d/m/Y H:i') }}
+                            @if ($sale->posShift->closed_at)
+                                · fermée {{ $sale->posShift->closed_at->translatedFormat('d/m/Y H:i') }}
+                            @endif
+                        </p>
+                    </div>
+                @endif
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
                     <p class="text-xs text-neutral-500">Client</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $sale->client?->name ?? '—' }}</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $sale->displayClientName() ?? '—' }}</p>
+                    @if ($sale->displayClientPhone())
+                        <p class="mt-1 text-sm text-neutral-600">{{ $sale->displayClientPhone() }}</p>
+                    @endif
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-2 text-sm">
                     <div class="flex justify-between gap-2">

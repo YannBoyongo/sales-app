@@ -14,7 +14,6 @@ class StockMovement extends Model
         'from_location_id',
         'to_location_id',
         'user_id',
-        'sales_session_id',
         'sale_item_id',
         'stock_transfer_id',
         'notes',
@@ -46,11 +45,6 @@ class StockMovement extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
-    }
-
-    public function salesSession(): BelongsTo
-    {
-        return $this->belongsTo(SalesSession::class);
     }
 
     public function saleItem(): BelongsTo

@@ -40,9 +40,13 @@ class PurchaseOrderController extends Controller
 
     public function create(): View
     {
-        abort_unless(auth()->user()->is_admin, 403);
+        abort_unless(auth()->user()->isAdmin(), 403);
 
-        $locations = Location::query()->with('branch')->orderBy('name')->get();
+        $locations = Location::query()
+            ->with('branch')
+            ->whereIn('kind', [Location::KIND_MAIN, Location::KIND_STORAGE])
+            ->orderBy('name')
+            ->get();
         $products = Product::query()->with('department')->orderBy('name')->get();
 
         return view('purchase_orders.create', compact('locations', 'products'));
@@ -50,11 +54,12 @@ class PurchaseOrderController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        abort_unless($request->user()->isAdmin(), 403);
 
         $data = $this->validatePurchaseOrderPayload($request);
 
         $location = Location::query()->findOrFail((int) $data['location_id']);
+        abort_unless($location->isMain() || $location->isStorage(), 422, 'Réception des achats uniquement sur l’emplacement principal ou un entrepôt secondaire.');
 
         $reference = 'PO-'.now()->format('Ymd-His').'-'.random_int(100, 999);
 
@@ -83,11 +88,15 @@ class PurchaseOrderController extends Controller
 
     public function edit(PurchaseOrder $purchaseOrder): View
     {
-        abort_unless(auth()->user()->is_admin, 403);
+        abort_unless(auth()->user()->isAdmin(), 403);
         $purchaseOrder->load(['location.branch', 'items.product']);
         abort_unless($this->canEdit($purchaseOrder), 403, 'Ce bon de commande ne peut plus être modifié car la réception a déjà commencé.');
 
-        $locations = Location::query()->with('branch')->orderBy('name')->get();
+        $locations = Location::query()
+            ->with('branch')
+            ->whereIn('kind', [Location::KIND_MAIN, Location::KIND_STORAGE])
+            ->orderBy('name')
+            ->get();
         $products = Product::query()->with('department')->orderBy('name')->get();
 
         return view('purchase_orders.edit', compact('purchaseOrder', 'locations', 'products'));
@@ -95,7 +104,7 @@ class PurchaseOrderController extends Controller
 
     public function update(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        abort_unless($request->user()->isAdmin(), 403);
         $purchaseOrder->load('items');
         if (! $this->canEdit($purchaseOrder)) {
             return redirect()->route('purchase-orders.show', $purchaseOrder)
@@ -104,6 +113,7 @@ class PurchaseOrderController extends Controller
 
         $data = $this->validatePurchaseOrderPayload($request);
         $location = Location::query()->findOrFail((int) $data['location_id']);
+        abort_unless($location->isMain() || $location->isStorage(), 422, 'Réception des achats uniquement sur l’emplacement principal ou un entrepôt secondaire.');
 
         DB::transaction(function () use ($purchaseOrder, $data, $location) {
             $purchaseOrder->update([

@@ -16,6 +16,7 @@
             <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
                 <tr>
                     <th class="px-4 py-3">Réf.</th>
+                    <th class="px-4 py-3">Type</th>
                     <th class="px-4 py-3">Date</th>
                     <th class="px-4 py-3">De</th>
                     <th class="px-4 py-3">Vers</th>
@@ -28,6 +29,7 @@
                 @forelse ($transfers as $t)
                     <tr class="hover:bg-neutral-50/80">
                         <td class="px-4 py-3 font-medium text-neutral-900 tabular-nums">#{{ $t->id }}</td>
+                        <td class="px-4 py-3 text-neutral-700">{{ \App\Models\StockTransfer::scopeLabel($t->transfer_scope ?? \App\Models\StockTransfer::SCOPE_INTERNAL) }}</td>
                         <td class="px-4 py-3 text-neutral-600 whitespace-nowrap">{{ $t->transferred_at->translatedFormat('d/m/Y') }}</td>
                         <td class="px-4 py-3 text-neutral-700">{{ $t->fromLocation->name }} <span class="text-neutral-400">({{ $t->fromLocation->branch->name }})</span></td>
                         <td class="px-4 py-3 text-neutral-700">{{ $t->toLocation->name }} <span class="text-neutral-400">({{ $t->toLocation->branch->name }})</span></td>
@@ -39,7 +41,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-neutral-500">Aucun transfert pour le moment.</td>
+                        <td colspan="8" class="px-4 py-8 text-center text-neutral-500">Aucun transfert pour le moment.</td>
                     </tr>
                 @endforelse
             </tbody>

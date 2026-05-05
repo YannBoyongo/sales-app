@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Location;
@@ -26,7 +27,7 @@ class DatabaseSeeder extends Seeder
             'email' => 'admin@example.com',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
-            'is_admin' => true,
+            'role' => UserRole::Admin,
             'branch_id' => null,
         ]);
 
@@ -36,7 +37,7 @@ class DatabaseSeeder extends Seeder
             'username' => 'user',
             'password' => Hash::make('password'),
             'email_verified_at' => now(),
-            'is_admin' => false,
+            'role' => UserRole::User,
             'branch_id' => $branch->id,
         ]);
         $location = Location::query()->create([

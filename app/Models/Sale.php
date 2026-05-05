@@ -14,10 +14,13 @@ class Sale extends Model
 
     protected $fillable = [
         'reference',
-        'sales_session_id',
+        'branch_id',
+        'pos_shift_id',
         'user_id',
         'payment_type',
         'client_id',
+        'client_name',
+        'client_phone',
         'total_amount',
         'sale_status',
         'subtotal_amount',
@@ -48,9 +51,32 @@ class Sale extends Model
         return $this->sale_status === self::STATUS_PENDING_DISCOUNT;
     }
 
-    public function session(): BelongsTo
+    public function displayClientName(): ?string
     {
-        return $this->belongsTo(SalesSession::class, 'sales_session_id');
+        if ($this->client_id) {
+            return $this->client?->name;
+        }
+
+        return filled($this->client_name) ? (string) $this->client_name : null;
+    }
+
+    public function displayClientPhone(): ?string
+    {
+        if ($this->client_id) {
+            return $this->client?->phone;
+        }
+
+        return filled($this->client_phone) ? (string) $this->client_phone : null;
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function posShift(): BelongsTo
+    {
+        return $this->belongsTo(PosShift::class);
     }
 
     public function user(): BelongsTo

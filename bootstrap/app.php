@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureAccounting;
+use App\Http\Middleware\EnsureAdmin;
+use App\Http\Middleware\EnsureCanManageStockTransfers;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,7 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
-            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+            'admin' => EnsureAdmin::class,
+            'accounting' => EnsureAccounting::class,
+            'stock_transfer' => EnsureCanManageStockTransfers::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

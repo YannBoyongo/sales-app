@@ -7,10 +7,7 @@ use App\Models\AccountingTransaction;
 use App\Models\Branch;
 use App\Models\Product;
 use App\Models\Sale;
-use App\Models\SalesSession;
 use App\Models\Stock;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -22,34 +19,26 @@ class DashboardController extends Controller
         $user = auth()->user();
         $user?->loadMissing('branch');
 
-        $isAdmin = (bool) ($user?->is_admin);
-        $userBranch = (! $isAdmin && $user?->branch) ? $user->branch : null;
+        $isAdmin = (bool) ($user?->isAdmin());
+        $isAccountant = (bool) ($user?->isAccountant());
+        $seesAllBranches = (bool) ($user?->canBypassBranchScope());
+        $canAccessAccounting = (bool) ($user?->canAccessAccounting());
+        $userBranch = (! $seesAllBranches && $user?->branch) ? $user->branch : null;
 
-        $openSessionsQuery = SalesSession::query()->where('status', 'open');
-        $this->applyBranchFilter($openSessionsQuery);
+        $weekStart = now()->copy()->subDays(7)->startOfDay();
+        $weekSalesQuery = Sale::query()->where('sold_at', '>=', $weekStart);
+        $this->applyBranchFilter($weekSalesQuery, 'branch_id');
+        $weekSalesCount = (clone $weekSalesQuery)->count();
 
-        $openSessionsCount = (clone $openSessionsQuery)->count();
+        $pendingDiscountQuery = Sale::query()->where('sale_status', Sale::STATUS_PENDING_DISCOUNT);
+        $this->applyBranchFilter($pendingDiscountQuery, 'branch_id');
+        $pendingDiscountCount = $isAdmin ? (clone $pendingDiscountQuery)->count() : 0;
 
-        $openSessions = (clone $openSessionsQuery)
-            ->with(['branch', 'opener'])
-            ->latest('opened_at')
-            ->take(12)
-            ->get();
-
-        $openSessionsByBranch = null;
-        if ($isAdmin) {
-            $openSessionsByBranch = $openSessions
-                ->groupBy('branch_id')
-                ->map(function (Collection $sessions) {
-                    $first = $sessions->first();
-
-                    return [
-                        'branch_name' => $first?->branch?->name ?? '—',
-                        'count' => $sessions->count(),
-                    ];
-                })
-                ->values();
-        }
+        $recentSales = Sale::query()
+            ->with(['branch', 'user:id,name'])
+            ->latest('sold_at');
+        $this->applyBranchFilter($recentSales, 'branch_id');
+        $recentSales = $recentSales->take(12)->get();
 
         $branchesCount = $isAdmin ? Branch::query()->count() : null;
 
@@ -70,10 +59,9 @@ class DashboardController extends Controller
         $endOfDay = now()->copy()->endOfDay();
 
         $todayStats = Sale::query()
-            ->whereBetween('sold_at', [$startOfDay, $endOfDay])
-            ->whereHas('session', function (Builder $q) {
-                $this->applyBranchFilter($q);
-            })
+            ->whereBetween('sold_at', [$startOfDay, $endOfDay]);
+        $this->applyBranchFilter($todayStats, 'branch_id');
+        $todayStats = $todayStats
             ->selectRaw('
                 COUNT(*) as sale_count,
                 COALESCE(SUM(total_amount), 0) as total_amount,
@@ -92,7 +80,7 @@ class DashboardController extends Controller
         $productsCount = $productsCountQuery->count();
 
         $accountingCaisse = null;
-        if ($isAdmin) {
+        if ($canAccessAccounting) {
             $ledger = AccountingTransaction::query()
                 ->selectRaw("
                     COALESCE(SUM(CASE WHEN entry_type = 'debit' THEN amount ELSE 0 END), 0) as total_debit,
@@ -103,12 +91,15 @@ class DashboardController extends Controller
         }
 
         return view('dashboard', compact(
-            'openSessions',
-            'openSessionsCount',
-            'openSessionsByBranch',
+            'recentSales',
+            'weekSalesCount',
+            'pendingDiscountCount',
             'lowStocks',
             'lowStocksCount',
             'isAdmin',
+            'isAccountant',
+            'seesAllBranches',
+            'canAccessAccounting',
             'userBranch',
             'branchesCount',
             'todaySalesTotal',

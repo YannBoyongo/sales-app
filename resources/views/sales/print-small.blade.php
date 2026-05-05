@@ -112,7 +112,7 @@
     <div class="center ticket-meta">
         Ticket {{ $sale->reference }}<br>
         {{ $sale->sold_at->translatedFormat('d/m/Y H:i') }}<br>
-        {{ $sale->session->branch->name }}
+        {{ $sale->branch->name }}
     </div>
 
     <div class="line"></div>
@@ -136,8 +136,8 @@
     <div class="line"></div>
     <div class="row"><span>TOTAL</span><span>{{ \App\Support\Money::usd($sale->total_amount) }}</span></div>
     <div class="row small"><span>Paiement</span><span>{{ $sale->payment_type === 'credit' ? 'Crédit' : 'Cash' }}</span></div>
-    <div class="row small"><span>Client</span><span>{{ $sale->client?->name ?? '—' }}</span></div>
-    <div class="row small"><span>Tél.</span><span>{{ $sale->client?->phone ?? '—' }}</span></div>
+    <div class="row small"><span>Client</span><span>{{ $sale->displayClientName() ?? '—' }}</span></div>
+    <div class="row small"><span>Tél.</span><span>{{ $sale->displayClientPhone() ?? '—' }}</span></div>
 
     <div class="line"></div>
     <div class="center small">Merci et à bientôt</div>

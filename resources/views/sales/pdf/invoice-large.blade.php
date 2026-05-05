@@ -219,20 +219,23 @@
             <td>
                 <div class="box">
                     <h3>Facturé à</h3>
-                    <p><strong>{{ $sale->client?->name ?? 'Client au comptant' }}</strong></p>
-                    @if ($sale->client?->phone)
-                        <p class="muted">Tél. {{ $sale->client->phone }}</p>
+                    <p><strong>{{ $sale->displayClientName() ?: ($sale->payment_type === 'cash' ? 'Client au comptant' : '—') }}</strong></p>
+                    @if ($sale->displayClientPhone())
+                        <p class="muted">Tél. {{ $sale->displayClientPhone() }}</p>
                     @endif
-                    @if (!$sale->client)
-                        <p class="muted">Vente sans fiche client enregistrée.</p>
+                    @if ($sale->payment_type === 'credit' && $sale->client_id)
+                        <p class="muted">Client enregistré (compte crédit).</p>
+                    @elseif ($sale->payment_type === 'cash' && $sale->displayClientName())
+                        <p class="muted">Coordonnées saisies sur la vente.</p>
+                    @elseif ($sale->payment_type === 'cash')
+                        <p class="muted">Vente au comptant sans identification client.</p>
                     @endif
                 </div>
             </td>
             <td>
                 <div class="box">
                     <h3>Détails</h3>
-                    <p><strong>Session</strong> #{{ $sale->session->id }}</p>
-                    <p><strong>Branche</strong> {{ $sale->session->branch->name }}</p>
+                    <p><strong>Branche</strong> {{ $sale->branch->name }}</p>
                     <p><strong>Paiement</strong> {{ $sale->payment_type === 'credit' ? 'Crédit' : 'Cash' }}</p>
                     <p><strong>Vendeur</strong> {{ $sale->user->name }}</p>
                 </div>

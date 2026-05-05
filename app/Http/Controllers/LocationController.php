@@ -7,92 +7,116 @@ use App\Models\Branch;
 use App\Models\Location;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class LocationController extends Controller
 {
     use RespectsUserBranch;
 
-    public function index(): View
+    public function create(Branch $branch): View
     {
-        $query = Location::query()->with('branch')->orderBy('name');
-        $this->applyBranchFilter($query, 'branch_id');
+        abort_unless(auth()->user()->isAdmin(), 403);
 
-        $locations = $query->paginate(20);
-
-        return view('locations.index', compact('locations'));
+        return view('locations.create', compact('branch'));
     }
 
-    public function create(): View
+    public function store(Request $request, Branch $branch): RedirectResponse
     {
-        $branches = $this->branchesForUser();
-
-        return view('locations.create', compact('branches'));
-    }
-
-    public function store(Request $request): RedirectResponse
-    {
-        if (! $request->user()->is_admin) {
-            $request->merge(['branch_id' => $request->user()->branch_id]);
-        }
+        abort_unless(auth()->user()->isAdmin(), 403);
 
         $data = $request->validate([
-            'branch_id' => ['required', 'exists:branches,id'],
             'name' => ['required', 'string', 'max:255'],
+            'kind' => ['required', Rule::in([
+                Location::KIND_MAIN,
+                Location::KIND_STORAGE,
+                Location::KIND_POINT_OF_SALE,
+            ])],
         ]);
 
-        if (! $request->user()->is_admin) {
-            abort_unless((int) $data['branch_id'] === (int) $request->user()->branch_id, 403);
-        }
+        $payload = [
+            'branch_id' => $branch->id,
+            'name' => $data['name'],
+            'kind' => $data['kind'],
+        ];
 
-        Location::create($data);
+        DB::transaction(function () use ($payload) {
+            if ($payload['kind'] === Location::KIND_MAIN) {
+                Location::query()
+                    ->where('branch_id', $payload['branch_id'])
+                    ->where('kind', Location::KIND_MAIN)
+                    ->update(['kind' => Location::KIND_STORAGE]);
+            }
+            Location::create($payload);
+        });
 
-        return redirect()->route('locations.index')->with('success', 'Emplacement créé.');
+        return redirect()->route('branches.show', $branch)->with('success', 'Emplacement créé.');
     }
 
-    public function edit(Location $location): View
+    public function edit(Branch $branch, Location $location): View
     {
-        $this->ensureUserCanAccessLocation($location);
+        abort_unless(auth()->user()->isAdmin(), 403);
+        $this->ensureLocationBelongsToBranch($location, $branch);
 
-        $branches = $this->branchesForUser();
-
-        return view('locations.edit', compact('location', 'branches'));
+        return view('locations.edit', compact('branch', 'location'));
     }
 
-    public function update(Request $request, Location $location): RedirectResponse
+    public function update(Request $request, Branch $branch, Location $location): RedirectResponse
     {
-        $this->ensureUserCanAccessLocation($location);
-
-        if (! $request->user()->is_admin) {
-            $request->merge(['branch_id' => $request->user()->branch_id]);
-        }
+        abort_unless(auth()->user()->isAdmin(), 403);
+        $this->ensureLocationBelongsToBranch($location, $branch);
 
         $data = $request->validate([
-            'branch_id' => ['required', 'exists:branches,id'],
             'name' => ['required', 'string', 'max:255'],
+            'kind' => ['required', Rule::in([
+                Location::KIND_MAIN,
+                Location::KIND_STORAGE,
+                Location::KIND_POINT_OF_SALE,
+            ])],
         ]);
 
-        if (! $request->user()->is_admin) {
-            abort_unless((int) $data['branch_id'] === (int) $request->user()->branch_id, 403);
-        }
+        DB::transaction(function () use ($location, $branch, $data) {
+            if ($data['kind'] === Location::KIND_MAIN) {
+                Location::query()
+                    ->where('branch_id', $branch->id)
+                    ->where('id', '!=', $location->id)
+                    ->where('kind', Location::KIND_MAIN)
+                    ->update(['kind' => Location::KIND_STORAGE]);
+            }
+            $location->update([
+                'name' => $data['name'],
+                'kind' => $data['kind'],
+            ]);
+        });
 
-        $location->update($data);
-
-        return redirect()->route('locations.index')->with('success', 'Emplacement mis à jour.');
+        return redirect()->route('branches.show', $branch)->with('success', 'Emplacement mis à jour.');
     }
 
-    public function destroy(Request $request, Location $location): RedirectResponse
+    public function destroy(Request $request, Branch $branch, Location $location): RedirectResponse
     {
-        $this->ensureUserCanAccessLocation($location);
+        abort_unless(auth()->user()->isAdmin(), 403);
+        $this->ensureLocationBelongsToBranch($location, $branch);
+
+        if ($location->isMain()) {
+            return redirect()->route('branches.show', $branch)->withErrors([
+                'location' => 'Impossible de supprimer l’emplacement principal : désignez d’abord un autre emplacement comme principal.',
+            ]);
+        }
 
         if ($location->stocks()->exists()) {
-            return redirect()->route('locations.index')->withErrors([
+            return redirect()->route('branches.show', $branch)->withErrors([
                 'location' => 'Impossible de supprimer : des lignes de stock existent pour cet emplacement.',
             ]);
         }
 
         $location->delete();
 
-        return redirect()->route('locations.index')->with('success', 'Emplacement supprimé.');
+        return redirect()->route('branches.show', $branch)->with('success', 'Emplacement supprimé.');
+    }
+
+    private function ensureLocationBelongsToBranch(Location $location, Branch $branch): void
+    {
+        abort_unless((int) $location->branch_id === (int) $branch->id, 404);
     }
 }

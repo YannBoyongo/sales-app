@@ -47,13 +47,13 @@ class ClientController extends Controller
         $ids = $this->branchFilterIds();
         if ($ids !== null) {
             $accessible = $client->creditSales()
-                ->whereHas('salesSession', fn ($q) => $q->whereIn('branch_id', $ids))
+                ->whereIn('branch_id', $ids)
                 ->exists();
             abort_unless($accessible, 403, 'Accès non autorisé pour ce client.');
         }
 
         $client->load([
-            'creditSales' => fn ($q) => $q->latest()->with(['salesSession.branch', 'product']),
+            'creditSales' => fn ($q) => $q->latest()->with(['branch', 'product', 'sale']),
             'payments' => fn ($q) => $q->latest()->with('user'),
         ]);
 
@@ -69,7 +69,7 @@ class ClientController extends Controller
         $ids = $this->branchFilterIds();
         if ($ids !== null) {
             $accessible = $client->creditSales()
-                ->whereHas('salesSession', fn ($q) => $q->whereIn('branch_id', $ids))
+                ->whereIn('branch_id', $ids)
                 ->exists();
             abort_unless($accessible, 403, 'Accès non autorisé pour ce client.');
         }

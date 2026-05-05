@@ -12,6 +12,7 @@
             <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
                 <tr>
                     <th class="px-4 py-3">Nom</th>
+                    <th class="px-4 py-3">Nom d’utilisateur</th>
                     <th class="px-4 py-3">E-mail</th>
                     <th class="px-4 py-3">Rôle</th>
                     <th class="px-4 py-3">Branche</th>
@@ -22,16 +23,19 @@
                 @foreach ($users as $user)
                     <tr class="hover:bg-neutral-50/80">
                         <td class="px-4 py-3 font-medium text-neutral-900">{{ $user->name }}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-neutral-700">{{ $user->username ?? '—' }}</td>
                         <td class="px-4 py-3 text-neutral-600">{{ $user->email }}</td>
                         <td class="px-4 py-3">
-                            @if ($user->is_admin)
-                                <span class="rounded bg-primary px-2 py-0.5 text-xs font-medium text-white">Administrateur</span>
+                            @if ($user->isAdmin())
+                                <span class="rounded bg-primary px-2 py-0.5 text-xs font-medium text-white">{{ $user->role->label() }}</span>
+                            @elseif ($user->isAccountant())
+                                <span class="rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">{{ $user->role->label() }}</span>
                             @else
-                                <span class="text-neutral-600">Utilisateur</span>
+                                <span class="text-neutral-700">{{ $user->role->label() }}</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-neutral-600">
-                            @if ($user->is_admin)
+                            @if ($user->isAdmin())
                                 <span class="text-neutral-400">—</span>
                             @elseif ($user->branch)
                                 {{ $user->branch->name }}

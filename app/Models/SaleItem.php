@@ -9,7 +9,7 @@ class SaleItem extends Model
 {
     protected $fillable = [
         'reference',
-        'sales_session_id',
+        'branch_id',
         'sale_id',
         'location_id',
         'product_id',
@@ -31,9 +31,9 @@ class SaleItem extends Model
         ];
     }
 
-    public function salesSession(): BelongsTo
+    public function branch(): BelongsTo
     {
-        return $this->belongsTo(SalesSession::class);
+        return $this->belongsTo(Branch::class);
     }
 
     public function sale(): BelongsTo

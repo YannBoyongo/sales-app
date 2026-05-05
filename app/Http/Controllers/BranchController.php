@@ -22,16 +22,31 @@ class BranchController extends Controller
         return view('branches.index', compact('branches'));
     }
 
+    public function show(Branch $branch): View
+    {
+        abort_unless(auth()->user()->isAdmin(), 403);
+
+        $locations = $branch->locations()->orderBy('name')->paginate(20);
+
+        $terminals = $branch->posTerminals()
+            ->with('location')
+            ->withCount('posUsers')
+            ->orderBy('name')
+            ->get();
+
+        return view('branches.show', compact('branch', 'locations', 'terminals'));
+    }
+
     public function create(): View
     {
-        abort_unless(auth()->user()->is_admin, 403);
+        abort_unless(auth()->user()->isAdmin(), 403);
 
         return view('branches.create');
     }
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -44,14 +59,14 @@ class BranchController extends Controller
 
     public function edit(Branch $branch): View
     {
-        abort_unless(auth()->user()->is_admin, 403);
+        abort_unless(auth()->user()->isAdmin(), 403);
 
         return view('branches.edit', compact('branch'));
     }
 
     public function update(Request $request, Branch $branch): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        abort_unless($request->user()->isAdmin(), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -59,12 +74,12 @@ class BranchController extends Controller
 
         $branch->update($data);
 
-        return redirect()->route('branches.index')->with('success', 'Branche mise à jour.');
+        return redirect()->route('branches.show', $branch)->with('success', 'Branche mise à jour.');
     }
 
     public function destroy(Request $request, Branch $branch): RedirectResponse
     {
-        abort_unless($request->user()->is_admin, 403);
+        abort_unless($request->user()->isAdmin(), 403);
 
         if ($branch->locations()->exists()) {
             return redirect()->route('branches.index')->withErrors([

@@ -6,12 +6,12 @@
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Détail de vente</p>
             <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">Vente {{ $saleItem->reference ?? ('SALE-'.$saleItem->id) }}</h1>
             <p class="mt-2 text-sm text-neutral-600">
-                Session #{{ $salesSession->id }} · {{ $salesSession->branch->name }} · {{ $saleItem->created_at->translatedFormat('d/m/Y à H:i') }}
+                {{ $branch->name }} · {{ $saleItem->created_at->translatedFormat('d/m/Y à H:i') }}
             </p>
         </div>
-        <a href="{{ route('sales-sessions.show', $salesSession) }}" class="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:border-primary/30 hover:text-primary">
+        <a href="{{ route('sales.overview') }}" class="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:border-primary/30 hover:text-primary">
             <span aria-hidden="true">←</span>
-            Retour à la session
+            Liste des ventes
         </a>
     </div>
 

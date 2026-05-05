@@ -16,6 +16,10 @@
     <div class="mb-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
         <dl class="grid gap-4 sm:grid-cols-2">
             <div>
+                <dt class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Type</dt>
+                <dd class="mt-1 text-neutral-900">{{ \App\Models\StockTransfer::scopeLabel($stockTransfer->transfer_scope ?? \App\Models\StockTransfer::SCOPE_INTERNAL) }}</dd>
+            </div>
+            <div>
                 <dt class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Source</dt>
                 <dd class="mt-1 text-neutral-900">{{ $stockTransfer->fromLocation->name }} <span class="text-neutral-500">({{ $stockTransfer->fromLocation->branch->name }})</span></dd>
             </div>

@@ -1,35 +1,82 @@
 <x-app-layout>
-    <x-slot name="header">Nouvelle vente — Session #{{ $salesSession->id }}</x-slot>
+    <x-slot name="header">Nouvelle vente — {{ $posTerminal->name }} — {{ $department->name }}</x-slot>
 
-    <div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Point de vente</p>
-            <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">Enregistrer une vente</h1>
-            <p class="mt-2 text-sm text-neutral-600">
-                Session #{{ $salesSession->id }} · Branche {{ $salesSession->branch->name }}
-            </p>
-        </div>
-        <a href="{{ route('sales-sessions.show', $salesSession) }}" class="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:border-primary/30 hover:text-primary">
-            <span aria-hidden="true">←</span>
-            Retour à la session
-        </a>
-    </div>
+    <x-caisse-flow max-width="max-w-7xl" :with-card="false">
+        <x-slot name="header">
+            <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Caisse</p>
+                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Enregistrer une vente</h1>
+                    <p class="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600">
+                        Ajoutez des lignes, choisissez le paiement et validez. Le stock est mis à jour sur <strong class="font-semibold text-neutral-800">{{ $pointOfSale->name }}</strong>.
+                    </p>
+                    <p class="mt-3 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-neutral-200/80 bg-white/80 px-4 py-1.5 text-sm text-neutral-700 shadow-sm backdrop-blur-sm">
+                        <span class="text-neutral-500">Branche</span>
+                        <strong class="text-neutral-900">{{ $branch->name }}</strong>
+                        <span class="text-neutral-300">·</span>
+                        <span class="text-neutral-500">Terminal</span>
+                        <strong class="text-neutral-900">{{ $posTerminal->name }}</strong>
+                        <span class="text-neutral-300">·</span>
+                        <span class="text-neutral-500">Département</span>
+                        <strong class="text-neutral-900">{{ $department->name }}</strong>
+                    </p>
+                    <div class="mt-4 flex flex-wrap gap-2">
+                        <a
+                            href="{{ route('sales.choose-department', [$branch, $posTerminal]) }}"
+                            class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:border-primary/30 hover:text-primary"
+                        >
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            Autre département
+                        </a>
+                        <a
+                            href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
+                            class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-white/80 hover:text-primary"
+                        >
+                            Espace caisse
+                        </a>
+                    </div>
+                </div>
+                <a
+                    href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
+                    class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-neutral-200/90 bg-white/90 px-5 py-2.5 text-sm font-semibold text-neutral-800 shadow-md shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm transition hover:border-primary/30 hover:text-primary lg:mt-10"
+                >
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                    Retour caisse
+                </a>
+            </div>
+        </x-slot>
 
-    @if ($errors->has('sale'))
-        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('sale') }}</div>
-    @endif
+        <x-slot name="stepper">
+            <x-flow-sale-stepper :step="4" :total-steps="4" />
+        </x-slot>
 
-    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+        @if ($errors->has('sale'))
+            <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('sale') }}</div>
+        @endif
+
+        <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
             <form
-                action="{{ route('sale-items.store', $salesSession) }}"
+                action="{{ route('sales.store', [$branch, $posTerminal, $department]) }}"
                 method="POST"
                 class="space-y-6"
                 x-data="{
                     paymentType: @js(old('payment_type', 'cash')),
                     catalog: @js($saleCatalog),
                     rows: @js($saleLineRows),
-                    apply_sale_discount: @js(filter_var(old('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN)),
+                    posName: @js($pointOfSale->name),
+                    searchQuery: '',
+                    pendingProduct: null,
+                    pickerOpen: false,
+                    addQuantity: 1,
+                    addLineError: '',
+                    apply_sale_discount: @js(
+                        filter_var(old('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN)
+                    ),
                     sale_discount_amount: @js(old('sale_discount_amount', '')),
                     clientName: @js(old('client_name', '')),
                     clientPhone: @js(old('client_phone', '')),
@@ -38,11 +85,43 @@
                         'phone' => $client->phone,
                     ])->values()),
                     clientPanelOpen: false,
-                    isAdmin: @js((bool) auth()->user()->is_admin),
-                    productsForDept(deptId) {
-                        if (deptId === '' || deptId === null || deptId === undefined) return [];
-                        const d = this.catalog.find(dept => String(dept.id) === String(deptId));
-                        return d && d.products ? d.products : [];
+                    isAdmin: @js(auth()->user()->isAdmin()),
+                    allProductsFlat() {
+                        const list = [];
+                        for (const dept of this.catalog) {
+                            for (const p of (dept.products || [])) {
+                                list.push({
+                                    id: p.id,
+                                    department_id: dept.id,
+                                    department_name: dept.name,
+                                    label: p.label,
+                                    unit_price: p.unit_price,
+                                    stock_qty: Number(p.stock_qty) || 0,
+                                });
+                            }
+                        }
+                        return list;
+                    },
+                    qtyInCartForProduct(productId) {
+                        if (!productId) return 0;
+                        return this.rows
+                            .filter(r => String(r.product_id) === String(productId))
+                            .reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+                    },
+                    stockRemainingForProduct(productId) {
+                        const p = this.findProduct(productId);
+                        if (!p) return 0;
+                        const base = Number(p.stock_qty) || 0;
+                        return Math.max(0, base - this.qtyInCartForProduct(productId));
+                    },
+                    get filteredProducts() {
+                        const q = String(this.searchQuery || '').trim().toLowerCase();
+                        const all = this.allProductsFlat();
+                        if (q.length < 1) return all.slice(0, 12);
+                        return all.filter(p => {
+                            const t = (String(p.label) + ' ' + String(p.department_name)).toLowerCase();
+                            return t.includes(q);
+                        }).slice(0, 25);
                     },
                     findProduct(productId) {
                         if (!productId) return null;
@@ -51,6 +130,16 @@
                             if (p) return p;
                         }
                         return null;
+                    },
+                    rowProductLabel(row) {
+                        if (row.product_label) return row.product_label;
+                        const p = this.findProduct(row.product_id);
+                        return p ? p.label : '—';
+                    },
+                    rowDepartmentName(row) {
+                        if (row.department_name) return row.department_name;
+                        const dept = this.catalog.find(d => String(d.id) === String(row.department_id));
+                        return dept ? dept.name : '—';
                     },
                     lineAmount(row) {
                         const p = this.findProduct(row.product_id);
@@ -83,8 +172,49 @@
                     formatUsd(n) {
                         return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     },
-                    addRow() {
-                        this.rows.push({ department_id: '', product_id: '', location_id: '', quantity: 1 });
+                    pickProduct(p) {
+                        this.pendingProduct = p;
+                        this.searchQuery = p.label;
+                        this.pickerOpen = false;
+                        this.addLineError = '';
+                    },
+                    clearPick() {
+                        this.pendingProduct = null;
+                        this.searchQuery = '';
+                        this.pickerOpen = true;
+                    },
+                    addLine() {
+                        this.addLineError = '';
+                        if (!this.pendingProduct) {
+                            this.addLineError = 'Sélectionnez un produit dans les résultats de recherche.';
+                            return;
+                        }
+                        const qty = parseInt(String(this.addQuantity), 10);
+                        if (!Number.isFinite(qty) || qty < 1) {
+                            this.addLineError = 'Indiquez une quantité valide (minimum 1).';
+                            return;
+                        }
+                        const avail = this.stockRemainingForProduct(this.pendingProduct.id);
+                        if (qty > avail) {
+                            this.addLineError = avail <= 0
+                                ? 'Stock insuffisant sur ce point de vente pour ce produit.'
+                                : ('Stock disponible : ' + avail + ' (déjà ' + this.qtyInCartForProduct(this.pendingProduct.id) + ' dans le panier).');
+                            return;
+                        }
+                        this.rows.push({
+                            _key: 'k' + Date.now() + '-' + Math.random().toString(16).slice(2),
+                            department_id: String(this.pendingProduct.department_id),
+                            product_id: String(this.pendingProduct.id),
+                            product_label: this.pendingProduct.label,
+                            department_name: this.pendingProduct.department_name,
+                            quantity: qty,
+                        });
+                        this.pendingProduct = null;
+                        this.searchQuery = '';
+                        this.addQuantity = 1;
+                    },
+                    removeRow(index) {
+                        this.rows.splice(index, 1);
                     },
                     get filteredClients() {
                         if (this.paymentType !== 'credit') return [];
@@ -97,100 +227,134 @@
                 @csrf
 
                 <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
-                    Choisissez d’abord un <strong>département</strong>, puis un <strong>produit</strong> de ce département — la liste reste courte à la caisse.
-                    Le stock sera déduit de l’emplacement choisi.
+                    Produits du département <strong>{{ $department->name }}</strong> uniquement, stock déduit sur <strong>{{ $pointOfSale->name }}</strong>. Recherchez un <strong>produit</strong>, indiquez la <strong>quantité</strong>, puis <strong>Ajouter</strong>.
+                    Les lignes apparaissent dans le tableau ; vous pouvez en ajouter plusieurs.
                 </div>
 
-                @if (count($saleCatalog) === 0)
+                @if (count($saleCatalog) === 0 || ($saleCatalog[0]['products'] ?? []) === [])
                     <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                        Aucun département avec des produits accessibles pour cette branche. Ajoutez des produits ou des stocks liés à la branche avant de vendre.
+                        Aucun produit dans ce département pour cette branche.
                     </div>
                 @endif
 
                 <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                    <div class="mb-4 flex items-center justify-between">
-                        <h2 class="text-base font-semibold text-neutral-900">Lignes de produits</h2>
-                        <button type="button" class="rounded-md border border-neutral-300 px-3 py-1 text-xs font-semibold text-neutral-700 hover:bg-neutral-50" @click="addRow()">Ajouter une ligne</button>
+                    <h2 class="text-base font-semibold text-neutral-900">Lignes de produits</h2>
+                    <p class="mt-1 text-sm text-neutral-600">Recherche, quantité, puis ajout au panier.</p>
+
+                    <div class="mt-4 space-y-3">
+                        <div class="relative" @click.outside="pickerOpen = false">
+                            <label for="sale-product-search" class="mb-1.5 block text-xs font-semibold text-neutral-700">Rechercher un produit</label>
+                            <input
+                                id="sale-product-search"
+                                type="search"
+                                autocomplete="off"
+                                x-model="searchQuery"
+                                @focus="pickerOpen = true"
+                                @input="pickerOpen = true; if (pendingProduct && searchQuery !== pendingProduct.label) pendingProduct = null"
+                                placeholder="Nom, prix affiché, département…"
+                                class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
+                            />
+                            <div
+                                x-show="pickerOpen && filteredProducts.length > 0 && catalog.length > 0"
+                                x-cloak
+                                class="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
+                            >
+                                <template x-for="p in filteredProducts" :key="String(p.id) + '-' + String(p.department_id)">
+                                    <button
+                                        type="button"
+                                        class="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-neutral-50"
+                                        @click="pickProduct(p)"
+                                    >
+                                        <span class="min-w-0 flex flex-col items-start">
+                                            <span class="font-medium text-neutral-900" x-text="p.label"></span>
+                                            <span class="text-xs text-neutral-500" x-text="p.department_name"></span>
+                                        </span>
+                                        <span
+                                            class="shrink-0 rounded-md border px-2 py-0.5 text-xs font-semibold tabular-nums"
+                                            :class="stockRemainingForProduct(p.id) <= 0 ? 'border-red-200 bg-red-50 text-red-800' : 'border-neutral-200 bg-neutral-50 text-neutral-700'"
+                                            x-text="'Stock : ' + stockRemainingForProduct(p.id)"
+                                        ></span>
+                                    </button>
+                                </template>
+                            </div>
+                        </div>
+
+                        <div x-show="pendingProduct" x-cloak class="rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-sm text-neutral-800">
+                            <span class="text-neutral-600">Sélection :</span>
+                            <strong class="ml-1" x-text="pendingProduct.label"></strong>
+                            <span class="ml-2 text-xs font-medium text-neutral-600">
+                                — <span x-text="'disponible : ' + stockRemainingForProduct(pendingProduct.id)"></span>
+                            </span>
+                            <button type="button" class="ml-2 text-xs font-semibold text-primary hover:underline" @click="clearPick()">Changer</button>
+                        </div>
+
+                        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+                            <div class="w-full sm:w-28">
+                                <label for="sale-add-qty" class="mb-1.5 block text-xs font-semibold text-neutral-700">Quantité</label>
+                                <input
+                                    id="sale-add-qty"
+                                    type="number"
+                                    min="1"
+                                    x-model.number="addQuantity"
+                                    class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                class="inline-flex w-full shrink-0 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
+                                @click="addLine()"
+                            >
+                                Ajouter
+                            </button>
+                        </div>
+
+                        <p x-show="addLineError" x-text="addLineError" class="text-sm font-medium text-red-600" x-cloak></p>
                     </div>
 
-                    <div class="space-y-4">
-                        <template x-for="(row, index) in rows" :key="index">
-                            <div class="rounded-xl border border-neutral-200 bg-neutral-50/40 p-4 shadow-sm ring-1 ring-neutral-100">
-                                <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-neutral-400" x-text="'Ligne ' + (index + 1)"></p>
-                                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-12 xl:gap-x-3 xl:gap-y-0">
-                                    <div class="sm:col-span-2 xl:col-span-2">
-                                        <label :for="'sale-line-' + index + '-department'" class="mb-1.5 block text-xs font-semibold text-neutral-700">Département</label>
-                                        <select
-                                            :id="'sale-line-' + index + '-department'"
-                                            x-model="row.department_id"
-                                            @change="row.product_id = ''"
-                                            class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
-                                        >
-                                            <option value="">Choisir…</option>
-                                            <template x-for="dept in catalog" :key="dept.id">
-                                                <option :value="String(dept.id)" x-text="dept.name"></option>
-                                            </template>
-                                        </select>
-                                        <p class="mt-1 text-[11px] text-neutral-500">Filtre les produits de la ligne.</p>
-                                    </div>
-                                    <div class="sm:col-span-2 xl:col-span-4">
-                                        <label :for="'sale-line-' + index + '-product'" class="mb-1.5 block text-xs font-semibold text-neutral-700">Produit</label>
-                                        <select
-                                            :id="'sale-line-' + index + '-product'"
-                                            :name="`items[${index}][product_id]`"
-                                            x-model="row.product_id"
-                                            class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary disabled:cursor-not-allowed disabled:bg-neutral-100 disabled:text-neutral-500"
-                                            x-bind:disabled="!row.department_id"
-                                            required
-                                        >
-                                            <option value="" x-text="row.department_id ? 'Choisir un produit…' : '— Choisir un département d’abord —'"></option>
-                                            <template x-for="p in productsForDept(row.department_id)" :key="p.id">
-                                                <option :value="String(p.id)" x-text="p.label"></option>
-                                            </template>
-                                        </select>
-                                    </div>
-                                    <div class="sm:col-span-2 xl:col-span-2">
-                                        <label :for="'sale-line-' + index + '-location'" class="mb-1.5 block text-xs font-semibold text-neutral-700">Emplacement</label>
-                                        <select
-                                            :id="'sale-line-' + index + '-location'"
-                                            :name="`items[${index}][location_id]`"
-                                            x-model="row.location_id"
-                                            class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
-                                            required
-                                        >
-                                            <option value="">Choisir un emplacement…</option>
-                                            @foreach ($locations as $loc)
-                                                <option value="{{ $loc->id }}">{{ $loc->name }}</option>
-                                            @endforeach
-                                        </select>
-                                    </div>
-                                    <div class="xl:col-span-2">
-                                        <label :for="'sale-line-' + index + '-qty'" class="mb-1.5 block text-xs font-semibold text-neutral-700">Quantité</label>
-                                        <input
-                                            :id="'sale-line-' + index + '-qty'"
-                                            :name="`items[${index}][quantity]`"
-                                            x-model="row.quantity"
-                                            type="number"
-                                            min="1"
-                                            class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
-                                            required
-                                        />
-                                    </div>
-                                    <div class="flex flex-col justify-end sm:col-span-2 xl:col-span-2">
-                                        <span class="mb-1.5 block text-xs font-semibold text-neutral-700 xl:sr-only">Retirer la ligne</span>
-                                        <button
-                                            type="button"
-                                            class="rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
-                                            @click="rows.splice(index, 1)"
-                                            x-show="rows.length > 1"
-                                        >
-                                            Retirer
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </template>
+                    <div class="mt-6 overflow-x-auto rounded-xl border border-neutral-200">
+                        <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                            <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                                <tr>
+                                    <th class="px-3 py-3">Produit</th>
+                                    <th class="px-3 py-3">Département</th>
+                                    <th class="px-3 py-3">Point de vente</th>
+                                    <th class="px-3 py-3 text-right">Qté</th>
+                                    <th class="px-3 py-3 text-right">Montant</th>
+                                    <th class="px-3 py-3 text-right w-24"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-neutral-100">
+                                <template x-for="(row, index) in rows" :key="row._key">
+                                    <tr class="bg-white">
+                                        <td class="px-3 py-3 font-medium text-neutral-900" x-text="rowProductLabel(row)"></td>
+                                        <td class="px-3 py-3 text-neutral-600" x-text="rowDepartmentName(row)"></td>
+                                        <td class="px-3 py-3 text-neutral-600" x-text="posName"></td>
+                                        <td class="px-3 py-3 text-right tabular-nums" x-text="row.quantity"></td>
+                                        <td class="px-3 py-3 text-right tabular-nums font-medium text-neutral-900" x-text="formatUsd(lineAmount(row))"></td>
+                                        <td class="px-3 py-3 text-right">
+                                            <button
+                                                type="button"
+                                                class="text-xs font-semibold text-red-600 hover:text-red-800"
+                                                @click="removeRow(index)"
+                                            >
+                                                Retirer
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        <p x-show="rows.length === 0" class="px-4 py-8 text-center text-sm text-neutral-500" x-cloak>Aucune ligne — recherchez un produit et cliquez sur <strong>Ajouter</strong>.</p>
                     </div>
+
+                    <template x-for="(row, index) in rows" :key="'hid-' + row._key">
+                        <div class="hidden" aria-hidden="true">
+                            <input type="hidden" :name="`items[${index}][department_id]`" :value="row.department_id" />
+                            <input type="hidden" :name="`items[${index}][product_id]`" :value="row.product_id" />
+                            <input type="hidden" :name="`items[${index}][quantity]`" :value="row.quantity" />
+                        </div>
+                    </template>
+
                     <x-input-error :messages="$errors->get('items')" class="mt-2" />
                 </div>
 
@@ -203,7 +367,6 @@
                             <span class="tabular-nums font-semibold text-neutral-900" x-text="formatUsd(subtotalAmount())"></span>
                         </div>
                         <div class="flex items-start gap-3 border-t border-neutral-200/80 pt-3">
-                            <input type="hidden" name="apply_sale_discount" value="0" />
                             <input
                                 id="apply_sale_discount"
                                 type="checkbox"
@@ -258,7 +421,8 @@
 
                         <div>
                             <p class="text-xs text-neutral-500">
-                                Au comptant, ces champs sont optionnels. En crédit, le nom du client est obligatoire.
+                                <strong>Cash :</strong> nom et téléphone optionnels, enregistrés sur la vente (sans fiche client).
+                                <strong>Crédit :</strong> nom obligatoire, client lié au module clients pour le suivi des dettes.
                             </p>
                             <div class="mt-4 space-y-4">
                                 <div>
@@ -318,8 +482,13 @@
                 </div>
 
                 <div class="flex flex-col-reverse gap-3 border-t border-neutral-100 pt-2 sm:flex-row sm:justify-end">
-                    <a href="{{ route('sales-sessions.show', $salesSession) }}" class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
-                    <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2" @if (count($saleCatalog) === 0) disabled @endif>
+                    <a href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}" class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
+                    <button
+                        type="submit"
+                        class="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                        x-bind:disabled="rows.length === 0"
+                        @if (count($saleCatalog) === 0 || ($saleCatalog[0]['products'] ?? []) === []) disabled @endif
+                    >
                         Valider la vente
                     </button>
                 </div>
@@ -327,25 +496,26 @@
         </section>
 
         <aside class="h-fit rounded-2xl border border-neutral-200 bg-gradient-to-b from-white to-neutral-50 p-6 shadow-sm">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Session active</h2>
+            <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Contexte</h2>
             <div class="mt-4 space-y-3">
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
                     <p class="text-xs text-neutral-500">Branche</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $salesSession->branch->name }}</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $branch->name }}</p>
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Session</p>
-                    <p class="mt-1 font-semibold text-neutral-900">#{{ $salesSession->id }}</p>
+                    <p class="text-xs text-neutral-500">Point de vente</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $pointOfSale->name }}</p>
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Produits disponibles</p>
+                    <p class="text-xs text-neutral-500">Département</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $department->name }}</p>
+                </div>
+                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                    <p class="text-xs text-neutral-500">Produits (ce département)</p>
                     <p class="mt-1 font-semibold text-neutral-900">{{ $productsCount }}</p>
-                </div>
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Emplacements</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $locations->count() }}</p>
                 </div>
             </div>
         </aside>
-    </div>
+        </div>
+    </x-caisse-flow>
 </x-app-layout>

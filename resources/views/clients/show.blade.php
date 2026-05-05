@@ -6,7 +6,7 @@
             <h1 class="text-2xl font-semibold text-neutral-900">{{ $client->name }}</h1>
             <p class="mt-1 text-sm text-neutral-600">Suivi des ventes à crédit et paiements par échéances.</p>
         </div>
-        <a href="{{ route('sales-sessions.index') }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Retour aux sessions</a>
+        <a href="{{ route('sales.overview') }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Liste des ventes</a>
     </div>
 
     <div class="mb-6 grid gap-4 sm:grid-cols-3">
@@ -53,7 +53,7 @@
                 <thead class="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
                     <tr>
                         <th class="py-3 pr-4">Date</th>
-                        <th class="py-3 pr-4">Session</th>
+                        <th class="py-3 pr-4">Vente</th>
                         <th class="py-3 pr-4">Produit</th>
                         <th class="py-3 pr-4 text-right">Qté</th>
                         <th class="py-3 text-right">Montant</th>
@@ -64,7 +64,11 @@
                         <tr>
                             <td class="py-3 pr-4 text-neutral-600">{{ $sale->created_at->translatedFormat('d/m/Y H:i') }}</td>
                             <td class="py-3 pr-4">
-                                <a class="text-primary hover:underline" href="{{ route('sales-sessions.show', $sale->salesSession) }}">#{{ $sale->salesSession->id }}</a>
+                                @if ($sale->sale)
+                                    <a class="text-primary hover:underline" href="{{ route('sales.show', [$sale->branch, $sale->sale]) }}">{{ $sale->sale->reference }}</a>
+                                @else
+                                    —
+                                @endif
                             </td>
                             <td class="py-3 pr-4 text-neutral-700">{{ $sale->product->name }}</td>
                             <td class="py-3 pr-4 text-right tabular-nums">{{ $sale->quantity }}</td>

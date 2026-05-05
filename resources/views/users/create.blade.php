@@ -11,6 +11,11 @@
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
         <div>
+            <x-input-label for="username" value="Nom d'utilisateur" />
+            <x-text-input id="username" name="username" type="text" class="mt-1 block w-full" :value="old('username')" required />
+            <x-input-error :messages="$errors->get('username')" class="mt-2" />
+        </div>
+        <div>
             <x-input-label for="email" value="E-mail" />
             <x-text-input id="email" name="email" type="email" class="mt-1 block w-full" :value="old('email')" required />
             <x-input-error :messages="$errors->get('email')" class="mt-2" />
@@ -24,12 +29,16 @@
             <x-input-label for="password_confirmation" value="Confirmation du mot de passe" />
             <x-text-input id="password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" required autocomplete="new-password" />
         </div>
-        <div class="flex items-center gap-2">
-            <input id="is_admin" name="is_admin" type="checkbox" value="1" class="rounded border-neutral-300 text-primary shadow-sm focus:ring-primary" @checked(old('is_admin'))>
-            <x-input-label for="is_admin" value="Administrateur (gestion des utilisateurs)" class="!mb-0" />
+        <div>
+            <x-input-label for="role" value="Rôle" />
+            <select id="role" name="role" class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required>
+                @foreach (\App\Enums\UserRole::cases() as $r)
+                    <option value="{{ $r->value }}" @selected(old('role', \App\Enums\UserRole::User->value) === $r->value)>{{ $r->label() }}</option>
+                @endforeach
+            </select>
+            <p class="mt-1 text-xs text-neutral-500">Les administrateurs et comptables ne sont pas rattachés à une branche. Les utilisateurs boutique et les caissiers (terminal) doivent avoir une branche ; les caissiers sont ensuite affectés à un terminal POS depuis la fiche branche.</p>
+            <x-input-error :messages="$errors->get('role')" class="mt-2" />
         </div>
-        <p class="text-xs text-neutral-500">Les administrateurs voient toutes les branches et ne sont rattachés à aucune branche.</p>
-        <x-input-error :messages="$errors->get('is_admin')" class="mt-2" />
         <div id="branch-field" class="space-y-1">
             <x-input-label for="branch_id" value="Branche" />
             <select id="branch_id" name="branch_id" class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
@@ -47,17 +56,19 @@
     </form>
     <script>
         (function () {
-            var admin = document.getElementById('is_admin');
+            var roleSelect = document.getElementById('role');
             var branchWrap = document.getElementById('branch-field');
             var branchSelect = document.getElementById('branch_id');
-            if (!admin || !branchWrap || !branchSelect) return;
+            if (!roleSelect || !branchWrap || !branchSelect) return;
             function sync() {
-                var on = admin.checked;
-                branchWrap.classList.toggle('hidden', on);
-                branchSelect.disabled = on;
-                if (on) branchSelect.value = '';
+                var v = roleSelect.value;
+                var noBranch = v === 'admin' || v === 'accountant';
+                branchWrap.classList.toggle('hidden', noBranch);
+                branchSelect.disabled = noBranch;
+                branchSelect.required = (v === 'user' || v === 'pos_user');
+                if (noBranch) branchSelect.value = '';
             }
-            admin.addEventListener('change', sync);
+            roleSelect.addEventListener('change', sync);
             sync();
         })();
     </script>

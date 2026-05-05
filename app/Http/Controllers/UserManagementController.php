@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -28,26 +29,29 @@ class UserManagementController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $isAdmin = $request->boolean('is_admin');
-
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'is_admin' => ['sometimes', 'boolean'],
+            'role' => ['required', Rule::enum(UserRole::class)],
             'branch_id' => [
-                Rule::requiredIf(! $isAdmin),
+                Rule::requiredIf(fn () => in_array($request->input('role'), [UserRole::User->value, UserRole::PosUser->value], true)),
                 'nullable',
                 'exists:branches,id',
             ],
         ]);
 
+        /** @var UserRole $role */
+        $role = $data['role'] instanceof UserRole ? $data['role'] : UserRole::from((string) $data['role']);
+
         User::create([
             'name' => $data['name'],
+            'username' => $data['username'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'is_admin' => $isAdmin,
-            'branch_id' => $isAdmin ? null : $data['branch_id'],
+            'role' => $role,
+            'branch_id' => ($role === UserRole::Admin || $role === UserRole::Accountant) ? null : ($data['branch_id'] ?? null),
         ]);
 
         return redirect()->route('users.index')->with('success', 'Utilisateur créé.');
@@ -62,38 +66,55 @@ class UserManagementController extends Controller
 
     public function update(Request $request, User $user): RedirectResponse
     {
-        $willBeAdmin = $request->boolean('is_admin');
-
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:255', Rule::unique('users', 'username')->ignore($user->id)],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'is_admin' => ['sometimes', 'boolean'],
+            'role' => ['required', Rule::enum(UserRole::class)],
             'branch_id' => [
-                Rule::requiredIf(! $willBeAdmin),
+                Rule::requiredIf(fn () => in_array($request->input('role'), [UserRole::User->value, UserRole::PosUser->value], true)),
                 'nullable',
                 'exists:branches,id',
             ],
         ]);
 
+        /** @var UserRole $newRole */
+        $newRole = $data['role'] instanceof UserRole ? $data['role'] : UserRole::from((string) $data['role']);
+
+        if ($user->isAdmin() && $newRole !== UserRole::Admin) {
+            $otherAdmins = User::query()->where('role', UserRole::Admin)->where('id', '!=', $user->id)->exists();
+            if (! $otherAdmins) {
+                return back()->withInput()->withErrors([
+                    'role' => 'Au moins un administrateur doit rester actif.',
+                ]);
+            }
+        }
+
         $user->name = $data['name'];
+        $user->username = $data['username'];
         $user->email = $data['email'];
 
         if (! empty($data['password'])) {
             $user->password = Hash::make($data['password']);
         }
 
-        if (! $willBeAdmin && $user->is_admin) {
-            $otherAdmins = User::query()->where('is_admin', true)->where('id', '!=', $user->id)->exists();
-            if (! $otherAdmins) {
-                return back()->withInput()->withErrors([
-                    'is_admin' => 'Au moins un administrateur doit rester actif.',
-                ]);
-            }
+        $prevBranchId = $user->branch_id;
+        $wasPosUser = $user->isPosUser();
+
+        $user->role = $newRole;
+        $newBranchId = ($newRole === UserRole::Admin || $newRole === UserRole::Accountant) ? null : ($data['branch_id'] ?? null);
+
+        if ($wasPosUser && $newRole !== UserRole::PosUser) {
+            $user->posTerminals()->detach();
         }
 
-        $user->is_admin = $willBeAdmin;
-        $user->branch_id = $willBeAdmin ? null : $data['branch_id'];
+        $user->branch_id = $newBranchId;
+
+        if ($newRole === UserRole::PosUser && (int) ($prevBranchId ?? 0) !== (int) ($newBranchId ?? 0)) {
+            $user->posTerminals()->detach();
+        }
+
         $user->save();
 
         return redirect()->route('users.index')->with('success', 'Utilisateur mis à jour.');
@@ -107,8 +128,8 @@ class UserManagementController extends Controller
             ]);
         }
 
-        if ($user->is_admin) {
-            $otherAdmins = User::query()->where('is_admin', true)->where('id', '!=', $user->id)->exists();
+        if ($user->isAdmin()) {
+            $otherAdmins = User::query()->where('role', UserRole::Admin)->where('id', '!=', $user->id)->exists();
             if (! $otherAdmins) {
                 return redirect()->route('users.index')->withErrors([
                     'user' => 'Impossible de supprimer le dernier administrateur.',

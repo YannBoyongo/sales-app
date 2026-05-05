@@ -48,22 +48,9 @@ return new class extends Migration
             $table->unique(['product_id', 'location_id']);
         });
 
-        Schema::create('sales_sessions', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('opened_by')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('closed_by')->nullable()->constrained('users')->nullOnDelete();
-            $table->string('status', 20)->default('open');
-            $table->timestamp('opened_at');
-            $table->timestamp('closed_at')->nullable();
-            $table->decimal('closure_total_amount', 14, 2)->nullable();
-            $table->string('closure_bank_reference')->nullable();
-            $table->timestamps();
-        });
-
         Schema::create('sale_items', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('sales_session_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('branch_id')->constrained()->cascadeOnDelete();
             $table->foreignId('location_id')->constrained()->cascadeOnDelete();
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
@@ -81,7 +68,6 @@ return new class extends Migration
             $table->foreignId('from_location_id')->nullable()->constrained('locations')->nullOnDelete();
             $table->foreignId('to_location_id')->nullable()->constrained('locations')->nullOnDelete();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('sales_session_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('sale_item_id')->nullable()->constrained()->nullOnDelete();
             $table->string('notes')->nullable();
             $table->timestamps();
@@ -92,7 +78,6 @@ return new class extends Migration
     {
         Schema::dropIfExists('stock_movements');
         Schema::dropIfExists('sale_items');
-        Schema::dropIfExists('sales_sessions');
         Schema::dropIfExists('stocks');
         Schema::dropIfExists('products');
         Schema::dropIfExists('departments');

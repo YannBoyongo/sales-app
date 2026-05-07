@@ -65,7 +65,7 @@
                 method="POST"
                 class="space-y-6"
                 x-data="{
-                    paymentType: @js(old('payment_type', 'cash')),
+                    customerType: @js(old('customer_type', 'walkin')),
                     catalog: @js($saleCatalog),
                     rows: @js($saleLineRows),
                     posName: @js($pointOfSale->name),
@@ -86,6 +86,7 @@
                     ])->values()),
                     clientPanelOpen: false,
                     isAdmin: @js(auth()->user()->isAdmin()),
+                    amountPaid: @js(old('amount_paid', '0')),
                     allProductsFlat() {
                         const list = [];
                         for (const dept of this.catalog) {
@@ -169,6 +170,13 @@
                         if (this.isAdmin) return this.grandTotal();
                         return this.subtotalAmount();
                     },
+                    totalPaidNumber() {
+                        const v = parseFloat(String(this.amountPaid).replace(',', '.'));
+                        return Number.isFinite(v) && v > 0 ? v : 0;
+                    },
+                    dealerBalance() {
+                        return Math.max(0, Math.round((this.displayTotalAmount() - this.totalPaidNumber()) * 100) / 100);
+                    },
                     formatUsd(n) {
                         return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     },
@@ -217,7 +225,7 @@
                         this.rows.splice(index, 1);
                     },
                     get filteredClients() {
-                        if (this.paymentType !== 'credit') return [];
+                        if (this.customerType !== 'dealer') return [];
                         const term = String(this.clientName || '').trim().toLowerCase();
                         if (!term) return this.clients.slice(0, 8);
                         return this.clients.filter(c => String(c.name || '').toLowerCase().includes(term)).slice(0, 8);
@@ -411,41 +419,47 @@
                     <h2 class="text-base font-semibold text-neutral-900">Paiement</h2>
                     <div class="mt-4 space-y-4">
                         <div>
-                            <x-input-label for="payment_type" value="Mode de paiement" class="text-sm font-semibold text-neutral-800" />
-                            <select id="payment_type" name="payment_type" x-model="paymentType" class="mt-2 block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary" required>
-                                <option value="cash" @selected(old('payment_type', 'cash') === 'cash')>Cash</option>
-                                <option value="credit" @selected(old('payment_type') === 'credit')>Crédit</option>
-                            </select>
-                            <x-input-error :messages="$errors->get('payment_type')" class="mt-2" />
+                            <x-input-label value="Type de client" class="text-sm font-semibold text-neutral-800" />
+                            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                                <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
+                                    <input type="radio" name="customer_type" value="walkin" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
+                                    Client walk-in
+                                </label>
+                                <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
+                                    <input type="radio" name="customer_type" value="dealer" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
+                                    Dealer
+                                </label>
+                            </div>
+                            <x-input-error :messages="$errors->get('customer_type')" class="mt-2" />
                         </div>
 
                         <div>
                             <p class="text-xs text-neutral-500">
-                                <strong>Cash :</strong> nom et téléphone optionnels, enregistrés sur la vente (sans fiche client).
-                                <strong>Crédit :</strong> nom obligatoire, client lié au module clients pour le suivi des dettes.
+                                <strong>Walk-in :</strong> vente au comptant sans dette client.
+                                <strong>Dealer :</strong> le solde impayé devient la dette du client.
                             </p>
                             <div class="mt-4 space-y-4">
-                                <div>
-                                    <x-input-label for="client_name" value="Nom du client" class="text-sm font-semibold text-neutral-800" />
+                                <div x-show="customerType === 'dealer'" x-cloak>
+                                    <x-input-label for="client_name" value="Nom du dealer" class="text-sm font-semibold text-neutral-800" />
                                     <div class="relative mt-2">
                                         <input
                                             id="client_name"
                                             name="client_name"
                                             type="text"
                                             x-model="clientName"
-                                            x-bind:required="paymentType === 'credit'"
-                                            x-on:focus="if (paymentType === 'credit') clientPanelOpen = true"
-                                            x-on:input="if (paymentType === 'credit') clientPanelOpen = true"
+                                            x-bind:required="customerType === 'dealer'"
+                                            x-on:focus="if (customerType === 'dealer') clientPanelOpen = true"
+                                            x-on:input="if (customerType === 'dealer') clientPanelOpen = true"
                                             x-on:keydown.escape="clientPanelOpen = false"
                                             x-on:click.outside="clientPanelOpen = false"
-                                            placeholder="Ex. Jean Dupont (laisser vide au comptant si inconnu)"
+                                            placeholder="Ex. Jean Dupont"
                                             class="block w-full rounded-xl border-neutral-200 pr-10 shadow-sm focus:border-primary focus:ring-primary"
                                         />
-                                        <button type="button" class="absolute inset-y-0 right-3 my-auto text-neutral-500" x-show="paymentType === 'credit'" x-on:click="clientPanelOpen = !clientPanelOpen" aria-label="Afficher les suggestions">
+                                        <button type="button" class="absolute inset-y-0 right-3 my-auto text-neutral-500" x-show="customerType === 'dealer'" x-on:click="clientPanelOpen = !clientPanelOpen" aria-label="Afficher les suggestions">
                                             ▼
                                         </button>
                                         <div
-                                            x-show="paymentType === 'credit' && clientPanelOpen && filteredClients.length"
+                                            x-show="customerType === 'dealer' && clientPanelOpen && filteredClients.length"
                                             x-cloak
                                             class="absolute z-20 mt-2 max-h-56 w-full overflow-auto rounded-xl border border-neutral-200 bg-white p-1 shadow-lg"
                                         >
@@ -459,10 +473,10 @@
                                             </template>
                                         </div>
                                     </div>
-                                    <p class="mt-2 text-xs text-neutral-500" x-show="paymentType === 'credit'" x-cloak>Suggestions à partir des clients déjà enregistrés.</p>
+                                    <p class="mt-2 text-xs text-neutral-500" x-show="customerType === 'dealer'" x-cloak>Suggestions à partir des clients déjà enregistrés.</p>
                                     <x-input-error :messages="$errors->get('client_name')" class="mt-2" />
                                 </div>
-                                <div>
+                                <div x-show="customerType === 'dealer'" x-cloak>
                                     <x-input-label for="client_phone" value="Téléphone" class="text-sm font-semibold text-neutral-800" />
                                     <input
                                         id="client_phone"
@@ -475,6 +489,33 @@
                                         class="mt-2 block w-full rounded-xl border-neutral-200 shadow-sm focus:border-primary focus:ring-primary"
                                     />
                                     <x-input-error :messages="$errors->get('client_phone')" class="mt-2" />
+                                </div>
+                                <div x-show="customerType === 'dealer'" x-cloak class="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <x-input-label for="amount_paid" value="Total payé" class="text-sm font-semibold text-neutral-800" />
+                                        <input
+                                            id="amount_paid"
+                                            name="amount_paid"
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            x-model="amountPaid"
+                                            class="mt-2 block w-full rounded-xl border-neutral-200 shadow-sm focus:border-primary focus:ring-primary"
+                                        />
+                                        <x-input-error :messages="$errors->get('amount_paid')" class="mt-2" />
+                                    </div>
+                                    <div>
+                                        <x-input-label for="balance" value="Solde (dette)" class="text-sm font-semibold text-neutral-800" />
+                                        <input
+                                            id="balance"
+                                            name="balance"
+                                            type="text"
+                                            :value="dealerBalance().toFixed(2)"
+                                            readonly
+                                            class="mt-2 block w-full rounded-xl border-neutral-200 bg-neutral-50 shadow-sm"
+                                        />
+                                        <x-input-error :messages="$errors->get('balance')" class="mt-2" />
+                                    </div>
                                 </div>
                             </div>
                         </div>

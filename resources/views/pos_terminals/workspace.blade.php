@@ -99,8 +99,10 @@
                                             <th class="px-4 py-3 whitespace-nowrap">Date</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Référence</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Caissier</th>
-                                            <th class="px-4 py-3 whitespace-nowrap">Paiement</th>
-                                            <th class="px-4 py-3 text-right whitespace-nowrap">Total</th>
+                                            <th class="px-4 py-3 whitespace-nowrap">Statut paiement</th>
+                                            <th class="px-4 py-3 text-right whitespace-nowrap">A payer</th>
+                                            <th class="px-4 py-3 text-right whitespace-nowrap">Payé</th>
+                                            <th class="px-4 py-3 text-right whitespace-nowrap">Reste</th>
                                             <th class="px-4 py-3 text-right whitespace-nowrap"><span class="sr-only">Actions</span></th>
                                         </tr>
                                     </thead>
@@ -110,17 +112,22 @@
                                                 'transition-colors hover:bg-neutral-50/80' => ! $sale->isPendingDiscount(),
                                                 'bg-amber-50/90 hover:bg-amber-100/80' => $sale->isPendingDiscount(),
                                             ])>
-                                                <td class="px-4 py-3.5 text-neutral-600 whitespace-nowrap">{{ $sale->sold_at->translatedFormat('d/m/Y H:i') }}</td>
+                                                <td class="px-4 py-3.5 text-neutral-600 whitespace-nowrap">{{ $sale->sold_at->translatedFormat('d/m/Y') }}</td>
                                                 <td class="px-4 py-3.5 font-mono text-sm text-neutral-800">{{ $sale->reference }}</td>
                                                 <td class="px-4 py-3.5 text-neutral-700">{{ $sale->user?->name ?? '—' }}</td>
                                                 <td class="px-4 py-3.5">
-                                                    @if ($sale->payment_type === 'credit')
-                                                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">Crédit</span>
+                                                    @php($effectiveStatus = $sale->effectivePaymentStatus())
+                                                    @if ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
+                                                        <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-900">Non payé</span>
+                                                    @elseif ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_PARTIALLY_PAID)
+                                                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">Partiellement payé</span>
                                                     @else
-                                                        <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">Cash</span>
+                                                        <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">Entièrement payé</span>
                                                     @endif
                                                 </td>
-                                                <td class="px-4 py-3.5 text-right tabular-nums font-semibold text-neutral-900">{{ \App\Support\Money::usd($sale->total_amount) }}</td>
+                                                <td class="px-4 py-3.5 text-right tabular-nums font-semibold text-neutral-900">{{ \App\Support\Money::usd($sale->expectedPayableAmount()) }}</td>
+                                                <td class="px-4 py-3.5 text-right tabular-nums text-neutral-900">{{ \App\Support\Money::usd($sale->paidAmountValue()) }}</td>
+                                                <td class="px-4 py-3.5 text-right tabular-nums font-medium text-amber-800">{{ \App\Support\Money::usd($sale->remainingAmountValue()) }}</td>
                                                 <td class="px-4 py-3.5 text-right whitespace-nowrap">
                                                     <a
                                                         href="{{ route('sales.show', [$branch, $sale]) }}"
@@ -137,7 +144,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="px-4 py-14">
+                                                <td colspan="8" class="px-4 py-14">
                                                     <div class="flex flex-col items-center text-center">
                                                         <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-400">
                                                             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

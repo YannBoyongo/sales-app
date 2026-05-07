@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\UserRole;
 use App\Models\Branch;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,7 @@ class UserManagementController extends Controller
 {
     public function index(): View
     {
-        $users = User::query()->with('branch')->orderBy('name')->paginate(20);
+        $users = User::query()->with(['branch', 'roles'])->orderBy('name')->paginate(20);
 
         return view('users.index', compact('users'));
     }
@@ -34,25 +35,36 @@ class UserManagementController extends Controller
             'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', Rule::enum(UserRole::class)],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['required', Rule::enum(UserRole::class)],
             'branch_id' => [
-                Rule::requiredIf(fn () => in_array($request->input('role'), [UserRole::User->value, UserRole::PosUser->value], true)),
+                Rule::requiredIf(function () use ($request) {
+                    $selected = array_map('strval', (array) $request->input('roles', []));
+                    return ! in_array(UserRole::Admin->value, $selected, true)
+                        && ! in_array(UserRole::Accountant->value, $selected, true);
+                }),
                 'nullable',
                 'exists:branches,id',
             ],
         ]);
 
-        /** @var UserRole $role */
-        $role = $data['role'] instanceof UserRole ? $data['role'] : UserRole::from((string) $data['role']);
+        $roleSlugs = collect((array) ($data['roles'] ?? []))
+            ->map(fn ($role) => $role instanceof UserRole ? $role->value : (string) $role)
+            ->values()
+            ->all();
 
-        User::create([
+        $primaryRole = $this->primaryRoleSlug($roleSlugs);
+        $branchId = $this->resolveBranchIdForRoles($roleSlugs, $data['branch_id'] ?? null);
+
+        $user = User::create([
             'name' => $data['name'],
             'username' => $data['username'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
-            'role' => $role,
-            'branch_id' => ($role === UserRole::Admin || $role === UserRole::Accountant) ? null : ($data['branch_id'] ?? null),
+            'role' => $primaryRole,
+            'branch_id' => $branchId,
         ]);
+        $user->roles()->sync($this->roleIdsFromSlugs($roleSlugs));
 
         return redirect()->route('users.index')->with('success', 'Utilisateur créé.');
     }
@@ -71,22 +83,32 @@ class UserManagementController extends Controller
             'username' => ['required', 'string', 'max:255', Rule::unique('users', 'username')->ignore($user->id)],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
-            'role' => ['required', Rule::enum(UserRole::class)],
+            'roles' => ['required', 'array', 'min:1'],
+            'roles.*' => ['required', Rule::enum(UserRole::class)],
             'branch_id' => [
-                Rule::requiredIf(fn () => in_array($request->input('role'), [UserRole::User->value, UserRole::PosUser->value], true)),
+                Rule::requiredIf(function () use ($request) {
+                    $selected = array_map('strval', (array) $request->input('roles', []));
+                    return ! in_array(UserRole::Admin->value, $selected, true)
+                        && ! in_array(UserRole::Accountant->value, $selected, true);
+                }),
                 'nullable',
                 'exists:branches,id',
             ],
         ]);
 
-        /** @var UserRole $newRole */
-        $newRole = $data['role'] instanceof UserRole ? $data['role'] : UserRole::from((string) $data['role']);
+        $newRoleSlugs = collect((array) ($data['roles'] ?? []))
+            ->map(fn ($role) => $role instanceof UserRole ? $role->value : (string) $role)
+            ->values()
+            ->all();
 
-        if ($user->isAdmin() && $newRole !== UserRole::Admin) {
-            $otherAdmins = User::query()->where('role', UserRole::Admin)->where('id', '!=', $user->id)->exists();
+        if ($user->isAdmin() && ! in_array(UserRole::Admin->value, $newRoleSlugs, true)) {
+            $otherAdmins = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::Admin->value))
+                ->exists();
             if (! $otherAdmins) {
                 return back()->withInput()->withErrors([
-                    'role' => 'Au moins un administrateur doit rester actif.',
+                    'roles' => 'Au moins un administrateur doit rester actif.',
                 ]);
             }
         }
@@ -100,22 +122,26 @@ class UserManagementController extends Controller
         }
 
         $prevBranchId = $user->branch_id;
-        $wasPosUser = $user->isPosUser();
+        $wasPosOrCashier = $user->isPosUser() || $user->isCashier();
 
-        $user->role = $newRole;
-        $newBranchId = ($newRole === UserRole::Admin || $newRole === UserRole::Accountant) ? null : ($data['branch_id'] ?? null);
+        $newBranchId = $this->resolveBranchIdForRoles($newRoleSlugs, $data['branch_id'] ?? null);
+        $newHasPosOrCashier = in_array(UserRole::PosUser->value, $newRoleSlugs, true)
+            || in_array(UserRole::Cashier->value, $newRoleSlugs, true);
 
-        if ($wasPosUser && $newRole !== UserRole::PosUser) {
+        $user->role = $this->primaryRoleSlug($newRoleSlugs);
+
+        if ($wasPosOrCashier && ! $newHasPosOrCashier) {
             $user->posTerminals()->detach();
         }
 
         $user->branch_id = $newBranchId;
 
-        if ($newRole === UserRole::PosUser && (int) ($prevBranchId ?? 0) !== (int) ($newBranchId ?? 0)) {
+        if ($newHasPosOrCashier && (int) ($prevBranchId ?? 0) !== (int) ($newBranchId ?? 0)) {
             $user->posTerminals()->detach();
         }
 
         $user->save();
+        $user->roles()->sync($this->roleIdsFromSlugs($newRoleSlugs));
 
         return redirect()->route('users.index')->with('success', 'Utilisateur mis à jour.');
     }
@@ -129,7 +155,10 @@ class UserManagementController extends Controller
         }
 
         if ($user->isAdmin()) {
-            $otherAdmins = User::query()->where('role', UserRole::Admin)->where('id', '!=', $user->id)->exists();
+            $otherAdmins = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::Admin->value))
+                ->exists();
             if (! $otherAdmins) {
                 return redirect()->route('users.index')->withErrors([
                     'user' => 'Impossible de supprimer le dernier administrateur.',
@@ -140,5 +169,53 @@ class UserManagementController extends Controller
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'Utilisateur supprimé.');
+    }
+
+    /**
+     * @param list<string> $roleSlugs
+     */
+    private function primaryRoleSlug(array $roleSlugs): string
+    {
+        $priority = [
+            UserRole::Admin->value,
+            UserRole::Accountant->value,
+            UserRole::Manager->value,
+            UserRole::Cashier->value,
+            UserRole::PosUser->value,
+        ];
+
+        foreach ($priority as $slug) {
+            if (in_array($slug, $roleSlugs, true)) {
+                return $slug;
+            }
+        }
+
+        return UserRole::Manager->value;
+    }
+
+    /**
+     * @param list<string> $roleSlugs
+     */
+    private function resolveBranchIdForRoles(array $roleSlugs, mixed $branchId): ?int
+    {
+        if (in_array(UserRole::Admin->value, $roleSlugs, true) || in_array(UserRole::Accountant->value, $roleSlugs, true)) {
+            return null;
+        }
+
+        return $branchId !== null && $branchId !== '' ? (int) $branchId : null;
+    }
+
+    /**
+     * @param list<string> $roleSlugs
+     * @return list<int>
+     */
+    private function roleIdsFromSlugs(array $roleSlugs): array
+    {
+        return Role::query()
+            ->whereIn('slug', $roleSlugs)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
 }

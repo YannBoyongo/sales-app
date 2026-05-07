@@ -31,9 +31,11 @@
                     <th class="px-3 py-3 whitespace-nowrap">Branche</th>
                     <th class="px-3 py-3 whitespace-nowrap">Référence</th>
                     <th class="px-3 py-3 whitespace-nowrap">Utilisateur</th>
-                    <th class="px-3 py-3 whitespace-nowrap">Paiement</th>
+                    <th class="px-3 py-3 whitespace-nowrap">Statut paiement</th>
                     <th class="px-3 py-3 whitespace-nowrap">Remise</th>
-                    <th class="px-3 py-3 text-right whitespace-nowrap">Total</th>
+                    <th class="px-3 py-3 text-right whitespace-nowrap">A payer</th>
+                    <th class="px-3 py-3 text-right whitespace-nowrap">Payé</th>
+                    <th class="px-3 py-3 text-right whitespace-nowrap">Reste</th>
                     <th class="px-3 py-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
             </thead>
@@ -48,10 +50,13 @@
                         <td class="px-3 py-3 font-mono text-neutral-800">{{ $sale->reference }}</td>
                         <td class="px-3 py-3 text-neutral-700">{{ $sale->user?->name ?? '—' }}</td>
                         <td class="px-3 py-3">
-                            @if ($sale->payment_type === 'credit')
-                                <span class="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Crédit</span>
+                            @php($effectiveStatus = $sale->effectivePaymentStatus())
+                            @if ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
+                                <span class="rounded bg-red-100 px-2 py-0.5 text-xs font-medium text-red-900">Non payé</span>
+                            @elseif ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_PARTIALLY_PAID)
+                                <span class="rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Partiellement payé</span>
                             @else
-                                <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">Cash</span>
+                                <span class="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">Entièrement payé</span>
                             @endif
                         </td>
                         <td class="px-3 py-3">
@@ -63,7 +68,9 @@
                                 <span class="text-xs text-neutral-400">—</span>
                             @endif
                         </td>
-                        <td class="px-3 py-3 text-right tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($sale->total_amount) }}</td>
+                        <td class="px-3 py-3 text-right tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($sale->expectedPayableAmount()) }}</td>
+                        <td class="px-3 py-3 text-right tabular-nums text-neutral-900">{{ \App\Support\Money::usd($sale->paidAmountValue()) }}</td>
+                        <td class="px-3 py-3 text-right tabular-nums font-medium text-amber-800">{{ \App\Support\Money::usd($sale->remainingAmountValue()) }}</td>
                         <td class="px-3 py-3 text-right whitespace-nowrap">
                             <div class="inline-flex items-center justify-end gap-0.5">
                                 <a
@@ -113,7 +120,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-3 py-10 text-center text-neutral-500">Aucune vente enregistrée.</td>
+                        <td colspan="10" class="px-3 py-10 text-center text-neutral-500">Aucune vente enregistrée.</td>
                     </tr>
                 @endforelse
             </tbody>

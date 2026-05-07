@@ -135,7 +135,18 @@
     @endif
     <div class="line"></div>
     <div class="row"><span>TOTAL</span><span>{{ \App\Support\Money::usd($sale->total_amount) }}</span></div>
-    <div class="row small"><span>Paiement</span><span>{{ $sale->payment_type === 'credit' ? 'Crédit' : 'Cash' }}</span></div>
+    <div class="row small">
+        <span>Statut paiement</span>
+        <span>
+            @if ($sale->payment_status === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
+                Non payé
+            @elseif ($sale->payment_status === \App\Models\Sale::PAYMENT_STATUS_PARTIALLY_PAID)
+                Partiellement payé
+            @else
+                Entièrement payé
+            @endif
+        </span>
+    </div>
     <div class="row small"><span>Client</span><span>{{ $sale->displayClientName() ?? '—' }}</span></div>
     <div class="row small"><span>Tél.</span><span>{{ $sale->displayClientPhone() ?? '—' }}</span></div>
 

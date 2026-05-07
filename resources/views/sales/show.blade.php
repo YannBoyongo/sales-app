@@ -1,5 +1,14 @@
 <x-app-layout>
     <x-slot name="header">Vente {{ $sale->reference }}</x-slot>
+    @php
+        $effectiveStatus = $sale->effectivePaymentStatus();
+        $expectedAmount = $sale->expectedPayableAmount();
+        $paidAmount = $sale->paidAmountValue();
+        $remainingAmount = $sale->remainingAmountValue();
+        $backToSalesListUrl = $sale->posShift && $sale->posShift->posTerminal
+            ? route('pos-terminal.workspace', [$branch, $sale->posShift->posTerminal])
+            : route('sales.overview');
+    @endphp
 
     <div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -12,7 +21,21 @@
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('sales.print-large', [$branch, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer facture A4</a>
             <a href="{{ route('sales.print-small', [$branch, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer ticket POS</a>
-            <a href="{{ route('sales.overview') }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Liste des ventes</a>
+            @if (auth()->user()?->isAdmin())
+                <form
+                    action="{{ route('sales.destroy', [$branch, $sale]) }}"
+                    method="POST"
+                    class="inline-flex"
+                    onsubmit="return confirm('Supprimer définitivement cette vente ? Le stock sera réintégré sur les emplacements concernés.');"
+                >
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">
+                        Supprimer la vente
+                    </button>
+                </form>
+            @endif
+            <a href="{{ $backToSalesListUrl }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Liste des ventes</a>
         </div>
     </div>
 
@@ -84,16 +107,6 @@
         <aside class="h-fit rounded-2xl border border-neutral-200 bg-gradient-to-b from-white to-neutral-50 p-6 shadow-sm">
             <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Résumé</h2>
             <div class="mt-4 space-y-3">
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Paiement</p>
-                    <p class="mt-1">
-                        @if ($sale->payment_type === 'credit')
-                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Crédit</span>
-                        @else
-                            <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Cash</span>
-                        @endif
-                    </p>
-                </div>
                 @if ($sale->posShift && $sale->posShift->posTerminal)
                     <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
                         <p class="text-xs text-neutral-500">Session POS</p>
@@ -114,6 +127,24 @@
                     @endif
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-2 text-sm">
+                    <p class="text-xs text-neutral-500">Statut paiement</p>
+                    <p>
+                        @if ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
+                            <span class="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800">Non payé</span>
+                        @elseif ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_PARTIALLY_PAID)
+                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Partiellement payé</span>
+                        @else
+                            <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Entièrement payé</span>
+                        @endif
+                    </p>
+                    <div class="border-t border-neutral-100 pt-2">
+                        <p class="flex justify-between gap-2"><span class="text-neutral-600">Montant à payer</span><span class="tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($expectedAmount) }}</span></p>
+                        <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Montant payé</span><span class="tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($paidAmount) }}</span></p>
+                        <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Reste à payer</span><span class="tabular-nums font-semibold {{ (float) $remainingAmount > 0 ? 'text-amber-800' : 'text-emerald-700' }}">{{ \App\Support\Money::usd($remainingAmount) }}</span></p>
+                    </div>
+                </div>
+                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-2 text-sm">
+                    <p class="text-xs text-neutral-500">Détail facture</p>
                     <div class="flex justify-between gap-2">
                         <span class="text-neutral-600">Sous-total</span>
                         <span class="tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($sale->subtotal_amount ?? $sale->total_amount) }}</span>
@@ -132,13 +163,12 @@
                             <p class="text-[11px] text-neutral-500">Approuvée par {{ $sale->discountApprovedByUser->name }}@if ($sale->discount_approved_at) · {{ $sale->discount_approved_at->translatedFormat('d/m/Y H:i') }}@endif</p>
                         @endif
                     @endif
-                </div>
-                <div class="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-                    <p class="text-xs text-neutral-600">Total facture</p>
-                    <p class="mt-1 text-xl font-semibold tabular-nums text-primary">{{ \App\Support\Money::usd($sale->total_amount) }}</p>
-                    @if ($sale->isPendingDiscount())
-                        <p class="mt-2 text-xs text-neutral-600">Après approbation : {{ \App\Support\Money::usd(max(0, (float) ($sale->subtotal_amount ?? 0) - (float) ($sale->discount_requested_amount ?? 0))) }}</p>
-                    @endif
+                    <div class="mt-2 border-t border-neutral-100 pt-2">
+                        <p class="flex justify-between gap-2 font-semibold">
+                            <span class="text-neutral-700">Total facture</span>
+                            <span class="tabular-nums text-primary">{{ \App\Support\Money::usd($expectedAmount) }}</span>
+                        </p>
+                    </div>
                 </div>
             </div>
         </aside>

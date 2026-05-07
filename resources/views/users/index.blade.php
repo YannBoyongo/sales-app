@@ -14,7 +14,7 @@
                     <th class="px-4 py-3">Nom</th>
                     <th class="px-4 py-3">Nom d’utilisateur</th>
                     <th class="px-4 py-3">E-mail</th>
-                    <th class="px-4 py-3">Rôle</th>
+                    <th class="px-4 py-3">Rôles</th>
                     <th class="px-4 py-3">Branche</th>
                     <th class="px-4 py-3 text-right">Actions</th>
                 </tr>
@@ -26,13 +26,19 @@
                         <td class="px-4 py-3 font-mono text-xs text-neutral-700">{{ $user->username ?? '—' }}</td>
                         <td class="px-4 py-3 text-neutral-600">{{ $user->email }}</td>
                         <td class="px-4 py-3">
-                            @if ($user->isAdmin())
-                                <span class="rounded bg-primary px-2 py-0.5 text-xs font-medium text-white">{{ $user->role->label() }}</span>
-                            @elseif ($user->isAccountant())
-                                <span class="rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">{{ $user->role->label() }}</span>
-                            @else
-                                <span class="text-neutral-700">{{ $user->role->label() }}</span>
-                            @endif
+                            <div class="flex flex-wrap gap-1">
+                                @forelse ($user->roles as $role)
+                                    @if ($role->slug === 'admin')
+                                        <span class="rounded bg-primary px-2 py-0.5 text-xs font-medium text-white">{{ $role->name }}</span>
+                                    @elseif ($role->slug === 'accountant')
+                                        <span class="rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">{{ $role->name }}</span>
+                                    @else
+                                        <span class="rounded border border-neutral-200 bg-white px-2 py-0.5 text-xs text-neutral-700">{{ $role->name }}</span>
+                                    @endif
+                                @empty
+                                    <span class="text-neutral-400">—</span>
+                                @endforelse
+                            </div>
                         </td>
                         <td class="px-4 py-3 text-neutral-600">
                             @if ($user->isAdmin())

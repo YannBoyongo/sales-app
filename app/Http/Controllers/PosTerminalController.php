@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Location;
 use App\Models\PosTerminal;
@@ -41,7 +40,7 @@ class PosTerminalController extends Controller
 
         $eligibleUsers = User::query()
             ->where('branch_id', $branch->id)
-            ->where('role', UserRole::PosUser)
+            ->whereHas('roles', fn ($q) => $q->whereIn('slug', ['pos_user', 'cashier']))
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -89,7 +88,7 @@ class PosTerminalController extends Controller
         $posTerminal->load('posUsers');
         $eligibleUsers = User::query()
             ->where('branch_id', $branch->id)
-            ->where('role', UserRole::PosUser)
+            ->whereHas('roles', fn ($q) => $q->whereIn('slug', ['pos_user', 'cashier']))
             ->orderBy('name')
             ->get(['id', 'name']);
 
@@ -122,7 +121,7 @@ class PosTerminalController extends Controller
         $allowed = User::query()
             ->whereIn('id', $userIds)
             ->where('branch_id', $terminal->branch_id)
-            ->where('role', UserRole::PosUser)
+            ->whereHas('roles', fn ($q) => $q->whereIn('slug', ['pos_user', 'cashier']))
             ->pluck('id')
             ->all();
 

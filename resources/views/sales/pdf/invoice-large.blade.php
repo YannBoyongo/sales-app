@@ -236,7 +236,16 @@
                 <div class="box">
                     <h3>Détails</h3>
                     <p><strong>Branche</strong> {{ $sale->branch->name }}</p>
-                    <p><strong>Paiement</strong> {{ $sale->payment_type === 'credit' ? 'Crédit' : 'Cash' }}</p>
+                    <p>
+                        <strong>Statut paiement</strong>
+                        @if ($sale->payment_status === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
+                            Non payé
+                        @elseif ($sale->payment_status === \App\Models\Sale::PAYMENT_STATUS_PARTIALLY_PAID)
+                            Partiellement payé
+                        @else
+                            Entièrement payé
+                        @endif
+                    </p>
                     <p><strong>Vendeur</strong> {{ $sale->user->name }}</p>
                 </div>
             </td>

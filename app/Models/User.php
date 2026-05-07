@@ -50,7 +50,6 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
-            'role' => UserRole::class,
         ];
     }
 
@@ -64,24 +63,62 @@ class User extends Authenticatable
         return $this->belongsToMany(PosTerminal::class, 'pos_terminal_user')->withTimestamps();
     }
 
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(Role::class)->withTimestamps();
+    }
+
+    public function hasRole(UserRole|string $role): bool
+    {
+        $slug = $role instanceof UserRole ? $role->value : (string) $role;
+
+        if ($this->relationLoaded('roles')) {
+            return $this->roles->contains(fn (Role $r) => $r->slug === $slug);
+        }
+
+        return $this->roles()->where('slug', $slug)->exists();
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function roleSlugs(): array
+    {
+        if ($this->relationLoaded('roles')) {
+            return $this->roles
+                ->pluck('slug')
+                ->filter()
+                ->map(fn ($slug) => (string) $slug)
+                ->values()
+                ->all();
+        }
+
+        return $this->roles()->pluck('slug')->map(fn ($slug) => (string) $slug)->all();
+    }
+
     public function isAdmin(): bool
     {
-        return $this->role === UserRole::Admin;
+        return $this->hasRole(UserRole::Admin);
     }
 
     public function isAccountant(): bool
     {
-        return $this->role === UserRole::Accountant;
+        return $this->hasRole(UserRole::Accountant);
     }
 
-    public function isShopUser(): bool
+    public function isManager(): bool
     {
-        return $this->role === UserRole::User;
+        return $this->hasRole(UserRole::Manager);
     }
 
     public function isPosUser(): bool
     {
-        return $this->role === UserRole::PosUser;
+        return $this->hasRole(UserRole::PosUser);
+    }
+
+    public function isCashier(): bool
+    {
+        return $this->hasRole(UserRole::Cashier);
     }
 
     /** Admin ou comptable : vue agrégée multi-branches (filtre désactivé). */
@@ -104,7 +141,7 @@ class User extends Authenticatable
     /** Transferts inter-emplacements (hors rôle caisse / point de vente). */
     public function canManageStockTransfers(): bool
     {
-        return ! $this->isShopUser() && ! $this->isPosUser();
+        return ! $this->isPosUser() && ! $this->isCashier();
     }
 
     /** Accès à l’écran caisse (au moins un terminal ou périmètre élargi). */
@@ -113,11 +150,11 @@ class User extends Authenticatable
         if ($this->isAdmin() || $this->isAccountant()) {
             return true;
         }
-        if ($this->isPosUser()) {
+        if ($this->isPosUser() || $this->isCashier()) {
             return $this->posTerminals()->exists();
         }
 
-        return $this->isShopUser() && $this->branch_id !== null;
+        return $this->isManager() && $this->branch_id !== null;
     }
 
     /** Approuver ou refuser une remise sur une vente (workflow caisse). */

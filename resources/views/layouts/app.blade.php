@@ -10,7 +10,12 @@
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
 
-        @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @env('local')
+            @vite(['resources/css/app.css', 'resources/js/app.js'])
+        @else
+            <link rel="stylesheet" href="{{ Vite::asset('resources/css/app.css') }}">
+            <script type="module" src="{{ Vite::asset('resources/js/app.js') }}"></script>
+        @endenv
     </head>
     <body class="font-sans antialiased bg-neutral-50 text-neutral-900">
         <div class="min-h-screen flex" x-data="{ sidebarOpen: false }">
@@ -121,7 +126,9 @@
 
                 <div class="border-t border-neutral-800 p-3 text-sm">
                     <div class="text-neutral-400 truncate">{{ Auth::user()->name }}</div>
-                    <div class="mt-0.5 px-3 text-[11px] font-medium uppercase tracking-wide text-neutral-500">{{ Auth::user()->role->label() }}</div>
+                    <div class="mt-0.5 px-3 text-[11px] font-medium uppercase tracking-wide text-neutral-500">
+                        {{ Auth::user()->roles()->pluck('name')->implode(' · ') ?: 'Aucun rôle' }}
+                    </div>
                     <div class="mt-2 flex flex-col gap-1">
                         <a href="{{ route('profile.edit') }}" class="flex items-center gap-3 rounded-md px-3 py-2 text-neutral-300 hover:bg-neutral-800 hover:text-white">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>

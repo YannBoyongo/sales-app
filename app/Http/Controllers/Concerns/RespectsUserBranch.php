@@ -416,7 +416,7 @@ trait RespectsUserBranch
             return;
         }
 
-        if ($user->isPosUser()) {
+        if ($user->isPosUser() || $user->isCashier()) {
             abort_unless(
                 $user->posTerminals()->whereKey($terminal->getKey())->exists(),
                 403,
@@ -426,7 +426,7 @@ trait RespectsUserBranch
             return;
         }
 
-        if ($user->isShopUser() && (int) $user->branch_id === (int) $terminal->branch_id) {
+        if ($user->isManager() && (int) $user->branch_id === (int) $terminal->branch_id) {
             return;
         }
 

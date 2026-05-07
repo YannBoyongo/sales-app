@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\UserRole;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -32,7 +33,7 @@ class UserFactory extends Factory
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
-            'role' => UserRole::User,
+            'role' => UserRole::Manager->value,
             'branch_id' => null,
         ];
     }
@@ -43,6 +44,17 @@ class UserFactory extends Factory
             'role' => UserRole::Admin,
             'branch_id' => null,
         ]);
+    }
+
+    public function configure(): static
+    {
+        return $this->afterCreating(function (User $user) {
+            $slug = (string) $user->role;
+            $role = Role::query()->where('slug', $slug)->first();
+            if ($role) {
+                $user->roles()->syncWithoutDetaching([$role->id]);
+            }
+        });
     }
 
     public function accountant(): static

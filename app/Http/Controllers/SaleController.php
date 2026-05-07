@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Branch;
 use App\Models\Client;
+use App\Models\Payment;
+use App\Models\AccountingTransaction;
 use App\Models\Sale;
 use App\Models\Setting;
 use App\Models\Stock;
@@ -95,12 +97,18 @@ class SaleController extends Controller
         $soldAt = Carbon::parse($data['sold_at']);
 
         DB::transaction(function () use ($sale, $data, $clientId, $saleClientName, $saleClientPhone, $soldAt) {
+            $paymentStatus = $data['payment_type'] === 'credit'
+                ? Sale::PAYMENT_STATUS_NOT_PAID
+                : Sale::PAYMENT_STATUS_FULLY_PAID;
             $sale->update([
                 'sold_at' => $soldAt,
                 'payment_type' => $data['payment_type'],
                 'client_id' => $clientId,
                 'client_name' => $saleClientName,
                 'client_phone' => $saleClientPhone,
+                'payment_status' => $paymentStatus,
+                'amount_paid' => $paymentStatus === Sale::PAYMENT_STATUS_FULLY_PAID ? (string) $sale->total_amount : '0.00',
+                'balance_amount' => $paymentStatus === Sale::PAYMENT_STATUS_FULLY_PAID ? '0.00' : (string) $sale->total_amount,
             ]);
 
             $sale->items()->update([
@@ -124,9 +132,32 @@ class SaleController extends Controller
             DB::transaction(function () use ($sale) {
                 $sale->load('items');
                 $itemIds = $sale->items->pluck('id')->all();
+                $clientId = $sale->client_id;
+                $saleReference = (string) $sale->reference;
 
                 foreach ($sale->items as $item) {
                     Stock::modifyQuantity((int) $item->product_id, (int) $item->location_id, (int) $item->quantity);
+                }
+
+                // If this sale created immediate dealer payments, delete them so client debt stays consistent.
+                if ($clientId !== null && $saleReference !== '') {
+                    $payments = Payment::query()
+                        ->where('client_id', $clientId)
+                        ->where('note', 'Paiement à la vente '.$saleReference)
+                        ->get(['id']);
+
+                    if ($payments->isNotEmpty()) {
+                        $paymentIds = $payments->pluck('id')->all();
+
+                        foreach ($paymentIds as $paymentId) {
+                            AccountingTransaction::query()
+                                ->where('entry_type', 'debit')
+                                ->where('reference', 'like', '%(paiement #'.$paymentId.')%')
+                                ->delete();
+                        }
+
+                        Payment::query()->whereIn('id', $paymentIds)->delete();
+                    }
                 }
 
                 if ($itemIds !== []) {

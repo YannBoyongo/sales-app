@@ -31,13 +31,18 @@
             <x-text-input id="password_confirmation" name="password_confirmation" type="password" class="mt-1 block w-full" autocomplete="new-password" />
         </div>
         <div>
-            <x-input-label for="role" value="Rôle" />
-            <select id="role" name="role" class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required>
+            <x-input-label value="Rôles" />
+            <div id="roles-group" class="mt-2 grid gap-2 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                @php($selectedRoles = collect((array) old('roles', $user->roleSlugs()))->map(fn ($v) => (string) $v)->all())
                 @foreach (\App\Enums\UserRole::cases() as $r)
-                    <option value="{{ $r->value }}" @selected(old('role', $user->role->value) === $r->value)>{{ $r->label() }}</option>
+                    <label class="inline-flex items-center gap-2 text-sm text-neutral-800">
+                        <input type="checkbox" name="roles[]" value="{{ $r->value }}" @checked(in_array($r->value, $selectedRoles, true)) class="rounded border-neutral-300 text-primary focus:ring-primary">
+                        <span>{{ $r->label() }}</span>
+                    </label>
                 @endforeach
-            </select>
-            <x-input-error :messages="$errors->get('role')" class="mt-2" />
+            </div>
+            <x-input-error :messages="$errors->get('roles')" class="mt-2" />
+            <x-input-error :messages="$errors->get('roles.*')" class="mt-2" />
         </div>
         <div id="branch-field" class="space-y-1">
             <x-input-label for="branch_id" value="Branche" />
@@ -56,19 +61,19 @@
     </form>
     <script>
         (function () {
-            var roleSelect = document.getElementById('role');
+            var rolesWrap = document.getElementById('roles-group');
             var branchWrap = document.getElementById('branch-field');
             var branchSelect = document.getElementById('branch_id');
-            if (!roleSelect || !branchWrap || !branchSelect) return;
+            if (!rolesWrap || !branchWrap || !branchSelect) return;
             function sync() {
-                var v = roleSelect.value;
-                var noBranch = v === 'admin' || v === 'accountant';
+                var checked = Array.from(rolesWrap.querySelectorAll('input[name="roles[]"]:checked')).map(function (el) { return el.value; });
+                var noBranch = checked.includes('admin') || checked.includes('accountant');
                 branchWrap.classList.toggle('hidden', noBranch);
                 branchSelect.disabled = noBranch;
-                branchSelect.required = (v === 'user' || v === 'pos_user');
+                branchSelect.required = !noBranch;
                 if (noBranch) branchSelect.value = '';
             }
-            roleSelect.addEventListener('change', sync);
+            rolesWrap.addEventListener('change', sync);
             sync();
         })();
     </script>

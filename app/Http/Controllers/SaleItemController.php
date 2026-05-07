@@ -9,10 +9,12 @@ use App\Models\Department;
 use App\Models\PosShift;
 use App\Models\PosTerminal;
 use App\Models\Product;
+use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Stock;
 use App\Models\StockMovement;
+use App\Services\AccountingJournal;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -173,9 +175,11 @@ class SaleItemController extends Controller
         $departmentId = (int) $department->id;
 
         $data = $request->validate([
-            'payment_type' => ['required', 'in:cash,credit'],
+            'customer_type' => ['required', 'in:walkin,dealer'],
             'client_name' => ['nullable', 'string', 'max:255'],
             'client_phone' => ['nullable', 'string', 'max:50'],
+            'amount_paid' => ['nullable', 'numeric', 'min:0'],
+            'balance' => ['nullable', 'numeric', 'min:0'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.department_id' => ['required', 'integer', Rule::in([$departmentId])],
             'items.*.product_id' => ['required', 'exists:products,id'],
@@ -203,18 +207,20 @@ class SaleItemController extends Controller
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                $paymentType = $data['payment_type'];
+                $customerType = $data['customer_type'];
+                $paymentType = 'cash';
 
                 $clientName = trim((string) ($data['client_name'] ?? ''));
                 $clientPhone = trim((string) ($data['client_phone'] ?? ''));
+                $amountPaid = number_format((float) ($data['amount_paid'] ?? 0), 2, '.', '');
 
                 $clientId = null;
                 $saleClientName = null;
                 $saleClientPhone = null;
 
-                if ($paymentType === 'credit') {
+                if ($customerType === 'dealer') {
                     if ($clientName === '') {
-                        throw new RuntimeException('Le nom du client est obligatoire pour une vente à crédit.');
+                        throw new RuntimeException('Le nom du dealer est obligatoire.');
                     }
 
                     $client = Client::query()->firstOrCreate(['name' => $clientName]);
@@ -238,6 +244,9 @@ class SaleItemController extends Controller
                     'client_name' => $saleClientName,
                     'client_phone' => $saleClientPhone,
                     'total_amount' => 0,
+                    'amount_paid' => 0,
+                    'balance_amount' => 0,
+                    'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
                     'sold_at' => now(),
                 ]);
 
@@ -291,6 +300,7 @@ class SaleItemController extends Controller
                 $applyDiscount = $request->has('apply_sale_discount')
                     && filter_var($request->input('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN);
                 $isAdmin = $request->user()->isAdmin();
+                $dueTotal = $subtotal;
 
                 if ($applyDiscount) {
                     $discountStr = number_format((float) ($data['sale_discount_amount'] ?? 0), 2, '.', '');
@@ -303,6 +313,7 @@ class SaleItemController extends Controller
 
                     if ($isAdmin) {
                         $finalTotal = bcsub($subtotal, $discountStr, 2);
+                        $dueTotal = $finalTotal;
                         $sale->update([
                             'subtotal_amount' => $subtotal,
                             'sale_status' => Sale::STATUS_CONFIRMED,
@@ -313,9 +324,13 @@ class SaleItemController extends Controller
                             'discount_approved_by' => $request->user()->id,
                             'discount_approved_at' => now(),
                             'total_amount' => $finalTotal,
+                            'amount_paid' => $finalTotal,
+                            'balance_amount' => '0.00',
+                            'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
                         ]);
                     } else {
                         $pendingDiscountAfterSave = true;
+                        $dueTotal = $subtotal;
                         $sale->update([
                             'subtotal_amount' => $subtotal,
                             'sale_status' => Sale::STATUS_PENDING_DISCOUNT,
@@ -326,9 +341,13 @@ class SaleItemController extends Controller
                             'discount_approved_by' => null,
                             'discount_approved_at' => null,
                             'total_amount' => $subtotal,
+                            'amount_paid' => $subtotal,
+                            'balance_amount' => '0.00',
+                            'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
                         ]);
                     }
                 } else {
+                    $dueTotal = $subtotal;
                     $sale->update([
                         'subtotal_amount' => $subtotal,
                         'sale_status' => Sale::STATUS_CONFIRMED,
@@ -339,7 +358,58 @@ class SaleItemController extends Controller
                         'discount_approved_by' => null,
                         'discount_approved_at' => null,
                         'total_amount' => $subtotal,
+                        'amount_paid' => $subtotal,
+                        'balance_amount' => '0.00',
+                        'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
                     ]);
+                }
+
+                if ($customerType === 'dealer') {
+                    if (bccomp($amountPaid, $dueTotal, 2) === 1) {
+                        throw new RuntimeException('Le total payé ne peut pas dépasser le montant total.');
+                    }
+
+                    $computedBalance = bcsub($dueTotal, $amountPaid, 2);
+                    if (bccomp($computedBalance, '0.00', 2) === -1) {
+                        throw new RuntimeException('Le solde ne peut pas être négatif.');
+                    }
+
+                    // Only unpaid dealer balances become debt.
+                    // If balance is zero, keep the sale as cash (no debt record).
+                    if (bccomp($computedBalance, '0.00', 2) === 1) {
+                        $status = bccomp($amountPaid, '0.00', 2) === 1
+                            ? Sale::PAYMENT_STATUS_PARTIALLY_PAID
+                            : Sale::PAYMENT_STATUS_NOT_PAID;
+                        $sale->update([
+                            'payment_type' => 'credit',
+                            // For partial dealer payments, show collected cash on the sale total.
+                            'total_amount' => $amountPaid,
+                            'amount_paid' => $amountPaid,
+                            'balance_amount' => $computedBalance,
+                            'payment_status' => $status,
+                        ]);
+                        SaleItem::query()
+                            ->where('sale_id', $sale->id)
+                            ->update(['payment_type' => 'credit']);
+                    } else {
+                        $sale->update([
+                            'amount_paid' => $dueTotal,
+                            'balance_amount' => '0.00',
+                            'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
+                        ]);
+                    }
+
+                    if (bccomp($amountPaid, '0.00', 2) === 1 && bccomp($computedBalance, '0.00', 2) === 1) {
+                        $payment = Payment::create([
+                            'client_id' => $clientId,
+                            'user_id' => $request->user()->id,
+                            'amount' => $amountPaid,
+                            'paid_at' => now(),
+                            'note' => 'Paiement à la vente '.$saleReference,
+                        ]);
+
+                        AccountingJournal::recordClientPayment($payment, $client, $request->user());
+                    }
                 }
             });
         } catch (RuntimeException $e) {

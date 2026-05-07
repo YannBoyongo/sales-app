@@ -330,7 +330,8 @@ class SaleItemController extends Controller
                         ]);
                     } else {
                         $pendingDiscountAfterSave = true;
-                        $dueTotal = $subtotal;
+                        $finalTotal = bcsub($subtotal, $discountStr, 2);
+                        $dueTotal = $finalTotal;
                         $sale->update([
                             'subtotal_amount' => $subtotal,
                             'sale_status' => Sale::STATUS_PENDING_DISCOUNT,
@@ -375,40 +376,30 @@ class SaleItemController extends Controller
                     }
 
                     // Only unpaid dealer balances become debt.
-                    // If balance is zero, keep the sale as cash (no debt record).
+                    // For now, all newly created sales stay cash regardless of customer type.
                     if (bccomp($computedBalance, '0.00', 2) === 1) {
                         $status = bccomp($amountPaid, '0.00', 2) === 1
                             ? Sale::PAYMENT_STATUS_PARTIALLY_PAID
                             : Sale::PAYMENT_STATUS_NOT_PAID;
                         $sale->update([
-                            'payment_type' => 'credit',
-                            // For partial dealer payments, show collected cash on the sale total.
-                            'total_amount' => $amountPaid,
+                            'payment_type' => 'cash',
                             'amount_paid' => $amountPaid,
                             'balance_amount' => $computedBalance,
                             'payment_status' => $status,
                         ]);
                         SaleItem::query()
                             ->where('sale_id', $sale->id)
-                            ->update(['payment_type' => 'credit']);
+                            ->update(['payment_type' => 'cash']);
                     } else {
                         $sale->update([
+                            'payment_type' => 'cash',
                             'amount_paid' => $dueTotal,
                             'balance_amount' => '0.00',
                             'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
                         ]);
-                    }
-
-                    if (bccomp($amountPaid, '0.00', 2) === 1 && bccomp($computedBalance, '0.00', 2) === 1) {
-                        $payment = Payment::create([
-                            'client_id' => $clientId,
-                            'user_id' => $request->user()->id,
-                            'amount' => $amountPaid,
-                            'paid_at' => now(),
-                            'note' => 'Paiement à la vente '.$saleReference,
-                        ]);
-
-                        AccountingJournal::recordClientPayment($payment, $client, $request->user());
+                        SaleItem::query()
+                            ->where('sale_id', $sale->id)
+                            ->update(['payment_type' => 'cash']);
                     }
                 }
             });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Services\AccountingJournal;
 use App\Models\Branch;
 use App\Models\Client;
 use App\Models\Payment;
@@ -204,15 +205,38 @@ class SaleController extends Controller
                 ->withErrors(['sale' => 'La remise demandée dépasse le sous-total de la vente.']);
         }
 
-        $finalTotal = bcsub($subtotal, (string) $requested, 2);
+        DB::transaction(function () use ($request, $sale, $requested, $subtotal) {
+            $finalTotal = bcsub($subtotal, (string) $requested, 2);
+            $paidAmount = (string) ($sale->amount_paid ?? '0.00');
+            if (bccomp($paidAmount, $finalTotal, 2) === 1) {
+                $paidAmount = $finalTotal;
+            }
+            $balance = bcsub($finalTotal, $paidAmount, 2);
 
-        $sale->update([
-            'sale_status' => Sale::STATUS_CONFIRMED,
-            'discount_amount' => $requested,
-            'total_amount' => $finalTotal,
-            'discount_approved_by' => $request->user()->id,
-            'discount_approved_at' => now(),
-        ]);
+            if (bccomp($balance, '0.00', 2) <= 0) {
+                $balance = '0.00';
+                $paymentStatus = Sale::PAYMENT_STATUS_FULLY_PAID;
+            } elseif (bccomp($paidAmount, '0.00', 2) === 1) {
+                $paymentStatus = Sale::PAYMENT_STATUS_PARTIALLY_PAID;
+            } else {
+                $paymentStatus = Sale::PAYMENT_STATUS_NOT_PAID;
+            }
+
+            $sale->update([
+                'sale_status' => Sale::STATUS_CONFIRMED,
+                'discount_amount' => $requested,
+                'total_amount' => $finalTotal,
+                'amount_paid' => $paidAmount,
+                'balance_amount' => $balance,
+                'payment_status' => $paymentStatus,
+                'payment_type' => 'cash',
+                'discount_approved_by' => $request->user()->id,
+                'discount_approved_at' => now(),
+            ]);
+
+            // Discount approval alone should not move this sale into client debt.
+            $sale->items()->update(['payment_type' => 'cash']);
+        });
 
         return redirect()
             ->route('sales.show', [$branch, $sale])
@@ -232,6 +256,19 @@ class SaleController extends Controller
         }
 
         $subtotal = (string) $sale->subtotal_amount;
+        $paidAmount = (string) ($sale->amount_paid ?? '0.00');
+        if (bccomp($paidAmount, $subtotal, 2) === 1) {
+            $paidAmount = $subtotal;
+        }
+        $balance = bcsub($subtotal, $paidAmount, 2);
+        if (bccomp($balance, '0.00', 2) <= 0) {
+            $balance = '0.00';
+            $paymentStatus = Sale::PAYMENT_STATUS_FULLY_PAID;
+        } elseif (bccomp($paidAmount, '0.00', 2) === 1) {
+            $paymentStatus = Sale::PAYMENT_STATUS_PARTIALLY_PAID;
+        } else {
+            $paymentStatus = Sale::PAYMENT_STATUS_NOT_PAID;
+        }
 
         $sale->update([
             'sale_status' => Sale::STATUS_CONFIRMED,
@@ -242,11 +279,119 @@ class SaleController extends Controller
             'discount_approved_by' => null,
             'discount_approved_at' => null,
             'total_amount' => $subtotal,
+            'amount_paid' => $paidAmount,
+            'balance_amount' => $balance,
+            'payment_status' => $paymentStatus,
+            'payment_type' => 'cash',
         ]);
+
+        $sale->items()->update(['payment_type' => 'cash']);
 
         return redirect()
             ->route('sales.show', [$branch, $sale])
             ->with('success', 'Remise refusée. La vente est confirmée au prix catalogue (sans remise).');
+    }
+
+    public function storePayment(Request $request, Branch $branch, Sale $sale): RedirectResponse
+    {
+        $this->ensureUserCanAccessBranchModel($branch);
+        abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($sale->isPendingDiscount()) {
+            return redirect()
+                ->route('sales.show', [$branch, $sale])
+                ->withErrors(['sale_payment' => 'Paiement impossible tant que la remise est en attente d’approbation.']);
+        }
+
+        $remaining = $sale->remainingAmountValue();
+        if (bccomp($remaining, '0.00', 2) <= 0) {
+            return redirect()
+                ->route('sales.show', [$branch, $sale])
+                ->withErrors(['sale_payment' => 'Cette vente est déjà entièrement payée.']);
+        }
+
+        $amount = number_format((float) $data['amount'], 2, '.', '');
+        if (bccomp($amount, $remaining, 2) === 1) {
+            return back()
+                ->withInput()
+                ->withErrors(['amount' => 'Le montant saisi dépasse le reste à payer pour cette vente.']);
+        }
+
+        DB::transaction(function () use ($request, $sale, $amount, $data) {
+            if ($sale->client_id && bccomp($amount, '0.00', 2) === 1) {
+                $client = Client::query()->find($sale->client_id);
+                if ($client !== null) {
+                    $payment = Payment::create([
+                        'client_id' => $client->id,
+                        'user_id' => $request->user()->id,
+                        'amount' => $amount,
+                        'paid_at' => now(),
+                        'note' => filled($data['note'] ?? null)
+                            ? $data['note']
+                            : 'Paiement sur vente '.$sale->reference,
+                    ]);
+
+                    AccountingJournal::recordClientPayment($payment, $client, $request->user());
+                }
+            }
+
+            $newAmountPaid = bcadd($sale->paidAmountValue(), $amount, 2);
+            $expected = $sale->expectedPayableAmount();
+            $newBalance = bcsub($expected, $newAmountPaid, 2);
+
+            if (bccomp($newBalance, '0.00', 2) <= 0) {
+                $newBalance = '0.00';
+                $status = Sale::PAYMENT_STATUS_FULLY_PAID;
+            } elseif (bccomp($newAmountPaid, '0.00', 2) === 1) {
+                $status = Sale::PAYMENT_STATUS_PARTIALLY_PAID;
+            } else {
+                $status = Sale::PAYMENT_STATUS_NOT_PAID;
+            }
+
+            $sale->update([
+                'amount_paid' => $newAmountPaid,
+                'balance_amount' => $newBalance,
+                'payment_status' => $status,
+            ]);
+        });
+
+        return redirect()
+            ->route('sales.show', [$branch, $sale])
+            ->with('success', 'Paiement enregistré sur la vente.');
+    }
+
+    public function confirmPaid(Request $request, Branch $branch, Sale $sale): RedirectResponse
+    {
+        $this->ensureUserCanAccessBranchModel($branch);
+        abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
+
+        if ($sale->isPendingDiscount()) {
+            return redirect()
+                ->route('sales.show', [$branch, $sale])
+                ->withErrors(['sale' => 'Impossible de confirmer le paiement tant que la remise est en attente.']);
+        }
+
+        $expected = $sale->expectedPayableAmount();
+
+        $sale->update([
+            'sale_status' => Sale::STATUS_CONFIRMED,
+            'amount_paid' => $expected,
+            'balance_amount' => '0.00',
+            'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
+            'payment_type' => 'cash',
+        ]);
+
+        // Ensure client debt ledger (based on sale_items.payment_type) does not keep stale credit flags.
+        $sale->items()->update(['payment_type' => 'cash']);
+
+        return redirect()
+            ->route('sales.show', [$branch, $sale])
+            ->with('success', 'Vente confirmée comme entièrement payée.');
     }
 
     public function printLarge(Branch $branch, Sale $sale): Response

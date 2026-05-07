@@ -79,6 +79,13 @@
     </style>
 </head>
 <body>
+    @php
+        $baseAmount = (string) ($sale->subtotal_amount ?? $sale->total_amount ?? '0');
+        $discountValue = $sale->isPendingDiscount()
+            ? (string) ($sale->discount_requested_amount ?? '0')
+            : (string) ($sale->discount_amount ?? '0');
+        $finalAmount = $sale->expectedPayableAmount();
+    @endphp
     <button class="noprint" onclick="window.print()">Imprimer</button>
 
     <div class="center">
@@ -126,15 +133,15 @@
     @endforeach
 
     <div class="line"></div>
-    <div class="row small"><span>Sous-total</span><span>{{ \App\Support\Money::usd($sale->subtotal_amount ?? $sale->total_amount) }}</span></div>
-    @if (($sale->sale_status ?? '') === \App\Models\Sale::STATUS_PENDING_DISCOUNT && $sale->discount_requested_amount)
-        <div class="row small"><span>Remise (attente)</span><span>-{{ \App\Support\Money::usd($sale->discount_requested_amount) }}</span></div>
-        <div class="row small"><span>Si approuvée</span><span>{{ \App\Support\Money::usd(max(0, (float) ($sale->subtotal_amount ?? 0) - (float) ($sale->discount_requested_amount ?? 0))) }}</span></div>
-    @elseif ($sale->discount_amount && (float) $sale->discount_amount > 0)
-        <div class="row small"><span>Remise</span><span>-{{ \App\Support\Money::usd($sale->discount_amount) }}</span></div>
+    <div class="row small"><span>Montant à payer</span><span>{{ \App\Support\Money::usd($baseAmount) }}</span></div>
+    @if (bccomp($discountValue, '0.00', 2) === 1)
+        <div class="row small">
+            <span>Remise{{ $sale->isPendingDiscount() ? ' (attente)' : '' }}</span>
+            <span>-{{ \App\Support\Money::usd($discountValue) }}</span>
+        </div>
     @endif
     <div class="line"></div>
-    <div class="row"><span>TOTAL</span><span>{{ \App\Support\Money::usd($sale->total_amount) }}</span></div>
+    <div class="row"><span>NOUVEAU TOTAL</span><span>{{ \App\Support\Money::usd($finalAmount) }}</span></div>
     <div class="row small">
         <span>Statut paiement</span>
         <span>

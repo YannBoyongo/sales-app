@@ -423,11 +423,11 @@
                             <div class="mt-2 grid gap-2 sm:grid-cols-2">
                                 <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
                                     <input type="radio" name="customer_type" value="walkin" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
-                                    Client walk-in
+                                    Client comptant
                                 </label>
                                 <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
                                     <input type="radio" name="customer_type" value="dealer" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
-                                    Dealer
+                                    Revendeur
                                 </label>
                             </div>
                             <x-input-error :messages="$errors->get('customer_type')" class="mt-2" />
@@ -435,12 +435,12 @@
 
                         <div>
                             <p class="text-xs text-neutral-500">
-                                <strong>Walk-in :</strong> vente au comptant sans dette client.
-                                <strong>Dealer :</strong> le solde impayé devient la dette du client.
+                                <strong>Client comptant :</strong> vente au comptant sans dette client.
+                                <strong>Revendeur :</strong> le solde impayé devient la dette du client.
                             </p>
                             <div class="mt-4 space-y-4">
                                 <div x-show="customerType === 'dealer'" x-cloak>
-                                    <x-input-label for="client_name" value="Nom du dealer" class="text-sm font-semibold text-neutral-800" />
+                                    <x-input-label for="client_name" value="Nom du revendeur" class="text-sm font-semibold text-neutral-800" />
                                     <div class="relative mt-2">
                                         <input
                                             id="client_name"

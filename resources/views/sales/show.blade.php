@@ -46,6 +46,9 @@
     @if ($errors->has('sale'))
         <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('sale') }}</div>
     @endif
+    @if ($errors->has('sale_payment'))
+        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('sale_payment') }}</div>
+    @endif
 
     @if ($sale->isPendingDiscount())
         <div class="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
@@ -100,6 +103,34 @@
                             </tr>
                         @endforeach
                     </tbody>
+                    <tfoot class="border-t border-neutral-200 bg-neutral-50/60">
+                        <tr>
+                            <th colspan="4" scope="row" class="py-3 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                                Montant à payer
+                            </th>
+                            <td class="py-3 text-right tabular-nums font-semibold text-neutral-900">
+                                {{ \App\Support\Money::usd($sale->subtotal_amount ?? $sale->total_amount) }}
+                            </td>
+                        </tr>
+                        @if (($sale->isPendingDiscount() && (float) ($sale->discount_requested_amount ?? 0) > 0) || ((float) ($sale->discount_amount ?? 0) > 0))
+                            <tr>
+                                <th colspan="4" scope="row" class="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                                    Remise
+                                </th>
+                                <td class="py-2 text-right tabular-nums font-medium text-amber-800">
+                                    − {{ \App\Support\Money::usd($sale->isPendingDiscount() ? ($sale->discount_requested_amount ?? 0) : ($sale->discount_amount ?? 0)) }}
+                                </td>
+                            </tr>
+                        @endif
+                        <tr>
+                            <th colspan="4" scope="row" class="py-3 pr-4 text-left text-sm font-semibold text-neutral-800">
+                                Nouveau total
+                            </th>
+                            <td class="py-3 text-right tabular-nums text-base font-bold text-primary">
+                                {{ \App\Support\Money::usd($expectedAmount) }}
+                            </td>
+                        </tr>
+                    </tfoot>
                 </table>
             </div>
         </section>
@@ -142,6 +173,24 @@
                         <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Montant payé</span><span class="tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($paidAmount) }}</span></p>
                         <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Reste à payer</span><span class="tabular-nums font-semibold {{ (float) $remainingAmount > 0 ? 'text-amber-800' : 'text-emerald-700' }}">{{ \App\Support\Money::usd($remainingAmount) }}</span></p>
                     </div>
+                </div>
+                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-3 text-sm">
+                    <p class="text-xs text-neutral-500">Confirmation de règlement</p>
+                    @if ($sale->isPendingDiscount())
+                        <p class="text-xs text-amber-800">Paiement indisponible pendant qu’une remise est en attente d’approbation.</p>
+                    @elseif ((float) $remainingAmount <= 0)
+                        <p class="text-xs text-emerald-700">Cette vente est déjà soldée.</p>
+                    @else
+                        <form action="{{ route('sales.confirm-paid', [$branch, $sale]) }}" method="POST" onsubmit="return confirm('Confirmer cette vente comme entièrement payée ?');">
+                            @csrf
+                            <button
+                                type="submit"
+                                class="inline-flex w-full items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:opacity-95"
+                            >
+                                Confirmer cette vente comme payée
+                            </button>
+                        </form>
+                    @endif
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-2 text-sm">
                     <p class="text-xs text-neutral-500">Détail facture</p>

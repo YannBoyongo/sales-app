@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\AccountingTransaction;
 use App\Models\PosShift;
 use App\Models\PosTerminal;
 use App\Models\Sale;
@@ -70,13 +71,57 @@ class PosShiftController extends Controller
             fn (string $carry, array $row) => bcadd($carry, $row['total'], 2),
             '0.00'
         );
+        $accountingReference = $this->closedShiftAccountingReference($shift);
+        $alreadyPushedToAccounting = AccountingTransaction::query()
+            ->where('reference', $accountingReference)
+            ->exists();
 
         return view('pos_terminals.closed_shift_show', compact(
             'shift',
             'branch',
             'summaries',
             'grandTotal',
+            'alreadyPushedToAccounting',
         ));
+    }
+
+    public function pushClosedShiftToAccounting(Request $request, PosShift $shift): RedirectResponse
+    {
+        abort_unless($request->user()?->canAccessAccounting(), 403, 'Vous n’avez pas accès à cette action.');
+        abort_if($shift->closed_at === null, 404);
+
+        $allowedTerminalIds = $this->posTerminalsForUser()->pluck('id')->all();
+        abort_unless(in_array((int) $shift->pos_terminal_id, $allowedTerminalIds, true), 403, 'Session non autorisée.');
+
+        $accountingReference = $this->closedShiftAccountingReference($shift);
+        $alreadyPushed = AccountingTransaction::query()
+            ->where('reference', $accountingReference)
+            ->exists();
+
+        if ($alreadyPushed) {
+            return redirect()
+                ->route('pos-terminal.shifts.closed.show', $shift)
+                ->with('warning', 'Cette session a déjà été transférée en comptabilité.');
+        }
+
+        $total = (string) $shift->sales()->sum('total_amount');
+        if (bccomp($total, '0.00', 2) <= 0) {
+            return redirect()
+                ->route('pos-terminal.shifts.closed.show', $shift)
+                ->with('warning', 'Aucun montant à transférer en comptabilité pour cette session.');
+        }
+
+        AccountingTransaction::create([
+            'user_id' => $request->user()->id,
+            'transaction_date' => optional($shift->closed_at)->toDateString() ?? now()->toDateString(),
+            'reference' => $accountingReference,
+            'amount' => $total,
+            'entry_type' => 'debit',
+        ]);
+
+        return redirect()
+            ->route('pos-terminal.shifts.closed.show', $shift)
+            ->with('success', 'Session transférée en comptabilité.');
     }
 
     public function open(Branch $branch, PosTerminal $posTerminal): RedirectResponse
@@ -130,17 +175,21 @@ class PosShiftController extends Controller
                 ->with('warning', 'Aucune session ouverte sur ce terminal.');
         }
 
-        $shift->load([
-            'sales' => fn ($q) => $q->orderBy('sold_at')->orderBy('id'),
-            'sales.items.product.department',
-        ]);
+        $sales = Sale::query()
+            ->where('pos_shift_id', $shift->id)
+            ->with('items.product.department')
+            ->orderBy('sold_at')
+            ->orderBy('id')
+            ->get();
 
-        $summaries = $this->departmentSummariesForShift($shift->sales);
+        $pendingDiscountCount = $sales->filter(fn (Sale $s) => $s->isPendingDiscount())->count();
+        $closableSales = $sales->reject(fn (Sale $s) => $s->isPendingDiscount())->values();
+        $summaries = $this->departmentSummariesForShift($closableSales);
         $grandTotal = collect($summaries)->reduce(
             fn (string $carry, array $row) => bcadd($carry, $row['total'], 2),
             '0.00'
         );
-        $pendingDiscountCount = $shift->sales->filter(fn (Sale $s) => $s->isPendingDiscount())->count();
+        $closableSalesCount = $closableSales->count();
 
         return view('pos_terminals.shift_close_review', compact(
             'branch',
@@ -149,6 +198,7 @@ class PosShiftController extends Controller
             'summaries',
             'grandTotal',
             'pendingDiscountCount',
+            'closableSalesCount',
         ));
     }
 
@@ -170,6 +220,19 @@ class PosShiftController extends Controller
             return redirect()
                 ->route('pos-terminal.workspace', [$branch, $posTerminal])
                 ->with('warning', 'Aucune session ouverte sur ce terminal.');
+        }
+
+        $hasPendingDiscount = Sale::query()
+            ->where('pos_shift_id', $shift->id)
+            ->where('sale_status', Sale::STATUS_PENDING_DISCOUNT)
+            ->exists();
+
+        if ($hasPendingDiscount) {
+            return redirect()
+                ->route('pos-terminal.shifts.close-review', [$branch, $posTerminal])
+                ->withErrors([
+                    'shift_close' => 'Impossible de fermer la session : au moins une vente a une remise en attente d’approbation.',
+                ]);
         }
 
         $shift->update([
@@ -214,5 +277,17 @@ class PosShiftController extends Controller
         usort($list, fn (array $a, array $b) => strcmp($a['label'], $b['label']));
 
         return $list;
+    }
+
+    private function closedShiftAccountingReference(PosShift $shift): string
+    {
+        $terminalName = trim((string) optional($shift->posTerminal)->name);
+        $terminalLabel = $terminalName !== '' ? $terminalName : 'terminal';
+
+        return mb_substr(sprintf(
+            'Clôture caisse %s (shift #%d)',
+            $terminalLabel,
+            $shift->id
+        ), 0, 255);
     }
 }

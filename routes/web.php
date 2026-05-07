@@ -54,6 +54,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('caisse', [SaleEntryController::class, 'create'])->name('sales.entry');
     Route::get('caisse/shifts/closed', [PosShiftController::class, 'closed'])->name('pos-terminal.shifts.closed');
     Route::get('caisse/shifts/closed/{shift}', [PosShiftController::class, 'showClosed'])->name('pos-terminal.shifts.closed.show')->whereNumber('shift');
+    Route::post('caisse/shifts/closed/{shift}/push-accounting', [PosShiftController::class, 'pushClosedShiftToAccounting'])->name('pos-terminal.shifts.closed.push-accounting')->whereNumber('shift');
     Route::get('caisse/branches/{branch}/terminaux', [SaleItemController::class, 'chooseTerminal'])->name('sales.choose-terminal')->whereNumber('branch');
     Route::get('caisse/branches/{branch}/terminaux/{pos_terminal}', [PosTerminalWorkspaceController::class, 'show'])->name('pos-terminal.workspace')->whereNumber(['branch', 'pos_terminal']);
     Route::post('caisse/branches/{branch}/terminaux/{pos_terminal}/shifts/open', [PosShiftController::class, 'open'])->name('pos-terminal.shifts.open')->whereNumber(['branch', 'pos_terminal']);
@@ -88,6 +89,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('branches/{branch}/sales/{sale}/print-small', [SaleController::class, 'printSmall'])->name('sales.print-small')->whereNumber('sale');
     Route::post('branches/{branch}/sales/{sale}/approve-discount', [SaleController::class, 'approveDiscount'])->name('sales.approve-discount')->whereNumber('sale');
     Route::post('branches/{branch}/sales/{sale}/reject-discount', [SaleController::class, 'rejectDiscount'])->name('sales.reject-discount')->whereNumber('sale');
+    Route::post('branches/{branch}/sales/{sale}/payments', [SaleController::class, 'storePayment'])->name('sales.payments.store')->whereNumber('sale');
+    Route::post('branches/{branch}/sales/{sale}/confirm-paid', [SaleController::class, 'confirmPaid'])->name('sales.confirm-paid')->whereNumber('sale');
 
     Route::middleware('admin')->group(function () {
         Route::get('stocks/current-quantity', [StockController::class, 'currentQuantity'])->name('stocks.current-quantity');

@@ -117,7 +117,9 @@
                                                 <td class="px-4 py-3.5 text-neutral-700">{{ $sale->user?->name ?? '—' }}</td>
                                                 <td class="px-4 py-3.5">
                                                     @php($effectiveStatus = $sale->effectivePaymentStatus())
-                                                    @if ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
+                                                    @if ($sale->isPendingDiscount())
+                                                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">Remise en attente</span>
+                                                    @elseif ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
                                                         <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-900">Non payé</span>
                                                     @elseif ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_PARTIALLY_PAID)
                                                         <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">Partiellement payé</span>
@@ -125,7 +127,14 @@
                                                         <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">Entièrement payé</span>
                                                     @endif
                                                 </td>
-                                                <td class="px-4 py-3.5 text-right tabular-nums font-semibold text-neutral-900">{{ \App\Support\Money::usd($sale->expectedPayableAmount()) }}</td>
+                                                <td class="px-4 py-3.5 text-right tabular-nums font-semibold text-neutral-900">
+                                                    {{ \App\Support\Money::usd($sale->expectedPayableAmount()) }}
+                                                    @if ($sale->isPendingDiscount() && $sale->discount_requested_amount)
+                                                        <div class="mt-1 text-xs font-medium text-amber-700">
+                                                            Remise demandée: {{ \App\Support\Money::usd($sale->discount_requested_amount) }}
+                                                        </div>
+                                                    @endif
+                                                </td>
                                                 <td class="px-4 py-3.5 text-right tabular-nums text-neutral-900">{{ \App\Support\Money::usd($sale->paidAmountValue()) }}</td>
                                                 <td class="px-4 py-3.5 text-right tabular-nums font-medium text-amber-800">{{ \App\Support\Money::usd($sale->remainingAmountValue()) }}</td>
                                                 <td class="px-4 py-3.5 text-right whitespace-nowrap">

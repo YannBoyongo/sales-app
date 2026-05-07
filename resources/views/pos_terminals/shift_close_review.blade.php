@@ -20,12 +20,19 @@
                         <div>
                             <p class="font-semibold text-amber-950">Remises en attente</p>
                             <p class="mt-1 text-sm text-amber-900/90">
-                                {{ $pendingDiscountCount }} vente{{ $pendingDiscountCount > 1 ? 's' : '' }} avec remise non encore approuvée. Les montants affichés sont les <strong>totaux enregistrés</strong> (souvent le sous-total jusqu’à validation admin).
+                                {{ $pendingDiscountCount }} vente{{ $pendingDiscountCount > 1 ? 's' : '' }} avec remise non encore approuvée.
+                                Ces ventes sont <strong>exclues</strong> des totaux ci-dessous et la session ne peut pas être fermée tant que la validation n’est pas faite.
                             </p>
                         </div>
                     </div>
                 </div>
             @endif
+
+            @error('shift_close')
+                <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {{ $message }}
+                </div>
+            @enderror
 
             <div class="rounded-2xl border border-neutral-200/90 bg-white/90 p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm sm:p-8">
                 <h2 class="text-lg font-semibold text-neutral-900">Totaux par département</h2>
@@ -74,7 +81,7 @@
                                     <tr class="border-t-2 border-neutral-200 bg-neutral-50/80">
                                         <th scope="row" class="px-4 py-4 text-left text-sm font-semibold text-neutral-900">Total général</th>
                                         <td class="px-4 py-4 text-right text-sm font-semibold tabular-nums text-neutral-700">
-                                            {{ $shift->sales->count() }}
+                                            {{ $closableSalesCount }}
                                         </td>
                                         <td class="px-4 py-4 text-right text-lg font-bold tabular-nums text-primary">{{ \App\Support\Money::usd($grandTotal) }}</td>
                                     </tr>

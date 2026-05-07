@@ -164,6 +164,13 @@
     </style>
 </head>
 <body>
+    @php
+        $baseAmount = (string) ($sale->subtotal_amount ?? $sale->total_amount ?? '0');
+        $discountValue = $sale->isPendingDiscount()
+            ? (string) ($sale->discount_requested_amount ?? '0')
+            : (string) ($sale->discount_amount ?? '0');
+        $finalAmount = $sale->expectedPayableAmount();
+    @endphp
     <div class="accent-bar"></div>
 
     <table class="header-table">
@@ -285,20 +292,20 @@
             <td></td>
             <td style="width: 300px;">
                 <div style="margin-bottom: 8px; font-size: 10pt;">
-                    <div style="display:flex; justify-content:space-between;"><span>Sous-total</span><span>{{ \App\Support\Money::usd($sale->subtotal_amount ?? $sale->total_amount) }}</span></div>
-                    @if ($sale->sale_status === \App\Models\Sale::STATUS_PENDING_DISCOUNT && $sale->discount_requested_amount)
-                        <div style="display:flex; justify-content:space-between; margin-top:4px; color:#92400e;"><span>Remise demandée (en attente)</span><span>− {{ \App\Support\Money::usd($sale->discount_requested_amount) }}</span></div>
-                        <div style="margin-top:6px; font-size:9pt; color:#64748b;">Si approuvée : {{ \App\Support\Money::usd(max(0, (float) ($sale->subtotal_amount ?? 0) - (float) ($sale->discount_requested_amount ?? 0))) }}</div>
-                    @elseif ($sale->discount_amount && (float) $sale->discount_amount > 0)
-                        <div style="display:flex; justify-content:space-between; margin-top:4px;"><span>Remise</span><span>− {{ \App\Support\Money::usd($sale->discount_amount) }}</span></div>
+                    <div style="display:flex; justify-content:space-between;"><span>Montant à payer</span><span>{{ \App\Support\Money::usd($baseAmount) }}</span></div>
+                    @if (bccomp($discountValue, '0.00', 2) === 1)
+                        <div style="display:flex; justify-content:space-between; margin-top:4px; {{ $sale->isPendingDiscount() ? 'color:#92400e;' : '' }}">
+                            <span>Remise{{ $sale->isPendingDiscount() ? ' (en attente)' : '' }}</span>
+                            <span>− {{ \App\Support\Money::usd($discountValue) }}</span>
+                        </div>
                     @endif
                 </div>
                 <div class="total-due">
-                    <div class="label">Total à payer</div>
-                    <div class="amount">{{ \App\Support\Money::usd($sale->total_amount) }}</div>
+                    <div class="label">Nouveau total</div>
+                    <div class="amount">{{ \App\Support\Money::usd($finalAmount) }}</div>
                 </div>
                 @if ($sale->sale_status === \App\Models\Sale::STATUS_PENDING_DISCOUNT)
-                    <p style="margin-top:8px; font-size:9pt; color:#92400e;">Remise non encore approuvée — montant ci-dessus = sous-total enregistré.</p>
+                    <p style="margin-top:8px; font-size:9pt; color:#92400e;">Remise en attente d’approbation administrative.</p>
                 @endif
             </td>
         </tr>

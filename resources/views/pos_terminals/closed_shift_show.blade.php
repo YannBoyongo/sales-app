@@ -12,6 +12,30 @@
             <div class="rounded-2xl border border-neutral-200/90 bg-white/90 p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm sm:p-8">
                 <h2 class="text-lg font-semibold text-neutral-900">Totaux par département</h2>
                 <p class="mt-1 text-sm text-neutral-500">Session ouverte par {{ $shift->openedByUser?->name ?? '—' }} et fermée par {{ $shift->closedByUser?->name ?? '—' }}.</p>
+                <div class="mt-4 flex flex-wrap items-center gap-3">
+                    @if ($alreadyPushedToAccounting)
+                        <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+                            Déjà transférée en comptabilité
+                        </span>
+                    @else
+                        <form
+                            action="{{ route('pos-terminal.shifts.closed.push-accounting', $shift) }}"
+                            method="POST"
+                            onsubmit="return confirm('Transférer cette session en comptabilité ?');"
+                        >
+                            @csrf
+                            <button
+                                type="submit"
+                                class="inline-flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary transition hover:bg-primary/15"
+                            >
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                                Pousser en comptabilité
+                            </button>
+                        </form>
+                    @endif
+                </div>
 
                 <div class="mt-6 overflow-hidden rounded-xl border border-neutral-100">
                     <div class="overflow-x-auto">

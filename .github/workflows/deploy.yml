@@ -18,6 +18,11 @@ jobs:
         with:
           php-version: '8.2'
 
+      - name: Prepare SQLite file for artisan scripts
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
+
       - name: Install PHP packages
         run: composer install --no-dev --optimize-autoloader --no-interaction
 

@@ -37,13 +37,37 @@ jobs:
       - name: Build CSS and JS
         run: npm run build
 
-      - name: Upload files to server via FTP
+      - name: Upload files to server via FTP (attempt 1)
+        id: ftp_deploy_attempt_1
+        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           port: 21
+          protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
+          log-level: verbose
+          local-dir: ./          # upload from project root
+          server-dir: /etsmsfbusiness.com/app/ # where to upload on server
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env
+            **/storage/logs/**
+            **/storage/framework/sessions/**
+
+      - name: Upload files to server via FTP (retry)
+        if: steps.ftp_deploy_attempt_1.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: 21
+          protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
+          log-level: verbose
           local-dir: ./          # upload from project root
           server-dir: /etsmsfbusiness.com/app/   # where to upload on server
           exclude: |

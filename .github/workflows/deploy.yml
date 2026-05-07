@@ -49,7 +49,7 @@ jobs:
           protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
           log-level: verbose
           local-dir: ./          # upload from project root
-          server-dir: /etsmsfbusiness.com/app/ # where to upload on server
+          server-dir: /app.etsmsfbusiness.com/sales-app/ # where to upload on server
           exclude: |
             **/.git*
             **/.git*/**
@@ -69,7 +69,7 @@ jobs:
           protocol: ${{ secrets.FTP_PROTOCOL || 'ftp' }}
           log-level: verbose
           local-dir: ./          # upload from project root
-          server-dir: /etsmsfbusiness.com/app/   # where to upload on server
+          server-dir: /app.etsmsfbusiness.com/sales-app/   # where to upload on server
           exclude: |
             **/.git*
             **/.git*/**

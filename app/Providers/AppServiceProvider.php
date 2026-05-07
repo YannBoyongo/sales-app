@@ -27,6 +27,7 @@ class AppServiceProvider extends ServiceProvider
     {
         App::setLocale(config('app.locale', 'fr'));
         Carbon::setLocale(config('app.locale', 'fr'));
+        Schema::defaultStringLength(191);
         $appSetting = Schema::hasTable('settings') ? Setting::query()->first() : null;
         View::share('appSetting', $appSetting);
 

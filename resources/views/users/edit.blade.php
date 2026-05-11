@@ -67,7 +67,7 @@
             if (!rolesWrap || !branchWrap || !branchSelect) return;
             function sync() {
                 var checked = Array.from(rolesWrap.querySelectorAll('input[name="roles[]"]:checked')).map(function (el) { return el.value; });
-                var noBranch = checked.includes('admin') || checked.includes('accountant');
+                var noBranch = checked.includes('admin') || checked.includes('accountant') || checked.includes('logistician');
                 branchWrap.classList.toggle('hidden', noBranch);
                 branchSelect.disabled = noBranch;
                 branchSelect.required = !noBranch;

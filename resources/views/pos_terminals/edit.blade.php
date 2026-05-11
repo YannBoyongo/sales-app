@@ -39,7 +39,7 @@
         @endif
         <div class="flex gap-3">
             <x-primary-button>Enregistrer</x-primary-button>
-            <a href="{{ route('branches.pos-terminals.index', $branch) }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
+            <a href="{{ route('branches.show', $branch) }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
         </div>
     </form>
 </x-app-layout>

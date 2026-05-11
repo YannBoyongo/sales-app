@@ -33,7 +33,6 @@ class PosTerminalController extends Controller
         $usedLocationIds = PosTerminal::query()->where('branch_id', $branch->id)->pluck('location_id');
         $locations = Location::query()
             ->where('branch_id', $branch->id)
-            ->pointOfSale()
             ->whereNotIn('id', $usedLocationIds)
             ->orderBy('name')
             ->get();
@@ -59,7 +58,6 @@ class PosTerminalController extends Controller
                 'integer',
                 Rule::exists('locations', 'id')->where(function ($q) use ($branch, $usedLocationIds) {
                     $q->where('branch_id', $branch->id)
-                        ->where('kind', Location::KIND_POINT_OF_SALE)
                         ->whereNotIn('id', $usedLocationIds);
                 }),
             ],
@@ -76,7 +74,7 @@ class PosTerminalController extends Controller
         $this->syncPosUsers($terminal, $data['pos_user_ids'] ?? []);
 
         return redirect()
-            ->route('branches.pos-terminals.index', $branch)
+            ->route('branches.show', $branch)
             ->with('success', 'Terminal POS créé.');
     }
 
@@ -111,7 +109,7 @@ class PosTerminalController extends Controller
         $this->syncPosUsers($posTerminal, $data['pos_user_ids'] ?? []);
 
         return redirect()
-            ->route('branches.pos-terminals.index', $branch)
+            ->route('branches.show', $branch)
             ->with('success', 'Terminal POS mis à jour.');
     }
 
@@ -135,7 +133,7 @@ class PosTerminalController extends Controller
 
         if ($posTerminal->openShift() !== null) {
             return redirect()
-                ->route('branches.pos-terminals.index', $branch)
+                ->route('branches.show', $branch)
                 ->withErrors(['terminal' => 'Fermez la session de caisse avant de supprimer ce terminal.']);
         }
 
@@ -143,14 +141,14 @@ class PosTerminalController extends Controller
             ->whereHas('posShift', fn ($q) => $q->where('pos_terminal_id', $posTerminal->id))
             ->exists()) {
             return redirect()
-                ->route('branches.pos-terminals.index', $branch)
+                ->route('branches.show', $branch)
                 ->withErrors(['terminal' => 'Impossible de supprimer un terminal ayant des ventes liées à une session.']);
         }
 
         $posTerminal->delete();
 
         return redirect()
-            ->route('branches.pos-terminals.index', $branch)
+            ->route('branches.show', $branch)
             ->with('success', 'Terminal supprimé.');
     }
 }

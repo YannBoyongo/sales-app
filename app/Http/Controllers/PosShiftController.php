@@ -3,12 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
-use App\Models\Branch;
-use App\Models\Department;
 use App\Models\AccountingTransaction;
+use App\Models\Branch;
+use App\Models\CashVoucher;
+use App\Models\Department;
 use App\Models\PosShift;
 use App\Models\PosTerminal;
 use App\Models\Sale;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -21,9 +23,18 @@ class PosShiftController extends Controller
 
     public function closed(): View
     {
-        abort_unless(auth()->user()?->canAccessAccounting(), 403, 'Vous n’avez pas accès à cet historique.');
+        abort_unless(auth()->user()?->canAccessCashDeskFinanceFeatures(), 403, 'Vous n’avez pas accès à cet historique.');
 
-        $terminalIds = $this->posTerminalsForUser()
+        $filters = request()->validate([
+            'registration' => ['nullable', 'in:registered,unregistered,all'],
+        ]);
+        $user = auth()->user();
+        $defaultRegistration = ($user?->isCashier() && ! $user->canAccessAccounting())
+            ? 'all'
+            : 'unregistered';
+        $registrationFilter = (string) ($filters['registration'] ?? $defaultRegistration);
+
+        $terminalIds = $this->posTerminalsForUser(null, true)
             ->pluck('id')
             ->values()
             ->all();
@@ -41,19 +52,52 @@ class PosShiftController extends Controller
             ->whereNotNull('closed_at')
             ->when($terminalIds === [], fn ($q) => $q->whereRaw('1 = 0'))
             ->when($terminalIds !== [], fn ($q) => $q->whereIn('pos_terminal_id', $terminalIds))
+            ->when($registrationFilter === 'registered', function (Builder $q) {
+                $q->whereExists(function ($sub) {
+                    $sub->selectRaw('1')
+                        ->from('accounting_transactions')
+                        ->whereRaw("accounting_transactions.reference LIKE CONCAT('%(shift #', pos_shifts.id, ')%')");
+                });
+            })
+            ->when($registrationFilter === 'unregistered', function (Builder $q) {
+                $q->whereNotExists(function ($sub) {
+                    $sub->selectRaw('1')
+                        ->from('accounting_transactions')
+                        ->whereRaw("accounting_transactions.reference LIKE CONCAT('%(shift #', pos_shifts.id, ')%')");
+                });
+            })
             ->orderByDesc('closed_at')
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('pos_terminals.closed_shifts', compact('shifts'));
+        $shifts->setCollection(
+            $shifts->getCollection()->map(function (PosShift $shift) {
+                $legacyReference = $this->closedShiftAccountingReference($shift);
+                $registeredCount = AccountingTransaction::query()
+                    ->where('reference', $legacyReference)
+                    ->orWhere('reference', 'like', '%(shift #'.$shift->id.') | %')
+                    ->count();
+
+                $shift->setAttribute('accounting_registered_count', $registeredCount);
+
+                return $shift;
+            })
+        );
+
+        $closedShiftsDescription = ($user?->isCashier() && ! $user->canAccessAccounting())
+            ? 'Toutes les sessions fermées de votre branche (bons de caisse, suivi d’encaissement). Filtrez par enregistrement comptable si besoin.'
+            : 'Liste des sessions de caisse déjà clôturées pour les terminaux auxquels vous avez accès.';
+
+        return view('pos_terminals.closed_shifts', compact('shifts', 'registrationFilter', 'closedShiftsDescription'));
     }
 
     public function showClosed(PosShift $shift): View
     {
-        abort_unless(auth()->user()?->canAccessAccounting(), 403, 'Vous n’avez pas accès à cet historique.');
+        abort_unless(auth()->user()?->canAccessCashDeskFinanceFeatures(), 403, 'Vous n’avez pas accès à cet historique.');
         abort_if($shift->closed_at === null, 404);
 
-        $allowedTerminalIds = $this->posTerminalsForUser()->pluck('id')->all();
+        $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
         abort_unless(in_array((int) $shift->pos_terminal_id, $allowedTerminalIds, true), 403, 'Session non autorisée.');
 
         $shift->load([
@@ -75,6 +119,11 @@ class PosShiftController extends Controller
         $alreadyPushedToAccounting = AccountingTransaction::query()
             ->where('reference', $accountingReference)
             ->exists();
+        $pushedDepartmentReferences = AccountingTransaction::query()
+            ->where('reference', 'like', $accountingReference.' | %')
+            ->pluck('reference')
+            ->map(fn ($reference) => (string) $reference)
+            ->all();
 
         return view('pos_terminals.closed_shift_show', compact(
             'shift',
@@ -82,46 +131,122 @@ class PosShiftController extends Controller
             'summaries',
             'grandTotal',
             'alreadyPushedToAccounting',
+            'accountingReference',
+            'pushedDepartmentReferences',
         ));
     }
 
     public function pushClosedShiftToAccounting(Request $request, PosShift $shift): RedirectResponse
     {
-        abort_unless($request->user()?->canAccessAccounting(), 403, 'Vous n’avez pas accès à cette action.');
+        abort_unless($request->user()?->canPushClosedShiftCashEntry(), 403, 'Vous n’avez pas accès à cette action.');
         abort_if($shift->closed_at === null, 404);
 
-        $allowedTerminalIds = $this->posTerminalsForUser()->pluck('id')->all();
+        $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
         abort_unless(in_array((int) $shift->pos_terminal_id, $allowedTerminalIds, true), 403, 'Session non autorisée.');
 
+        $data = $request->validate([
+            'department_id' => ['nullable', 'integer'],
+        ]);
+        $departmentId = isset($data['department_id']) && $data['department_id'] !== ''
+            ? (int) $data['department_id']
+            : null;
+
+        $shift->loadMissing([
+            'posTerminal',
+            'sales.items.product.department',
+        ]);
+
+        $summaries = $this->departmentSummariesForShift($shift->sales);
+        $selected = collect($summaries)->first(function (array $row) use ($departmentId): bool {
+            $rowDepartmentId = (int) ($row['department']?->id ?? 0);
+            $selectedId = (int) ($departmentId ?? 0);
+
+            return $rowDepartmentId === $selectedId;
+        });
+
+        if ($selected === null) {
+            return redirect()
+                ->route('pos-terminal.shifts.closed.show', $shift)
+                ->with('warning', 'Département invalide pour cette session.');
+        }
+
         $accountingReference = $this->closedShiftAccountingReference($shift);
+        $departmentLabel = (string) ($selected['label'] ?? 'Département inconnu');
+        $departmentRef = mb_substr($accountingReference.' | '.$departmentLabel, 0, 255);
+
         $alreadyPushed = AccountingTransaction::query()
-            ->where('reference', $accountingReference)
+            ->where('reference', $departmentRef)
             ->exists();
 
         if ($alreadyPushed) {
             return redirect()
                 ->route('pos-terminal.shifts.closed.show', $shift)
-                ->with('warning', 'Cette session a déjà été transférée en comptabilité.');
+                ->with('warning', 'Ce département a déjà été transféré en comptabilité.');
         }
 
-        $total = (string) $shift->sales()->sum('total_amount');
+        $total = (string) ($selected['total'] ?? '0.00');
         if (bccomp($total, '0.00', 2) <= 0) {
             return redirect()
                 ->route('pos-terminal.shifts.closed.show', $shift)
-                ->with('warning', 'Aucun montant à transférer en comptabilité pour cette session.');
+                ->with('warning', 'Aucun montant à transférer en comptabilité pour ce département.');
         }
 
-        AccountingTransaction::create([
-            'user_id' => $request->user()->id,
-            'transaction_date' => optional($shift->closed_at)->toDateString() ?? now()->toDateString(),
-            'reference' => $accountingReference,
-            'amount' => $total,
-            'entry_type' => 'debit',
-        ]);
+        DB::transaction(function () use ($request, $shift, $selected, $departmentLabel, $departmentRef, $total): void {
+            AccountingTransaction::create([
+                'user_id' => $request->user()->id,
+                'transaction_date' => optional($shift->closed_at)->toDateString() ?? now()->toDateString(),
+                'reference' => $departmentRef,
+                'amount' => $total,
+                'entry_type' => 'debit',
+            ]);
+
+            CashVoucher::query()->firstOrCreate(
+                ['voucher_no' => sprintf('CV-SHIFT-%d-%s', $shift->id, (string) ($selected['department']?->id ?? 'ND'))],
+                [
+                    'date' => optional($shift->closed_at)->toDateString() ?? now()->toDateString(),
+                    'description' => sprintf(
+                        'Entrée caisse issue de la clôture session #%d - %s (%s)',
+                        $shift->id,
+                        $departmentLabel,
+                        optional($shift->posTerminal)->name ?? 'Terminal'
+                    ),
+                    'type' => 'entry',
+                    'amount' => $total,
+                ]
+            );
+        });
 
         return redirect()
             ->route('pos-terminal.shifts.closed.show', $shift)
-            ->with('success', 'Session transférée en comptabilité.');
+            ->with('success', 'Département transféré en comptabilité.');
+    }
+
+    public function destroyClosed(Request $request, PosShift $shift): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        abort_if($shift->closed_at === null, 404);
+
+        $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
+        abort_unless(in_array((int) $shift->pos_terminal_id, $allowedTerminalIds, true), 403, 'Session non autorisée.');
+
+        if ($shift->sales()->exists()) {
+            return redirect()
+                ->route('pos-terminal.shifts.closed', $request->only('registration'))
+                ->with('warning', 'Impossible de supprimer : ce shift a des ventes liées.');
+        }
+
+        $shift->loadMissing('posTerminal');
+        if ($this->closedShiftHasFinanceLinks($shift)) {
+            return redirect()
+                ->route('pos-terminal.shifts.closed', $request->only('registration'))
+                ->with('warning', 'Impossible de supprimer : des écritures ou bons de caisse sont liés à ce shift.');
+        }
+
+        $shift->delete();
+
+        return redirect()
+            ->route('pos-terminal.shifts.closed', $request->only('registration'))
+            ->with('success', 'Session sans vente supprimée.');
     }
 
     public function open(Branch $branch, PosTerminal $posTerminal): RedirectResponse
@@ -289,5 +414,22 @@ class PosShiftController extends Controller
             $terminalLabel,
             $shift->id
         ), 0, 255);
+    }
+
+    private function closedShiftHasFinanceLinks(PosShift $shift): bool
+    {
+        $legacyReference = $this->closedShiftAccountingReference($shift);
+        if (AccountingTransaction::query()
+            ->where(function ($q) use ($shift, $legacyReference) {
+                $q->where('reference', $legacyReference)
+                    ->orWhere('reference', 'like', '%(shift #'.$shift->id.') | %');
+            })
+            ->exists()) {
+            return true;
+        }
+
+        return CashVoucher::query()
+            ->where('voucher_no', 'like', 'CV-SHIFT-'.$shift->id.'-%')
+            ->exists();
     }
 }

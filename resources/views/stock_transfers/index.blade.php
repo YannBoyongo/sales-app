@@ -3,8 +3,8 @@
 
     <x-page-header
         title="Transferts de stock"
-        action="Nouveau transfert"
-        :action-href="route('stock-transfers.create')"
+        :action="auth()->user()?->isInventoryReadOnly() ? null : 'Nouveau transfert'"
+        :action-href="auth()->user()?->isInventoryReadOnly() ? null : route('stock-transfers.create')"
     />
 
     @if (session('success'))

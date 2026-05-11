@@ -38,7 +38,7 @@ class DashboardController extends Controller
             ->with(['branch', 'user:id,name'])
             ->latest('sold_at');
         $this->applyBranchFilter($recentSales, 'branch_id');
-        $recentSales = $recentSales->take(12)->get();
+        $recentSales = $recentSales->take(5)->get();
 
         $branchesCount = $isAdmin ? Branch::query()->count() : null;
 
@@ -53,7 +53,7 @@ class DashboardController extends Controller
         $this->applyStockBranchFilter($lowStocksQuery);
 
         $lowStocksCount = (clone $lowStocksQuery)->count();
-        $lowStocks = (clone $lowStocksQuery)->take(12)->get();
+        $lowStocks = (clone $lowStocksQuery)->take(5)->get();
 
         $startOfDay = now()->copy()->startOfDay();
         $endOfDay = now()->copy()->endOfDay();

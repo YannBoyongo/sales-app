@@ -36,8 +36,7 @@
             </div>
         </x-slot>
 
-        <form method="POST" action="{{ route('purchase-orders.receive', $purchaseOrder) }}">
-            @csrf
+        @if (auth()->user()?->isInventoryReadOnly())
             <div class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
                 <table class="min-w-full divide-y divide-neutral-200 text-sm">
                     <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
@@ -46,7 +45,6 @@
                             <th class="px-4 py-3 text-right">Commandé</th>
                             <th class="px-4 py-3 text-right">Reçu</th>
                             <th class="px-4 py-3 text-right">Restant</th>
-                            <th class="px-4 py-3 text-right">Réceptionner maintenant</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-neutral-100">
@@ -57,30 +55,58 @@
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_ordered }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_received }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $remaining }}</td>
-                                <td class="px-4 py-3 text-right">
-                                    <input
-                                        type="number"
-                                        name="receive[{{ $item->id }}]"
-                                        min="0"
-                                        max="{{ $remaining }}"
-                                        value="0"
-                                        class="w-28 rounded-lg border-neutral-300 text-right text-sm shadow-sm focus:border-primary focus:ring-primary"
-                                        @disabled($remaining === 0)
-                                    />
-                                </td>
                             </tr>
                         @endforeach
-                        <tr>
-                            <td colspan="5" class="px-4 py-4 text-right">
-                                <button type="submit" class="inline-flex items-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
-                                    Enregistrer la réception
-                                </button>
-                            </td>
-                        </tr>
                     </tbody>
                 </table>
             </div>
-        </form>
+        @else
+            <form method="POST" action="{{ route('purchase-orders.receive', $purchaseOrder) }}">
+                @csrf
+                <div class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
+                    <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                        <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                            <tr>
+                                <th class="px-4 py-3">Produit</th>
+                                <th class="px-4 py-3 text-right">Commandé</th>
+                                <th class="px-4 py-3 text-right">Reçu</th>
+                                <th class="px-4 py-3 text-right">Restant</th>
+                                <th class="px-4 py-3 text-right">Réceptionner maintenant</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-neutral-100">
+                            @foreach ($purchaseOrder->items as $item)
+                                @php $remaining = max(0, $item->quantity_ordered - $item->quantity_received); @endphp
+                                <tr class="hover:bg-neutral-50/50">
+                                    <td class="px-4 py-3 font-medium text-neutral-900">{{ $item->product->name }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_ordered }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_received }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ $remaining }}</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <input
+                                            type="number"
+                                            name="receive[{{ $item->id }}]"
+                                            min="0"
+                                            max="{{ $remaining }}"
+                                            value="0"
+                                            class="w-28 rounded-lg border-neutral-300 text-right text-sm shadow-sm focus:border-primary focus:ring-primary"
+                                            @disabled($remaining === 0)
+                                        />
+                                    </td>
+                                </tr>
+                            @endforeach
+                            <tr>
+                                <td colspan="5" class="px-4 py-4 text-right">
+                                    <button type="submit" class="inline-flex items-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+                                        Enregistrer la réception
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </form>
+        @endif
 
         <section class="mt-8 overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
             <div class="border-b border-neutral-100 bg-neutral-50/80 px-5 py-4">

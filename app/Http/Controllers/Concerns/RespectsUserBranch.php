@@ -366,17 +366,48 @@ trait RespectsUserBranch
     }
 
     /**
+     * @param  bool  $forClosedShiftsListing  Caissier rattaché à une branche (sans terminal pivot) : inclure tous les terminaux de la branche pour l’historique des shifts fermés / bons de caisse.
      * @return Collection<int, PosTerminal>
      */
-    protected function posTerminalsForUser(?Branch $branch = null): Collection
+    protected function posTerminalsForUser(?Branch $branch = null, bool $forClosedShiftsListing = false): Collection
     {
         $user = auth()->user();
-        if (! $user || ! $user->canAccessPosSales()) {
+        if (! $user) {
+            return collect();
+        }
+        $cashierMayListBranchClosedShifts = $forClosedShiftsListing
+            && $user->isCashier()
+            && $user->branch_id;
+        $accountingMayListClosedShifts = $forClosedShiftsListing && $user->canAccessAccounting();
+        if (! $user->canAccessPosSales() && ! $cashierMayListBranchClosedShifts && ! $accountingMayListClosedShifts) {
             return collect();
         }
 
         if ($user->canBypassBranchScope()) {
             $q = PosTerminal::query()->with('location', 'branch');
+            if ($branch !== null) {
+                $q->where('branch_id', $branch->id);
+            }
+
+            return $q->orderBy('branch_id')->orderBy('name')->get();
+        }
+
+        if ($user->isCashier()) {
+            $branchIds = $user->branch_id
+                ? [(int) $user->branch_id]
+                : $user->posTerminals()
+                    ->pluck('branch_id')
+                    ->unique()
+                    ->filter()
+                    ->map(fn ($id) => (int) $id)
+                    ->values()
+                    ->all();
+            if ($branchIds === []) {
+                return collect();
+            }
+            $q = PosTerminal::query()
+                ->with('location', 'branch')
+                ->whereIn('branch_id', $branchIds);
             if ($branch !== null) {
                 $q->where('branch_id', $branch->id);
             }

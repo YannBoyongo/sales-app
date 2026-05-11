@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
-use App\Models\Location;
 use App\Models\Product;
 use App\Models\Stock;
 use App\Models\StockMovement;
@@ -39,6 +38,8 @@ class StockMovementController extends Controller
 
     public function create(): View
     {
+        abort_unless(! auth()->user()?->isInventoryReadOnly(), 403);
+
         $productQuery = Product::query()->with('department')->orderBy('name');
         $this->applyProductBranchScope($productQuery);
         $products = $productQuery->get();
@@ -49,6 +50,8 @@ class StockMovementController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless(! $request->user()?->isInventoryReadOnly(), 403);
+
         $data = $request->validate([
             'type' => ['required', 'in:entry,exit,transfer'],
             'product_id' => ['required', 'exists:products,id'],

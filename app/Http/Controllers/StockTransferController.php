@@ -25,6 +25,8 @@ class StockTransferController extends Controller
 
     public function index(): View
     {
+        abort_unless(auth()->user()?->canViewStockTransfers(), 403);
+
         $query = StockTransfer::query()
             ->with([
                 'fromLocation:id,name,branch_id',
@@ -45,6 +47,8 @@ class StockTransferController extends Controller
 
     public function create(): View
     {
+        abort_unless(auth()->user()?->canManageStockTransfers(), 403);
+
         $productQuery = Product::query()->with('department')->orderBy('name');
         $this->applyProductBranchScope($productQuery);
         $products = $productQuery->get();
@@ -134,6 +138,8 @@ class StockTransferController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->canManageStockTransfers(), 403);
+
         $data = $request->validate([
             'transfer_scope' => ['required', Rule::in([StockTransfer::SCOPE_INTERNAL, StockTransfer::SCOPE_EXTERNAL])],
             'from_location_id' => ['required', 'exists:locations,id'],
@@ -290,6 +296,8 @@ class StockTransferController extends Controller
 
     public function show(StockTransfer $stockTransfer): View
     {
+        abort_unless(auth()->user()?->canViewStockTransfers(), 403);
+
         $this->ensureUserCanAccessStockTransfer($stockTransfer);
 
         $stockTransfer->load([

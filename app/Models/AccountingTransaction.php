@@ -13,6 +13,7 @@ class AccountingTransaction extends Model
         'reference',
         'amount',
         'entry_type',
+        'account_code',
     ];
 
     protected function casts(): array

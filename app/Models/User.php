@@ -121,15 +121,32 @@ class User extends Authenticatable
         return $this->hasRole(UserRole::Cashier);
     }
 
-    /** Admin ou comptable : vue agrégée multi-branches (filtre désactivé). */
+    public function isLogistician(): bool
+    {
+        return $this->hasRole(UserRole::Logistician);
+    }
+
+    /** Admin, comptable ou logisticien : vue agrégée multi-branches (filtre désactivé). */
     public function canBypassBranchScope(): bool
     {
-        return $this->isAdmin() || $this->isAccountant();
+        return $this->isAdmin() || $this->isAccountant() || $this->isLogistician();
     }
 
     public function canAccessAccounting(): bool
     {
         return $this->isAdmin() || $this->isAccountant();
+    }
+
+    /** Shifts fermés, clients, bons de caisse : comptable/admin ou caissier. */
+    public function canAccessCashDeskFinanceFeatures(): bool
+    {
+        return $this->canAccessAccounting() || $this->isCashier();
+    }
+
+    /** Depuis un shift fermé : créer l’écriture + bon de caisse (caissier responsable ou compta). */
+    public function canPushClosedShiftCashEntry(): bool
+    {
+        return $this->canAccessAccounting() || $this->isCashier();
     }
 
     /** Structure boutique, utilisateurs, paramètres, BC admin, etc. */
@@ -138,17 +155,38 @@ class User extends Authenticatable
         return $this->isAdmin();
     }
 
-    /** Transferts inter-emplacements (hors rôle caisse / point de vente). */
-    public function canManageStockTransfers(): bool
+    /**
+     * Consultation stocks / produits / transferts / mouvements / PO sans action d’écriture.
+     * Les administrateurs restent modifiables même s’ils ont aussi le rôle comptable.
+     */
+    public function isInventoryReadOnly(): bool
     {
-        return ! $this->isPosUser() && ! $this->isCashier();
+        return $this->isAccountant() && ! $this->isAdmin();
     }
 
-    /** Accès à l’écran caisse (au moins un terminal ou périmètre élargi). */
+    /** Créer ou enregistrer un transfert de stock (hors caisse / point de vente / comptable en lecture seule). */
+    public function canManageStockTransfers(): bool
+    {
+        return ! $this->isPosUser() && ! $this->isCashier() && ! $this->isAccountant();
+    }
+
+    /** Voir la liste et le détail des transferts (y compris comptable). */
+    public function canViewStockTransfers(): bool
+    {
+        return $this->canManageStockTransfers() || $this->isAccountant();
+    }
+
+    /**
+     * Accès au flux de vente (choix terminal, workspace, nouvelle vente).
+     * Le comptable seul n’y accède pas ; un admin reste autorisé même avec le rôle comptable.
+     */
     public function canAccessPosSales(): bool
     {
-        if ($this->isAdmin() || $this->isAccountant()) {
+        if ($this->isAdmin()) {
             return true;
+        }
+        if ($this->isAccountant()) {
+            return false;
         }
         if ($this->isPosUser() || $this->isCashier()) {
             return $this->posTerminals()->exists();

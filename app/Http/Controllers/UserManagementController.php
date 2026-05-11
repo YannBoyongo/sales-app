@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -40,8 +41,8 @@ class UserManagementController extends Controller
             'branch_id' => [
                 Rule::requiredIf(function () use ($request) {
                     $selected = array_map('strval', (array) $request->input('roles', []));
-                    return ! in_array(UserRole::Admin->value, $selected, true)
-                        && ! in_array(UserRole::Accountant->value, $selected, true);
+
+                    return ! $this->branchIsOptionalForRoleSlugs($selected);
                 }),
                 'nullable',
                 'exists:branches,id',
@@ -88,8 +89,8 @@ class UserManagementController extends Controller
             'branch_id' => [
                 Rule::requiredIf(function () use ($request) {
                     $selected = array_map('strval', (array) $request->input('roles', []));
-                    return ! in_array(UserRole::Admin->value, $selected, true)
-                        && ! in_array(UserRole::Accountant->value, $selected, true);
+
+                    return ! $this->branchIsOptionalForRoleSlugs($selected);
                 }),
                 'nullable',
                 'exists:branches,id',
@@ -172,7 +173,7 @@ class UserManagementController extends Controller
     }
 
     /**
-     * @param list<string> $roleSlugs
+     * @param  list<string>  $roleSlugs
      */
     private function primaryRoleSlug(array $roleSlugs): string
     {
@@ -180,6 +181,7 @@ class UserManagementController extends Controller
             UserRole::Admin->value,
             UserRole::Accountant->value,
             UserRole::Manager->value,
+            UserRole::Logistician->value,
             UserRole::Cashier->value,
             UserRole::PosUser->value,
         ];
@@ -194,11 +196,11 @@ class UserManagementController extends Controller
     }
 
     /**
-     * @param list<string> $roleSlugs
+     * @param  list<string>  $roleSlugs
      */
     private function resolveBranchIdForRoles(array $roleSlugs, mixed $branchId): ?int
     {
-        if (in_array(UserRole::Admin->value, $roleSlugs, true) || in_array(UserRole::Accountant->value, $roleSlugs, true)) {
+        if ($this->branchIsOptionalForRoleSlugs($roleSlugs)) {
             return null;
         }
 
@@ -206,11 +208,24 @@ class UserManagementController extends Controller
     }
 
     /**
-     * @param list<string> $roleSlugs
+     * @param  list<string>  $roleSlugs
+     */
+    private function branchIsOptionalForRoleSlugs(array $roleSlugs): bool
+    {
+        return in_array(UserRole::Admin->value, $roleSlugs, true)
+            || in_array(UserRole::Accountant->value, $roleSlugs, true)
+            || in_array(UserRole::Logistician->value, $roleSlugs, true);
+    }
+
+    /**
+     * @param  list<string>  $roleSlugs
      * @return list<int>
      */
     private function roleIdsFromSlugs(array $roleSlugs): array
     {
+        // Keep pivot slugs aligned with UserRole enum (e.g. logistician added after first migrate).
+        (new RoleSeeder)->run();
+
         return Role::query()
             ->whereIn('slug', $roleSlugs)
             ->pluck('id')

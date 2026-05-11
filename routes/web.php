@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BranchController;
+use App\Http\Controllers\CashVoucherController;
+use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -35,6 +37,11 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
+    Route::get('products/export/pdf', [ProductController::class, 'exportPdf'])->name('products.export.pdf');
+    Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
+    Route::get('products/import/sample', [ProductController::class, 'importSample'])->name('products.import.sample');
+    Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
+    Route::post('products/import-json', [ProductController::class, 'importJson'])->name('products.import.json');
     Route::resource('products', ProductController::class)->except(['show']);
 
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
@@ -43,8 +50,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('stock-movements', StockMovementController::class)->only(['index', 'create', 'store']);
 
+    Route::get('stock-transfers', [StockTransferController::class, 'index'])->name('stock-transfers.index');
+    Route::get('stock-transfers/{stock_transfer}', [StockTransferController::class, 'show'])->name('stock-transfers.show')->whereNumber('stock_transfer');
+
     Route::middleware('stock_transfer')->group(function () {
-        Route::resource('stock-transfers', StockTransferController::class)->only(['index', 'create', 'store', 'show']);
+        Route::get('stock-transfers/create', [StockTransferController::class, 'create'])->name('stock-transfers.create');
+        Route::post('stock-transfers', [StockTransferController::class, 'store'])->name('stock-transfers.store');
     });
     Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
     Route::get('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'show'])->whereNumber('purchase_order')->name('purchase-orders.show');
@@ -54,6 +65,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('caisse', [SaleEntryController::class, 'create'])->name('sales.entry');
     Route::get('caisse/shifts/closed', [PosShiftController::class, 'closed'])->name('pos-terminal.shifts.closed');
     Route::get('caisse/shifts/closed/{shift}', [PosShiftController::class, 'showClosed'])->name('pos-terminal.shifts.closed.show')->whereNumber('shift');
+    Route::delete('caisse/shifts/closed/{shift}', [PosShiftController::class, 'destroyClosed'])->name('pos-terminal.shifts.closed.destroy')->whereNumber('shift');
     Route::post('caisse/shifts/closed/{shift}/push-accounting', [PosShiftController::class, 'pushClosedShiftToAccounting'])->name('pos-terminal.shifts.closed.push-accounting')->whereNumber('shift');
     Route::get('caisse/branches/{branch}/terminaux', [SaleItemController::class, 'chooseTerminal'])->name('sales.choose-terminal')->whereNumber('branch');
     Route::get('caisse/branches/{branch}/terminaux/{pos_terminal}', [PosTerminalWorkspaceController::class, 'show'])->name('pos-terminal.workspace')->whereNumber(['branch', 'pos_terminal']);
@@ -112,14 +124,24 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('branches/{branch}/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit')->whereNumber('sale');
         Route::patch('branches/{branch}/sales/{sale}', [SaleController::class, 'update'])->name('sales.update')->whereNumber('sale');
         Route::delete('branches/{branch}/sales/{sale}', [SaleController::class, 'destroy'])->name('sales.destroy')->whereNumber('sale');
+        Route::post('bons-de-caisse/{cashVoucher}/approve', [CashVoucherController::class, 'approve'])->name('cash-vouchers.approve');
     });
 
-    Route::middleware('accounting')->group(function () {
+    Route::middleware('accounting_or_cashier')->group(function () {
         Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
         Route::get('clients/create', [ClientController::class, 'create'])->name('clients.create');
         Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
         Route::get('clients/{client}', [ClientController::class, 'show'])->name('clients.show');
         Route::post('clients/{client}/payments', [ClientController::class, 'storePayment'])->name('clients.payments.store');
+        Route::get('bons-de-caisse', [CashVoucherController::class, 'index'])->name('cash-vouchers.index');
+        Route::post('bons-de-caisse', [CashVoucherController::class, 'store'])->name('cash-vouchers.store');
+        Route::get('bons-de-caisse/{cashVoucher}/comptabiliser', [CashVoucherController::class, 'createAccountingEntry'])->name('cash-vouchers.accounting.create');
+        Route::post('bons-de-caisse/{cashVoucher}/comptabiliser', [CashVoucherController::class, 'storeAccountingEntry'])->name('cash-vouchers.accounting.store');
+    });
+
+    Route::middleware('accounting')->group(function () {
+        Route::get('plan-comptable', [ChartOfAccountController::class, 'index'])->name('chart-of-accounts.index');
+        Route::post('plan-comptable', [ChartOfAccountController::class, 'store'])->name('chart-of-accounts.store');
         Route::get('comptabilite', [AccountingController::class, 'index'])->name('accounting.index');
         Route::post('comptabilite/ecritures', [AccountingController::class, 'store'])->name('accounting.store');
     });

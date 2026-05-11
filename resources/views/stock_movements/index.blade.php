@@ -11,12 +11,14 @@
                         Journal des entrées, sorties, transferts et ajustements sur votre périmètre. Les transferts liés à un bon de transfert affichent un lien lorsque vous y avez accès.
                     </p>
                 </div>
-                <a
-                    href="{{ route('stock-movements.create') }}"
-                    class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                    Nouveau mouvement
-                </a>
+                @unless (auth()->user()?->isInventoryReadOnly())
+                    <a
+                        href="{{ route('stock-movements.create') }}"
+                        class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                    >
+                        Nouveau mouvement
+                    </a>
+                @endunless
             </div>
         </x-slot>
 
@@ -63,7 +65,7 @@
                                 @else
                                     {{ $m->fromLocation?->name }} → {{ $m->toLocation?->name }}
                                     @if ($m->stock_transfer_id)
-                                        @if (auth()->user()->canManageStockTransfers())
+                                        @if (auth()->user()->canViewStockTransfers())
                                             — <a href="{{ route('stock-transfers.show', $m->stock_transfer_id) }}" class="text-primary underline-offset-2 hover:underline">Transfert #{{ $m->stock_transfer_id }}</a>
                                         @else
                                             — <span class="text-neutral-500">Transfert #{{ $m->stock_transfer_id }}</span>

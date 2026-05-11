@@ -72,7 +72,7 @@
                         <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
                         <span>Stocks par emplacement</span>
                     </a>
-                    @if (Auth::user()->canManageStockTransfers())
+                    @if (Auth::user()->canViewStockTransfers())
                         <a href="{{ route('stock-transfers.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('stock-transfers.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                             <span>Transfert de stock</span>
@@ -94,22 +94,34 @@
                             <span>Terminal POS</span>
                         </a>
                     @endif
-                    @if (Auth::user()->canAccessAccounting())
-                        <a href="{{ route('pos-terminal.shifts.closed') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('pos-terminal.shifts.closed') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
+                    @if (Auth::user()->canAccessCashDeskFinanceFeatures())
+                        <a href="{{ route('pos-terminal.shifts.closed') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('pos-terminal.shifts.closed*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-3-13v4m6 13H6a2 2 0 01-2-2V7a2 2 0 012-2h3.5a1 1 0 00.8-.4l.9-1.2a1 1 0 01.8-.4H18a2 2 0 012 2v13a2 2 0 01-2 2z"/></svg>
                             <span>Shifts fermés</span>
                         </a>
                     @endif
-                    @if (Auth::user()->canAccessAccounting())
+                    @if (Auth::user()->canAccessCashDeskFinanceFeatures())
                         <p class="pt-4 pb-1 px-3 text-xs uppercase tracking-wider text-neutral-500">Finances</p>
                         <a href="{{ route('clients.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('clients.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.964 0a9 9 0 10-11.964 0m11.964 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             <span>Clients</span>
                         </a>
-                        <a href="{{ route('accounting.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('accounting.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
-                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 3v17.25A.75.75 0 004.5 21h15m-12-3.75h2.25v-6H7.5v6zm4.5 0h2.25V9H12v8.25zm4.5 0h2.25V6h-2.25v11.25z"/></svg>
-                            <span>Comptabilité</span>
+                        @if (Auth::user()->canAccessAccounting())
+                            <a href="{{ route('accounting.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('accounting.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
+                                <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 3v17.25A.75.75 0 004.5 21h15m-12-3.75h2.25v-6H7.5v6zm4.5 0h2.25V9H12v8.25zm4.5 0h2.25V6h-2.25v11.25z"/></svg>
+                                <span>Comptabilité</span>
+                            </a>
+                        @endif
+                        <a href="{{ route('cash-vouchers.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('cash-vouchers.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.25 7.5h7.5M8.25 11.25h7.5M8.25 15h4.5m6.75-9.75v13.5a2.25 2.25 0 01-2.25 2.25h-10.5a2.25 2.25 0 01-2.25-2.25V5.25A2.25 2.25 0 016.75 3h10.5a2.25 2.25 0 012.25 2.25z"/></svg>
+                            <span>Bon de caisse</span>
                         </a>
+                        @if (Auth::user()->canAccessAccounting())
+                            <a href="{{ route('chart-of-accounts.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('chart-of-accounts.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
+                                <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.5 6.75h15m-15 5.25h15m-15 5.25h15"/></svg>
+                                <span>Plan comptable</span>
+                            </a>
+                        @endif
                     @endif
                     @if (Auth::user()->canManageApplication())
                         <p class="pt-4 pb-1 px-3 text-xs uppercase tracking-wider text-neutral-500">Configuration</p>

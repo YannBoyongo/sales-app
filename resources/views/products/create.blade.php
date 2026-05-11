@@ -26,7 +26,7 @@
                 <x-input-error :messages="$errors->get('name')" class="mt-2" />
             </div>
             <div>
-                <x-input-label for="sku" value="Référence (SKU)" />
+                <x-input-label for="sku" value="Code" />
                 <x-text-input id="sku" name="sku" type="text" class="mt-1 block w-full" :value="old('sku')" />
                 <x-input-error :messages="$errors->get('sku')" class="mt-2" />
             </div>

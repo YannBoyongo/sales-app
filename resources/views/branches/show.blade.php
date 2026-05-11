@@ -32,6 +32,15 @@
             </div>
         @endif
 
+        @if ($errors->has('terminal'))
+            <div class="flex items-start gap-3 rounded-xl border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm text-red-950 shadow-sm" role="alert">
+                <svg class="mt-0.5 h-5 w-5 shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <p class="font-medium leading-relaxed">{{ $errors->first('terminal') }}</p>
+            </div>
+        @endif
+
         {{-- En-tête & actions --}}
         <div class="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-sm ring-1 ring-black/[0.03]">
             <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-blue-500 to-sky-400" aria-hidden="true"></div>

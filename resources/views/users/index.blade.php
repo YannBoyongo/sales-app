@@ -41,7 +41,7 @@
                             </div>
                         </td>
                         <td class="px-4 py-3 text-neutral-600">
-                            @if ($user->isAdmin())
+                            @if ($user->canBypassBranchScope())
                                 <span class="text-neutral-400">—</span>
                             @elseif ($user->branch)
                                 {{ $user->branch->name }}

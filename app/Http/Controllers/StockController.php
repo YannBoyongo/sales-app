@@ -164,6 +164,8 @@ class StockController extends Controller
 
     public function edit(Request $request, Stock $stock): View
     {
+        abort_unless(! auth()->user()?->isInventoryReadOnly(), 403);
+
         $stock->load(['product', 'location.branch']);
         $this->ensureUserCanAccessLocation($stock->location);
 
@@ -174,6 +176,8 @@ class StockController extends Controller
 
     public function update(Request $request, Stock $stock): RedirectResponse
     {
+        abort_unless(! $request->user()?->isInventoryReadOnly(), 403);
+
         $this->ensureUserCanAccessLocation($stock->location);
 
         $raw = $request->input('minimum_stock');

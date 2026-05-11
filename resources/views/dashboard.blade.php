@@ -164,7 +164,7 @@
                     <div class="flex items-center justify-between border-b border-neutral-100 bg-neutral-50/80 px-5 py-4">
                         <div>
                             <h2 class="font-semibold text-neutral-900">Dernières ventes</h2>
-                            <p class="mt-0.5 text-xs text-neutral-500">Les enregistrements les plus récents sur votre périmètre</p>
+                            <p class="mt-0.5 text-xs text-neutral-500">Les 5 enregistrements les plus récents sur votre périmètre</p>
                         </div>
                         <a href="{{ route('sales.overview') }}" class="text-sm font-medium text-neutral-600 hover:text-primary">Tout voir</a>
                     </div>
@@ -194,7 +194,7 @@
                         <div>
                             <h2 class="font-semibold @if ($lowStocksCount > 0) text-red-900 @else text-neutral-900 @endif">Stocks bas</h2>
                             @if ($lowStocksCount > 0)
-                                <p class="mt-0.5 text-xs font-medium text-red-800">Produits sous le seuil (emplacement ou produit)</p>
+                                <p class="mt-0.5 text-xs font-medium text-red-800">5 premières lignes sous le seuil (emplacement ou produit) — voir la matrice pour la liste complète</p>
                             @endif
                         </div>
                         <a href="{{ route('stocks.index') }}" class="text-sm @if ($lowStocksCount > 0) font-medium text-red-800 hover:text-red-950 @else font-medium text-neutral-600 hover:text-primary @endif">Stocks</a>

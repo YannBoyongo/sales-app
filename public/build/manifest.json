@@ -1,6 +1,6 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-CH9v41Eb.css",
+    "file": "assets/app-DB6hB9Df.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -9,9 +9,18 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-DFwq5eDd.js",
+    "file": "assets/app-B7nAZz6P.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
+    "isEntry": true,
+    "dynamicImports": [
+      "resources/js/product-import.js"
+    ]
+  },
+  "resources/js/product-import.js": {
+    "file": "assets/product-import-DiKBbh8H.js",
+    "name": "product-import",
+    "src": "resources/js/product-import.js",
+    "isDynamicEntry": true
   }
 }

@@ -164,6 +164,8 @@ class PurchaseOrderController extends Controller
 
     public function receive(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
+        abort_unless(! $request->user()?->isInventoryReadOnly(), 403);
+
         $purchaseOrder->load(['location', 'items.product']);
         $this->ensureUserCanAccessLocation($purchaseOrder->location);
 

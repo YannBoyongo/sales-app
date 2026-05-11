@@ -11,14 +11,14 @@
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
         <div>
-            <x-input-label for="location_id" value="Emplacement (point de vente)" />
+            <x-input-label for="location_id" value="Emplacement" />
             <select id="location_id" name="location_id" class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required>
                 <option value="">— Choisir —</option>
                 @foreach ($locations as $loc)
-                    <option value="{{ $loc->id }}" @selected((string) old('location_id') === (string) $loc->id)>{{ $loc->name }}</option>
+                    <option value="{{ $loc->id }}" @selected((string) old('location_id') === (string) $loc->id)>{{ $loc->name }} ({{ \App\Models\Location::kindLabel($loc->kind) }})</option>
                 @endforeach
             </select>
-            <p class="mt-1 text-xs text-neutral-500">Chaque emplacement « Point de vente » ne peut être lié qu’à un seul terminal.</p>
+            <p class="mt-1 text-xs text-neutral-500">Tout emplacement de la branche peut être choisi. Chaque emplacement ne peut être lié qu’à un seul terminal.</p>
             <x-input-error :messages="$errors->get('location_id')" class="mt-2" />
         </div>
         @if ($eligibleUsers->isNotEmpty())
@@ -44,7 +44,7 @@
         @endif
         <div class="flex gap-3">
             <x-primary-button>Créer</x-primary-button>
-            <a href="{{ route('branches.pos-terminals.index', $branch) }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
+            <a href="{{ route('branches.show', $branch) }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
         </div>
     </form>
 </x-app-layout>

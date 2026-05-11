@@ -28,6 +28,7 @@ return new class extends Migration
         $roles = [
             ['name' => 'Admin', 'slug' => 'admin', 'created_at' => $now, 'updated_at' => $now],
             ['name' => 'Manager', 'slug' => 'manager', 'created_at' => $now, 'updated_at' => $now],
+            ['name' => 'Logistician', 'slug' => 'logistician', 'created_at' => $now, 'updated_at' => $now],
             ['name' => 'POS user', 'slug' => 'pos_user', 'created_at' => $now, 'updated_at' => $now],
             ['name' => 'Cashier', 'slug' => 'cashier', 'created_at' => $now, 'updated_at' => $now],
             ['name' => 'Accountant', 'slug' => 'accountant', 'created_at' => $now, 'updated_at' => $now],

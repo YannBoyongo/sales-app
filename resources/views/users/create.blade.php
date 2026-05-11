@@ -40,7 +40,7 @@
                     </label>
                 @endforeach
             </div>
-            <p class="mt-1 text-xs text-neutral-500">Un utilisateur peut avoir plusieurs rôles. Si Admin ou Comptable est coché, la branche devient optionnelle.</p>
+            <p class="mt-1 text-xs text-neutral-500">Un utilisateur peut avoir plusieurs rôles. Si Admin, Comptable ou Logisticien est coché, la branche devient optionnelle.</p>
             <x-input-error :messages="$errors->get('roles')" class="mt-2" />
             <x-input-error :messages="$errors->get('roles.*')" class="mt-2" />
         </div>
@@ -67,7 +67,7 @@
             if (!rolesWrap || !branchWrap || !branchSelect) return;
             function sync() {
                 var checked = Array.from(rolesWrap.querySelectorAll('input[name="roles[]"]:checked')).map(function (el) { return el.value; });
-                var noBranch = checked.includes('admin') || checked.includes('accountant');
+                var noBranch = checked.includes('admin') || checked.includes('accountant') || checked.includes('logistician');
                 branchWrap.classList.toggle('hidden', noBranch);
                 branchSelect.disabled = noBranch;
                 branchSelect.required = !noBranch;

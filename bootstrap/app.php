@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccounting;
+use App\Http\Middleware\EnsureAccountingOrCashier;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureCanManageStockTransfers;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => EnsureAdmin::class,
             'accounting' => EnsureAccounting::class,
+            'accounting_or_cashier' => EnsureAccountingOrCashier::class,
             'stock_transfer' => EnsureCanManageStockTransfers::class,
         ]);
     })

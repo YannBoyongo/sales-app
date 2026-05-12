@@ -41,7 +41,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
     Route::get('products/import/sample', [ProductController::class, 'importSample'])->name('products.import.sample');
     Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
-    Route::post('products/import-json', [ProductController::class, 'importJson'])->name('products.import.json');
     Route::resource('products', ProductController::class)->except(['show']);
 
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');

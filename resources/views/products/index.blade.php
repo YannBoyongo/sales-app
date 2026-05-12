@@ -8,7 +8,7 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Catalogue</p>
                     <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Produits</h1>
                     <p class="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600">
-                        Articles vendables, rattachés à un département. Les seuils servent aux alertes dans la matrice des stocks.
+                        Articles vendables par catégorie. Les seuils servent aux alertes dans la matrice des stocks.
                     </p>
                 </div>
                 <div class="flex shrink-0 flex-wrap items-center gap-2">
@@ -59,7 +59,7 @@
                 <div class="min-w-0 flex-1">
                     <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Importer des produits</p>
                     <p class="mt-1 text-sm text-neutral-600">
-                        Fichier <strong>Excel (.xlsx)</strong> ou <strong>CSV</strong> : lecture dans le navigateur, puis envoi au serveur (UTF-8 ; ou , pour le CSV).
+                        Fichier <strong>.xlsx</strong> (recommandé) ou <strong>.csv / .txt</strong> — mêmes colonnes que le modèle ci-dessous (max. 10 Mo).
                     </p>
                     <a
                         href="{{ route('products.import.sample') }}"
@@ -69,18 +69,13 @@
                         Télécharger le modèle (exemple)
                     </a>
                 </div>
-                <form
-                    id="product-import-form"
-                    action="{{ route('products.import.json') }}"
-                    method="POST"
-                    class="flex flex-wrap items-end gap-2"
-                    data-import-url="{{ route('products.import.json') }}"
-                >
+                <form action="{{ route('products.import') }}" method="POST" enctype="multipart/form-data" class="flex flex-wrap items-end gap-2">
                     @csrf
                     <div>
                         <label for="product-import-file" class="sr-only">Fichier import</label>
                         <input
                             id="product-import-file"
+                            name="file"
                             type="file"
                             accept=".xlsx,.csv,.txt,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain"
                             required
@@ -100,7 +95,7 @@
                     <tr>
                         <th class="px-4 py-3">Nom</th>
                         <th class="px-4 py-3">Code</th>
-                        <th class="px-4 py-3">Département</th>
+                        <th class="px-4 py-3">Catégorie</th>
                         <th class="px-4 py-3 text-right">Seuil min.</th>
                         <th class="px-4 py-3 text-right">Prix unitaire</th>
                         @unless (auth()->user()?->isInventoryReadOnly())

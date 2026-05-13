@@ -3,9 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Models\CashVoucher;
 use App\Models\Client;
 use App\Models\Payment;
-use App\Services\AccountingJournal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -97,9 +97,26 @@ class ClientController extends Controller
                 'note' => $data['note'] ?? null,
             ]);
 
-            AccountingJournal::recordClientPayment($payment, $client, $request->user());
+            $amountStr = number_format($amount, 2, '.', '');
+            $description = sprintf(
+                'Entrée caisse issue du paiement dette — %s',
+                $client->name
+            );
+            if (filled($data['note'] ?? null)) {
+                $description .= ' — '.mb_substr((string) $data['note'], 0, 500);
+            }
+
+            CashVoucher::query()->create([
+                'voucher_no' => 'CV-DETTE-'.$payment->id,
+                'date' => optional($payment->paid_at)->toDateString() ?? now()->toDateString(),
+                'description' => mb_substr($description, 0, 2000),
+                'type' => 'entry',
+                'amount' => $amountStr,
+            ]);
         });
 
-        return redirect()->route('clients.show', $client)->with('success', 'Paiement enregistré.');
+        return redirect()
+            ->route('clients.show', $client)
+            ->with('success', 'Paiement enregistré. Un bon de caisse (entrée) a été créé — validez-le puis enregistrez-le en comptabilité depuis Bons de caisse.');
     }
 }

@@ -9,12 +9,10 @@ use App\Models\Department;
 use App\Models\PosShift;
 use App\Models\PosTerminal;
 use App\Models\Product;
-use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Stock;
 use App\Models\StockMovement;
-use App\Services\AccountingJournal;
 use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -375,21 +373,21 @@ class SaleItemController extends Controller
                         throw new RuntimeException('Le solde ne peut pas être négatif.');
                     }
 
-                    // Only unpaid dealer balances become debt.
-                    // For now, all newly created sales stay cash regardless of customer type.
+                    // Solde impayé : dette client (lignes crédit) + paiement enregistré pour l’encaissement.
                     if (bccomp($computedBalance, '0.00', 2) === 1) {
                         $status = bccomp($amountPaid, '0.00', 2) === 1
                             ? Sale::PAYMENT_STATUS_PARTIALLY_PAID
                             : Sale::PAYMENT_STATUS_NOT_PAID;
                         $sale->update([
-                            'payment_type' => 'cash',
+                            'payment_type' => 'credit',
                             'amount_paid' => $amountPaid,
                             'balance_amount' => $computedBalance,
                             'payment_status' => $status,
                         ]);
                         SaleItem::query()
                             ->where('sale_id', $sale->id)
-                            ->update(['payment_type' => 'cash']);
+                            ->update(['payment_type' => 'credit', 'client_id' => $clientId]);
+                        $sale->recordInitialPosPaymentIfNeeded($request->user());
                     } else {
                         $sale->update([
                             'payment_type' => 'cash',

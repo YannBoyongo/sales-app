@@ -40,6 +40,7 @@ class Sale extends Model
         'payment_status',
         'amount_paid',
         'balance_amount',
+        'cash_at_shift_close',
     ];
 
     protected function casts(): array
@@ -54,6 +55,7 @@ class Sale extends Model
             'sold_at' => 'datetime',
             'amount_paid' => 'decimal:2',
             'balance_amount' => 'decimal:2',
+            'cash_at_shift_close' => 'decimal:2',
         ];
     }
 
@@ -99,10 +101,95 @@ class Sale extends Model
         }
 
         if ($this->payment_type === 'cash') {
+            if (in_array($this->payment_status, [self::PAYMENT_STATUS_NOT_PAID, self::PAYMENT_STATUS_PARTIALLY_PAID], true)) {
+                return bccomp($storedPaid, '0', 2) === 1 ? $storedPaid : '0.00';
+            }
+
             return $expected;
         }
 
         return '0.00';
+    }
+
+    /**
+     * Argent entrant dans la caisse pour cette vente (clôture / shift).
+     * Utilise amount_paid lorsqu’il est renseigné ; sinon vente comptée entièrement encaissée si soldée.
+     */
+    public function cashCollectedForShift(): string
+    {
+        $paid = (string) ($this->amount_paid ?? '0');
+        if (bccomp($paid, '0', 2) === 1) {
+            return $paid;
+        }
+
+        if ($this->effectivePaymentStatus() === self::PAYMENT_STATUS_FULLY_PAID) {
+            return $this->expectedPayableAmount();
+        }
+
+        return '0.00';
+    }
+
+    /**
+     * Montant utilisé pour totaux de session (clôture / historique) : figé à la fermeture si présent.
+     */
+    public function cashForShiftTotals(): string
+    {
+        $frozen = $this->cash_at_shift_close;
+        if ($frozen !== null && (string) $frozen !== '') {
+            return number_format((float) $frozen, 2, '.', '');
+        }
+
+        return $this->cashCollectedForShift();
+    }
+
+    /**
+     * Lignes crédit + type vente si solde client ; tout cash si la vente est soldée sur place.
+     */
+    public function syncLinePaymentTypesForBalance(): void
+    {
+        $remaining = $this->remainingAmountValue();
+        if ($this->client_id && bccomp($remaining, '0', 2) === 1) {
+            $this->items()->update([
+                'payment_type' => 'credit',
+                'client_id' => $this->client_id,
+            ]);
+            if ($this->payment_type !== 'credit') {
+                $this->update(['payment_type' => 'credit']);
+            }
+
+            return;
+        }
+
+        $this->items()->update(['payment_type' => 'cash']);
+        if ($this->payment_type !== 'cash') {
+            $this->update(['payment_type' => 'cash']);
+        }
+    }
+
+    /** Enregistre le paiement caisse sur la fiche client (sans écriture comptable : l’encaissement suit la clôture de session). */
+    public function recordInitialPosPaymentIfNeeded(User $actingUser): void
+    {
+        if (! $this->client_id) {
+            return;
+        }
+
+        $amount = (string) ($this->amount_paid ?? '0');
+        if (bccomp($amount, '0', 2) !== 1) {
+            return;
+        }
+
+        $note = 'Paiement à la vente '.(string) $this->reference;
+        if (Payment::query()->where('client_id', $this->client_id)->where('note', $note)->exists()) {
+            return;
+        }
+
+        Payment::create([
+            'client_id' => $this->client_id,
+            'user_id' => $actingUser->id,
+            'amount' => $amount,
+            'paid_at' => now(),
+            'note' => $note,
+        ]);
     }
 
     public function remainingAmountValue(): string

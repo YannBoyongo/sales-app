@@ -42,7 +42,7 @@
                         <th class="px-4 py-3">Fermé par</th>
                         <th class="px-4 py-3">Compta</th>
                         <th class="px-4 py-3 text-right">Ventes</th>
-                        <th class="px-4 py-3 text-right">Total</th>
+                        <th class="px-4 py-3 text-right">Encaissé (caisse)</th>
                         <th class="px-4 py-3 text-right">Action</th>
                     </tr>
                 </thead>
@@ -76,7 +76,7 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right tabular-nums text-neutral-700">{{ $shift->sales_count }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums font-semibold text-neutral-900">{{ number_format((float) ($shift->sales_sum_total_amount ?? 0), 2, ',', ' ') }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums font-semibold text-neutral-900">{{ number_format((float) ($shift->shift_cash_collected_sum ?? 0), 2, ',', ' ') }}</td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex flex-wrap items-center justify-end gap-2">
                                     <a href="{{ route('pos-terminal.shifts.closed.show', $shift) }}" class="inline-flex items-center rounded-md border border-neutral-300 px-3 py-1.5 text-xs font-medium text-neutral-700 hover:bg-neutral-50">

@@ -11,7 +11,8 @@
         <div class="space-y-8">
             <div class="rounded-2xl border border-neutral-200/90 bg-white/90 p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm sm:p-8">
                 <h2 class="text-lg font-semibold text-neutral-900">Totaux par département</h2>
-                <p class="mt-1 text-sm text-neutral-500">Session ouverte par {{ $shift->openedByUser?->name ?? '—' }} et fermée par {{ $shift->closedByUser?->name ?? '—' }}.</p>
+                <p class="mt-1 text-sm text-neutral-500">Les montants par département correspondent aux <strong>encaissements réels</strong> (acomptes inclus). Les ventes dealer à solde figurent au crédit client pour la partie non payée.</p>
+                <p class="mt-1 text-xs text-neutral-500">Session ouverte par {{ $shift->openedByUser?->name ?? '—' }} et fermée par {{ $shift->closedByUser?->name ?? '—' }}.</p>
 
                 <div class="mt-6 overflow-hidden rounded-xl border border-neutral-100">
                     <div class="overflow-x-auto">
@@ -20,15 +21,15 @@
                                 <tr>
                                     <th class="px-4 py-3">Département</th>
                                     <th class="px-4 py-3 text-right whitespace-nowrap">Ventes</th>
-                                    <th class="px-4 py-3 text-right whitespace-nowrap">Total</th>
+                                    <th class="px-4 py-3 text-right whitespace-nowrap">Encaissé</th>
                                     <th class="px-4 py-3 text-right whitespace-nowrap">Entrée en caisse</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-neutral-100 bg-white">
                                 @forelse ($summaries as $row)
                                     @php
-                                        $departmentRef = mb_substr($accountingReference.' | '.$row['label'], 0, 255);
-                                        $isPushed = in_array($departmentRef, $pushedDepartmentReferences, true);
+                                        $deptVoucherNo = sprintf('CV-SHIFT-%d-%s', $shift->id, $row['department']?->id ?? 'ND');
+                                        $isPushed = in_array($deptVoucherNo, $pushedShiftDepartmentVoucherNos, true);
                                     @endphp
                                     <tr class="align-top hover:bg-neutral-50/60">
                                         <td class="px-4 py-4">
@@ -36,10 +37,14 @@
                                             @if ($row['sales']->isNotEmpty())
                                                 <ul class="mt-2 space-y-1 text-xs text-neutral-500">
                                                     @foreach ($row['sales'] as $sale)
+                                                        @php $cash = $sale->cashForShiftTotals(); @endphp
                                                         <li>
                                                             <a href="{{ route('sales.show', [$branch, $sale]) }}" class="font-mono text-primary hover:underline">{{ $sale->reference }}</a>
                                                             <span class="text-neutral-400">·</span>
-                                                            {{ \App\Support\Money::usd($sale->total_amount) }}
+                                                            {{ \App\Support\Money::usd($cash) }}
+                                                            @if (bccomp((string) $sale->total_amount, $cash, 2) !== 0)
+                                                                <span class="text-neutral-400">(fact. {{ \App\Support\Money::usd($sale->total_amount) }})</span>
+                                                            @endif
                                                         </li>
                                                     @endforeach
                                                 </ul>
@@ -50,13 +55,13 @@
                                         <td class="px-4 py-4 text-right">
                                             @if ($isPushed)
                                                 <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                                                    Déjà transféré
+                                                    Déjà saisi
                                                 </span>
                                             @elseif (auth()->user()?->canPushClosedShiftCashEntry())
                                                 <form
                                                     action="{{ route('pos-terminal.shifts.closed.push-accounting', $shift) }}"
                                                     method="POST"
-                                                    onsubmit="return confirm('Enregistrer l\'entrée en caisse pour ce département ?');"
+                                                    onsubmit="return confirm('Créer le bon de caisse (entrée) pour ce département ? Vous le comptabiliserez ensuite depuis Bons de caisse.');"
                                                     class="inline"
                                                 >
                                                     @csrf
@@ -65,7 +70,7 @@
                                                         type="submit"
                                                         class="inline-flex items-center gap-2 rounded-xl border border-primary/25 bg-primary/10 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/15"
                                                     >
-                                                        Enregistrer l'entrée
+                                                        Créer le bon de caisse
                                                     </button>
                                                 </form>
                                             @else

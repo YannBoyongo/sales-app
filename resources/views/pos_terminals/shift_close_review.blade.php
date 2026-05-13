@@ -36,7 +36,7 @@
 
             <div class="rounded-2xl border border-neutral-200/90 bg-white/90 p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm sm:p-8">
                 <h2 class="text-lg font-semibold text-neutral-900">Totaux par département</h2>
-                <p class="mt-1 text-sm text-neutral-500">Chaque vente est rattachée au département des articles saisis.</p>
+                <p class="mt-1 text-sm text-neutral-500">Chaque vente est rattachée au département des articles saisis. Le <strong>total</strong> est l’argent réellement encaissé (acomptes dealer inclus), pas le montant facture si une partie reste au crédit.</p>
 
                 <div class="mt-6 overflow-hidden rounded-xl border border-neutral-100">
                     <div class="overflow-x-auto">
@@ -45,7 +45,7 @@
                                 <tr>
                                     <th class="px-4 py-3">Département</th>
                                     <th class="px-4 py-3 text-right whitespace-nowrap">Ventes</th>
-                                    <th class="px-4 py-3 text-right whitespace-nowrap">Total</th>
+                                    <th class="px-4 py-3 text-right whitespace-nowrap">Encaissé</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-neutral-100 bg-white">
@@ -56,10 +56,14 @@
                                             @if ($row['sales']->isNotEmpty())
                                                 <ul class="mt-2 space-y-1 text-xs text-neutral-500">
                                                     @foreach ($row['sales'] as $sale)
+                                                        @php $cash = $sale->cashForShiftTotals(); @endphp
                                                         <li>
                                                             <a href="{{ route('sales.show', [$branch, $sale]) }}" class="font-mono text-primary hover:underline">{{ $sale->reference }}</a>
                                                             <span class="text-neutral-400">·</span>
-                                                            {{ \App\Support\Money::usd($sale->total_amount) }}
+                                                            {{ \App\Support\Money::usd($cash) }}
+                                                            @if (bccomp((string) $sale->total_amount, $cash, 2) !== 0)
+                                                                <span class="text-neutral-400">(fact. {{ \App\Support\Money::usd($sale->total_amount) }})</span>
+                                                            @endif
                                                         </li>
                                                     @endforeach
                                                 </ul>
@@ -102,7 +106,7 @@
                             required
                         />
                         <span class="text-sm leading-relaxed text-neutral-700">
-                            <strong class="text-neutral-900">Je confirme</strong> avoir vérifié les montants par département et le total général (<span class="tabular-nums font-semibold">{{ \App\Support\Money::usd($grandTotal) }}</span>) avant de fermer la session.
+                            <strong class="text-neutral-900">Je confirme</strong> avoir vérifié les encaissements par département et le total général encaissé (<span class="tabular-nums font-semibold">{{ \App\Support\Money::usd($grandTotal) }}</span>) avant de fermer la session.
                         </span>
                     </label>
                     @error('confirm_totals')

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
-use App\Services\AccountingJournal;
 use App\Models\Branch;
+use App\Models\CashVoucher;
 use App\Models\Client;
 use App\Models\Payment;
 use App\Models\AccountingTransaction;
@@ -229,13 +229,12 @@ class SaleController extends Controller
                 'amount_paid' => $paidAmount,
                 'balance_amount' => $balance,
                 'payment_status' => $paymentStatus,
-                'payment_type' => 'cash',
                 'discount_approved_by' => $request->user()->id,
                 'discount_approved_at' => now(),
             ]);
 
-            // Discount approval alone should not move this sale into client debt.
-            $sale->items()->update(['payment_type' => 'cash']);
+            $sale->syncLinePaymentTypesForBalance();
+            $sale->recordInitialPosPaymentIfNeeded($request->user());
         });
 
         return redirect()
@@ -282,10 +281,10 @@ class SaleController extends Controller
             'amount_paid' => $paidAmount,
             'balance_amount' => $balance,
             'payment_status' => $paymentStatus,
-            'payment_type' => 'cash',
         ]);
 
-        $sale->items()->update(['payment_type' => 'cash']);
+        $sale->syncLinePaymentTypesForBalance();
+        $sale->recordInitialPosPaymentIfNeeded($request->user());
 
         return redirect()
             ->route('sales.show', [$branch, $sale])
@@ -326,17 +325,34 @@ class SaleController extends Controller
             if ($sale->client_id && bccomp($amount, '0.00', 2) === 1) {
                 $client = Client::query()->find($sale->client_id);
                 if ($client !== null) {
+                    $paymentNote = filled($data['note'] ?? null)
+                        ? (string) $data['note']
+                        : 'Paiement sur vente '.$sale->reference;
+
                     $payment = Payment::create([
                         'client_id' => $client->id,
                         'user_id' => $request->user()->id,
                         'amount' => $amount,
                         'paid_at' => now(),
-                        'note' => filled($data['note'] ?? null)
-                            ? $data['note']
-                            : 'Paiement sur vente '.$sale->reference,
+                        'note' => $paymentNote,
                     ]);
 
-                    AccountingJournal::recordClientPayment($payment, $client, $request->user());
+                    $description = sprintf(
+                        'Entrée caisse issue du paiement dette — %s (vente %s)',
+                        $client->name,
+                        $sale->reference
+                    );
+                    if (filled($data['note'] ?? null)) {
+                        $description .= ' — '.mb_substr((string) $data['note'], 0, 400);
+                    }
+
+                    CashVoucher::query()->create([
+                        'voucher_no' => 'CV-DETTE-'.$payment->id,
+                        'date' => optional($payment->paid_at)->toDateString() ?? now()->toDateString(),
+                        'description' => mb_substr($description, 0, 2000),
+                        'type' => 'entry',
+                        'amount' => $amount,
+                    ]);
                 }
             }
 
@@ -358,11 +374,18 @@ class SaleController extends Controller
                 'balance_amount' => $newBalance,
                 'payment_status' => $status,
             ]);
+
+            $sale->syncLinePaymentTypesForBalance();
         });
 
         return redirect()
             ->route('sales.show', [$branch, $sale])
-            ->with('success', 'Paiement enregistré sur la vente.');
+            ->with(
+                'success',
+                $sale->client_id
+                    ? 'Paiement enregistré. Un bon de caisse (entrée) a été créé — validez-le puis enregistrez-le en comptabilité depuis Bons de caisse.'
+                    : 'Paiement enregistré sur la vente.'
+            );
     }
 
     public function confirmPaid(Request $request, Branch $branch, Sale $sale): RedirectResponse
@@ -386,8 +409,7 @@ class SaleController extends Controller
             'payment_type' => 'cash',
         ]);
 
-        // Ensure client debt ledger (based on sale_items.payment_type) does not keep stale credit flags.
-        $sale->items()->update(['payment_type' => 'cash']);
+        $sale->syncLinePaymentTypesForBalance();
 
         return redirect()
             ->route('sales.show', [$branch, $sale])

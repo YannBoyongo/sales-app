@@ -179,10 +179,14 @@ class User extends Authenticatable
     /**
      * Accès au flux de vente (choix terminal, workspace, nouvelle vente).
      * Le comptable seul n’y accède pas ; un admin reste autorisé même avec le rôle comptable.
+     * Logisticien : comme l’admin sur les terminaux (via canBypassBranchScope), sans approbation de remise.
      */
     public function canAccessPosSales(): bool
     {
         if ($this->isAdmin()) {
+            return true;
+        }
+        if ($this->isLogistician()) {
             return true;
         }
         if ($this->isAccountant()) {

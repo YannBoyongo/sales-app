@@ -9,6 +9,7 @@ use App\Imports\ProductsImport;
 use App\Models\Department;
 use App\Models\Product;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -23,16 +24,43 @@ class ProductController extends Controller
 {
     use RespectsUserBranch;
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+        ]);
+
         $query = Product::query()
             ->with('department')
             ->orderBy('name');
         $this->applyProductBranchScope($query);
 
-        $products = $query->paginate(20);
+        $search = isset($filters['q']) ? trim($filters['q']) : '';
+        if ($search !== '') {
+            $escaped = addcslashes($search, '%_\\');
+            $term = '%'.$escaped.'%';
+            $query->where(function (Builder $q) use ($term): void {
+                $q->where('products.name', 'like', $term)
+                    ->orWhere('products.sku', 'like', $term)
+                    ->orWhere('products.description', 'like', $term);
+            });
+        }
 
-        return view('products.index', compact('products'));
+        if (! empty($filters['department_id'])) {
+            $query->where('products.department_id', (int) $filters['department_id']);
+        }
+
+        $products = $query->paginate(20)->withQueryString();
+
+        $departmentIdQuery = Product::query()->select('products.department_id')->distinct();
+        $this->applyProductBranchScope($departmentIdQuery);
+        $departments = Department::query()
+            ->whereIn('id', $departmentIdQuery)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('products.index', compact('products', 'departments', 'filters'));
     }
 
     public function create(): View

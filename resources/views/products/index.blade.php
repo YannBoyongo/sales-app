@@ -89,6 +89,44 @@
             </div>
         @endunless
 
+        <form method="GET" action="{{ route('products.index') }}" class="mb-6 flex flex-col gap-3 rounded-2xl border border-neutral-200/90 bg-white/90 p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
+            <div class="min-w-0 flex-1 sm:max-w-md">
+                <label for="product-search-q" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Recherche</label>
+                <input
+                    id="product-search-q"
+                    type="search"
+                    name="q"
+                    value="{{ old('q', $filters['q'] ?? '') }}"
+                    placeholder="Nom, code (SKU), description…"
+                    autocomplete="off"
+                    class="mt-1 block w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+            </div>
+            <div class="w-full sm:w-56">
+                <label for="product-filter-department" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Département</label>
+                <select
+                    id="product-filter-department"
+                    name="department_id"
+                    class="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                    <option value="">Tous</option>
+                    @foreach ($departments as $dept)
+                        <option value="{{ $dept->id }}" @selected((string) old('department_id', $filters['department_id'] ?? '') === (string) $dept->id)>
+                            {{ $dept->name }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex flex-wrap gap-2">
+                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95">
+                    Filtrer
+                </button>
+                <a href="{{ route('products.index') }}" class="inline-flex items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50">
+                    Réinitialiser
+                </a>
+            </div>
+        </form>
+
         <div class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
@@ -104,7 +142,7 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
-                    @foreach ($products as $product)
+                    @forelse ($products as $product)
                         <tr class="transition-colors hover:bg-neutral-50/80">
                             <td class="px-4 py-3 font-medium text-neutral-900">{{ $product->name }}</td>
                             <td class="px-4 py-3 text-neutral-600">{{ $product->sku ?? '—' }}</td>
@@ -142,7 +180,17 @@
                                 </td>
                             @endunless
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr>
+                            <td colspan="{{ auth()->user()?->isInventoryReadOnly() ? 5 : 6 }}" class="px-4 py-12 text-center text-sm text-neutral-500">
+                                @if (filled($filters['q'] ?? null) || filled($filters['department_id'] ?? null))
+                                    Aucun produit ne correspond à ces critères.
+                                @else
+                                    Aucun produit dans le catalogue pour votre périmètre.
+                                @endif
+                            </td>
+                        </tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>

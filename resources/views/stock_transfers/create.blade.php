@@ -77,14 +77,14 @@
                     if (!this.isAdminPicker) return this.internalFromLocations;
                     const bid = Number(this.internalBranchId);
                     if (!bid) return [];
-                    return this.internalFromLocations.filter(l => l.branch_id === bid);
+                    return this.internalFromLocations.filter(l => Number(l.branch_id) === bid);
                 }
                 if (!this.isAdminPicker) {
                     return this.externalPickMode === 'single_list' ? this.externalLocations : this.externalFromLocations;
                 }
                 const bid = Number(this.externalFromBranchId);
                 if (!bid) return [];
-                return this.externalLocations.filter(l => l.branch_id === bid);
+                return this.externalLocations.filter(l => Number(l.branch_id) === bid);
             },
             filteredToOptions() {
                 if (this.transferScope === 'internal') {
@@ -92,24 +92,24 @@
                         if (!this.fromId) return [];
                         const from = this.internalFromLocations.find(x => String(x.id) === String(this.fromId));
                         if (!from) return [];
-                        return this.internalToLocations.filter(t => t.branch_id === from.branch_id && String(t.id) !== String(this.fromId));
+                        return this.internalToLocations.filter(t => Number(t.branch_id) === Number(from.branch_id) && String(t.id) !== String(this.fromId));
                     }
                     const bid = Number(this.internalBranchId);
                     if (!bid || !this.fromId) return [];
-                    return this.internalToLocations.filter(t => t.branch_id === bid && String(t.id) !== String(this.fromId));
+                    return this.internalToLocations.filter(t => Number(t.branch_id) === bid && String(t.id) !== String(this.fromId));
                 }
                 if (!this.fromId) return [];
                 const from = this.fromOptions.find(x => String(x.id) === String(this.fromId));
                 if (!from) return [];
                 if (!this.isAdminPicker) {
                     if (this.externalPickMode === 'single_list') {
-                        return this.externalLocations.filter(t => t.branch_id !== from.branch_id && String(t.id) !== String(this.fromId));
+                        return this.externalLocations.filter(t => Number(t.branch_id) !== Number(from.branch_id) && String(t.id) !== String(this.fromId));
                     }
                     return this.externalToLocations.filter(t => String(t.id) !== String(this.fromId));
                 }
                 const toBid = Number(this.externalToBranchId);
                 if (!toBid) return [];
-                return this.externalLocations.filter(t => t.branch_id === toBid && t.branch_id !== from.branch_id && String(t.id) !== String(this.fromId));
+                return this.externalLocations.filter(t => Number(t.branch_id) === toBid && Number(t.branch_id) !== Number(from.branch_id) && String(t.id) !== String(this.fromId));
             },
         }"
     >

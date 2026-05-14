@@ -351,9 +351,10 @@ class StockTransferController extends Controller
     private function mapLocationOptions($locations): array
     {
         return $locations->map(fn (Location $l) => [
-            'id' => $l->id,
+            'id' => (int) $l->id,
             'name' => $l->name,
-            'branch_id' => $l->branch_id,
+            // Normalize for @js(): MySQL can expose FKs as strings; Alpine uses strict === against Number(branchId).
+            'branch_id' => (int) $l->branch_id,
             'branch_name' => $l->branch->name,
         ])->values()->all();
     }

@@ -18,6 +18,16 @@ class Location extends Model
 
     protected $fillable = ['branch_id', 'name', 'kind'];
 
+    /**
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'branch_id' => 'integer',
+        ];
+    }
+
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);

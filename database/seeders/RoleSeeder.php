@@ -13,6 +13,7 @@ class RoleSeeder extends Seeder
         $roles = [
             ['name' => 'Admin', 'slug' => UserRole::Admin->value],
             ['name' => 'Manager', 'slug' => UserRole::Manager->value],
+            ['name' => 'Magasinier', 'slug' => UserRole::StockManager->value],
             ['name' => 'Logistician', 'slug' => UserRole::Logistician->value],
             ['name' => 'POS user', 'slug' => UserRole::PosUser->value],
             ['name' => 'Cashier', 'slug' => UserRole::Cashier->value],

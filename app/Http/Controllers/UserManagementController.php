@@ -181,6 +181,7 @@ class UserManagementController extends Controller
             UserRole::Admin->value,
             UserRole::Accountant->value,
             UserRole::Manager->value,
+            UserRole::StockManager->value,
             UserRole::Logistician->value,
             UserRole::Cashier->value,
             UserRole::PosUser->value,
@@ -214,7 +215,8 @@ class UserManagementController extends Controller
     {
         return in_array(UserRole::Admin->value, $roleSlugs, true)
             || in_array(UserRole::Accountant->value, $roleSlugs, true)
-            || in_array(UserRole::Logistician->value, $roleSlugs, true);
+            || in_array(UserRole::Logistician->value, $roleSlugs, true)
+            || in_array(UserRole::StockManager->value, $roleSlugs, true);
     }
 
     /**

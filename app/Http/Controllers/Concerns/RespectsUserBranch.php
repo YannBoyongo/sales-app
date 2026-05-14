@@ -8,12 +8,35 @@ use App\Models\Location;
 use App\Models\PosShift;
 use App\Models\PosTerminal;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\Sale;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 trait RespectsUserBranch
 {
+    /**
+     * Magasinier : ids d’emplacements autorisés. null si l’utilisateur n’est pas magasinier (filtrage classique par branche).
+     *
+     * @return null|list<int>
+     */
+    protected function managedLocationIdsForUser(): ?array
+    {
+        $user = auth()->user();
+        if (! $user?->isStockManager()) {
+            return null;
+        }
+
+        return DB::table('location_stock_manager')
+            ->where('user_id', $user->id)
+            ->pluck('location_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+    }
+
     /**
      * @return null|array<int> null = pas de filtre (admin), [] = aucune branche autorisée, [id] = une branche
      */
@@ -55,6 +78,19 @@ trait RespectsUserBranch
 
         if ($user->canBypassBranchScope()) {
             return Branch::query()->orderBy('name')->get(['id', 'name']);
+        }
+
+        if ($user->isStockManager()) {
+            $locIds = $this->managedLocationIdsForUser();
+            if ($locIds === []) {
+                return collect();
+            }
+            $branchIds = Location::query()->whereIn('id', $locIds)->pluck('branch_id')->unique()->filter()->values()->all();
+            if ($branchIds === []) {
+                return collect();
+            }
+
+            return Branch::query()->whereIn('id', $branchIds)->orderBy('name')->get(['id', 'name']);
         }
 
         if ($user->isPosUser()) {
@@ -127,6 +163,10 @@ trait RespectsUserBranch
                 ->get();
         }
 
+        if ($user?->isStockManager()) {
+            return $user->managedLocations()->with('branch')->orderBy('name')->get();
+        }
+
         $ids = $this->branchFilterIds();
         $query = Location::query()->with('branch')->orderBy('name');
         if ($ids !== null) {
@@ -141,6 +181,41 @@ trait RespectsUserBranch
 
     protected function applyBranchFilter(Builder $query, string $column = 'branch_id'): void
     {
+        $user = auth()->user();
+        $managedLocIds = $this->managedLocationIdsForUser();
+        if ($managedLocIds !== null) {
+            $model = $query->getModel();
+            if ($model instanceof Location) {
+                $table = $model->getTable();
+                if ($managedLocIds === []) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereIn($table.'.id', $managedLocIds);
+                }
+
+                return;
+            }
+            if ($model instanceof Sale && $column === 'branch_id') {
+                $branchIds = $user->managedLocations()->pluck('locations.branch_id')->unique()->filter()->values()->all();
+                if ($branchIds === []) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereIn($model->getTable().'.branch_id', $branchIds);
+                }
+
+                return;
+            }
+            if ($model instanceof PurchaseOrder) {
+                if ($managedLocIds === []) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    $query->whereIn($model->getTable().'.location_id', $managedLocIds);
+                }
+
+                return;
+            }
+        }
+
         $ids = $this->branchFilterIds();
         if ($ids === null) {
             return;
@@ -169,6 +244,18 @@ trait RespectsUserBranch
                 return;
             }
             $query->whereIn($query->getModel()->getTable().'.location_id', $locIds);
+
+            return;
+        }
+
+        $managedLocIds = $this->managedLocationIdsForUser();
+        if ($managedLocIds !== null) {
+            if ($managedLocIds === []) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+            $query->whereIn($query->getModel()->getTable().'.location_id', $managedLocIds);
 
             return;
         }
@@ -208,6 +295,21 @@ trait RespectsUserBranch
             return;
         }
 
+        $managedLocIds = $this->managedLocationIdsForUser();
+        if ($managedLocIds !== null) {
+            if ($managedLocIds === []) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+            $query->where(function (Builder $q) use ($managedLocIds) {
+                $q->whereIn('from_location_id', $managedLocIds)
+                    ->orWhereIn('to_location_id', $managedLocIds);
+            });
+
+            return;
+        }
+
         $ids = $this->branchFilterIds();
         if ($ids === null) {
             return;
@@ -233,6 +335,13 @@ trait RespectsUserBranch
             $allowed = $user->posTerminals()
                 ->where('location_id', $location->id)
                 ->exists();
+            abort_unless($allowed, 403, 'Accès non autorisé pour cet emplacement.');
+
+            return;
+        }
+
+        if ($user?->isStockManager()) {
+            $allowed = $user->managedLocations()->whereKey($location->id)->exists();
             abort_unless($allowed, 403, 'Accès non autorisé pour cet emplacement.');
 
             return;
@@ -272,6 +381,23 @@ trait RespectsUserBranch
     {
         $builder = $query instanceof Relation ? $query->getQuery() : $query;
 
+        $user = auth()->user();
+        $managedLocIds = $this->managedLocationIdsForUser();
+        if ($managedLocIds !== null) {
+            if ($managedLocIds === []) {
+                $builder->whereRaw('1 = 0');
+
+                return;
+            }
+            $branchIds = $user->managedLocations()->pluck('locations.branch_id')->unique()->filter()->values()->all();
+            $builder->where(function (Builder $q) use ($managedLocIds, $branchIds) {
+                $q->whereHas('stocks', fn (Builder $s) => $s->whereIn('location_id', $managedLocIds))
+                    ->orWhereHas('saleItems', fn (Builder $si) => $si->whereIn('branch_id', $branchIds));
+            });
+
+            return;
+        }
+
         $ids = $this->branchFilterIds();
         if ($ids === null) {
             return;
@@ -307,6 +433,25 @@ trait RespectsUserBranch
      */
     protected function applyDepartmentBranchFilter(Builder $query): void
     {
+        $user = auth()->user();
+        $managedLocIds = $this->managedLocationIdsForUser();
+        if ($managedLocIds !== null) {
+            if ($managedLocIds === []) {
+                $query->whereRaw('1 = 0');
+
+                return;
+            }
+            $branchIds = $user->managedLocations()->pluck('locations.branch_id')->unique()->filter()->values()->all();
+            $query->whereHas('products', function (Builder $pq) use ($managedLocIds, $branchIds) {
+                $pq->where(function (Builder $q) use ($managedLocIds, $branchIds) {
+                    $q->whereHas('stocks', fn (Builder $s) => $s->whereIn('location_id', $managedLocIds))
+                        ->orWhereHas('saleItems', fn (Builder $si) => $si->whereIn('branch_id', $branchIds));
+                });
+            });
+
+            return;
+        }
+
         $ids = $this->branchFilterIds();
         if ($ids === null) {
             return;

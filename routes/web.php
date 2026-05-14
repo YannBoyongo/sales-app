@@ -55,6 +55,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('stock_transfer')->group(function () {
         Route::get('stock-transfers/create', [StockTransferController::class, 'create'])->name('stock-transfers.create');
         Route::post('stock-transfers', [StockTransferController::class, 'store'])->name('stock-transfers.store');
+        Route::post('stock-transfers/{stock_transfer}/items', [StockTransferController::class, 'storeItem'])
+            ->name('stock-transfers.items.store')
+            ->whereNumber('stock_transfer');
+        Route::delete('stock-transfers/{stock_transfer}/items/{stock_transfer_item}', [StockTransferController::class, 'destroyItem'])
+            ->name('stock-transfers.items.destroy')
+            ->whereNumber(['stock_transfer', 'stock_transfer_item']);
+        Route::post('stock-transfers/{stock_transfer}/confirm', [StockTransferController::class, 'confirm'])
+            ->name('stock-transfers.confirm')
+            ->whereNumber('stock_transfer');
     });
     Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
     Route::get('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'show'])->whereNumber('purchase_order')->name('purchase-orders.show');

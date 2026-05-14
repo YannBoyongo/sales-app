@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Location;
+use App\Models\User;
+use Closure;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -13,13 +15,16 @@ use Illuminate\View\View;
 
 class LocationController extends Controller
 {
-    use RespectsUserBranch;
-
     public function create(Branch $branch): View
     {
         abort_unless(auth()->user()->isAdmin(), 403);
 
-        return view('locations.create', compact('branch'));
+        $stockManagerCandidates = User::query()
+            ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::StockManager->value))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        return view('locations.create', compact('branch', 'stockManagerCandidates'));
     }
 
     public function store(Request $request, Branch $branch): RedirectResponse
@@ -33,6 +38,8 @@ class LocationController extends Controller
                 Location::KIND_STORAGE,
                 Location::KIND_POINT_OF_SALE,
             ])],
+            'stock_manager_ids' => ['nullable', 'array'],
+            'stock_manager_ids.*' => $this->stockManagerUserIdRules(),
         ]);
 
         $payload = [
@@ -41,15 +48,20 @@ class LocationController extends Controller
             'kind' => $data['kind'],
         ];
 
-        DB::transaction(function () use ($payload) {
+        $location = DB::transaction(function () use ($payload) {
             if ($payload['kind'] === Location::KIND_MAIN) {
                 Location::query()
                     ->where('branch_id', $payload['branch_id'])
                     ->where('kind', Location::KIND_MAIN)
                     ->update(['kind' => Location::KIND_STORAGE]);
             }
-            Location::create($payload);
+
+            return Location::create($payload);
         });
+
+        $syncIds = array_map('intval', $data['stock_manager_ids'] ?? []);
+        sort($syncIds);
+        $location->stockManagers()->sync($syncIds);
 
         return redirect()->route('branches.show', $branch)->with('success', 'Emplacement créé.');
     }
@@ -59,7 +71,14 @@ class LocationController extends Controller
         abort_unless(auth()->user()->isAdmin(), 403);
         $this->ensureLocationBelongsToBranch($location, $branch);
 
-        return view('locations.edit', compact('branch', 'location'));
+        $stockManagerCandidates = User::query()
+            ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::StockManager->value))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $location->load('stockManagers');
+
+        return view('locations.edit', compact('branch', 'location', 'stockManagerCandidates'));
     }
 
     public function update(Request $request, Branch $branch, Location $location): RedirectResponse
@@ -74,6 +93,8 @@ class LocationController extends Controller
                 Location::KIND_STORAGE,
                 Location::KIND_POINT_OF_SALE,
             ])],
+            'stock_manager_ids' => ['nullable', 'array'],
+            'stock_manager_ids.*' => $this->stockManagerUserIdRules(),
         ]);
 
         DB::transaction(function () use ($location, $branch, $data) {
@@ -89,6 +110,10 @@ class LocationController extends Controller
                 'kind' => $data['kind'],
             ]);
         });
+
+        $syncIds = array_map('intval', $data['stock_manager_ids'] ?? []);
+        sort($syncIds);
+        $location->stockManagers()->sync($syncIds);
 
         return redirect()->route('branches.show', $branch)->with('success', 'Emplacement mis à jour.');
     }
@@ -118,5 +143,24 @@ class LocationController extends Controller
     private function ensureLocationBelongsToBranch(Location $location, Branch $branch): void
     {
         abort_unless((int) $location->branch_id === (int) $branch->id, 404);
+    }
+
+    /**
+     * @return list<int|string|Closure>
+     */
+    private function stockManagerUserIdRules(): array
+    {
+        return [
+            'integer',
+            function (string $attribute, mixed $value, Closure $fail): void {
+                $ok = User::query()
+                    ->whereKey($value)
+                    ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::StockManager->value))
+                    ->exists();
+                if (! $ok) {
+                    $fail('L’utilisateur choisi n’est pas un magasinier valide.');
+                }
+            },
+        ];
     }
 }

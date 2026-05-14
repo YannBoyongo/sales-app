@@ -32,6 +32,8 @@
                                         <span class="rounded bg-primary px-2 py-0.5 text-xs font-medium text-white">{{ $role->name }}</span>
                                     @elseif ($role->slug === 'accountant')
                                         <span class="rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">{{ $role->name }}</span>
+                                    @elseif ($role->slug === 'stock_manager')
+                                        <span class="rounded border border-amber-400 bg-amber-100/80 px-2 py-0.5 text-xs font-semibold text-amber-950">{{ $role->name }}</span>
                                     @else
                                         <span class="rounded border border-neutral-200 bg-white px-2 py-0.5 text-xs text-neutral-700">{{ $role->name }}</span>
                                     @endif

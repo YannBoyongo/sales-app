@@ -26,7 +26,10 @@ class BranchController extends Controller
     {
         abort_unless(auth()->user()->isAdmin(), 403);
 
-        $locations = $branch->locations()->orderBy('name')->paginate(20);
+        $locations = $branch->locations()
+            ->with('stockManagers:id,name')
+            ->orderBy('name')
+            ->paginate(20);
 
         $terminals = $branch->posTerminals()
             ->with('location')

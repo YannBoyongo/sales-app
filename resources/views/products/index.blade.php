@@ -28,14 +28,14 @@
                         <svg class="h-4 w-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         Excel
                     </a>
-                    @unless (auth()->user()?->isInventoryReadOnly())
+                    @if (auth()->user()?->canCreateOrImportProducts())
                         <a
                             href="{{ route('products.create') }}"
                             class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                         >
                             Nouveau produit
                         </a>
-                    @endunless
+                    @endif
                 </div>
             </div>
         </x-slot>
@@ -54,7 +54,7 @@
             <div class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-950" role="alert">{{ $errors->first('file') }}</div>
         @endif
 
-        @unless (auth()->user()?->isInventoryReadOnly())
+        @if (auth()->user()?->canCreateOrImportProducts())
             <div class="mb-6 flex flex-col gap-3 rounded-2xl border border-neutral-200/90 bg-white/90 p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
                 <div class="min-w-0 flex-1">
                     <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Importer des produits</p>
@@ -87,7 +87,7 @@
                     </button>
                 </form>
             </div>
-        @endunless
+        @endif
 
         <form method="GET" action="{{ route('products.index') }}" class="mb-6 flex flex-col gap-3 rounded-2xl border border-neutral-200/90 bg-white/90 p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
             <div class="min-w-0 flex-1 sm:max-w-md">
@@ -136,9 +136,9 @@
                         <th class="px-4 py-3">Catégorie</th>
                         <th class="px-4 py-3 text-right">Seuil min.</th>
                         <th class="px-4 py-3 text-right">Prix unitaire</th>
-                        @unless (auth()->user()?->isInventoryReadOnly())
+                        @if (auth()->user()?->canEditOrDeleteProducts())
                             <th class="px-4 py-3 text-right">Actions</th>
-                        @endunless
+                        @endif
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
@@ -149,7 +149,7 @@
                             <td class="px-4 py-3 text-neutral-600">{{ $product->department->name }}</td>
                             <td class="px-4 py-3 text-right tabular-nums text-neutral-600">{{ $product->minimum_stock ?? '—' }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($product->unit_price) }}</td>
-                            @unless (auth()->user()?->isInventoryReadOnly())
+                            @if (auth()->user()?->canEditOrDeleteProducts())
                                 <td class="px-4 py-3 text-right">
                                     <div class="inline-flex items-center gap-2">
                                         <a
@@ -178,11 +178,11 @@
                                         </form>
                                     </div>
                                 </td>
-                            @endunless
+                            @endif
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ auth()->user()?->isInventoryReadOnly() ? 5 : 6 }}" class="px-4 py-12 text-center text-sm text-neutral-500">
+                            <td colspan="{{ auth()->user()?->canEditOrDeleteProducts() ? 6 : 5 }}" class="px-4 py-12 text-center text-sm text-neutral-500">
                                 @if (filled($filters['q'] ?? null) || filled($filters['department_id'] ?? null))
                                     Aucun produit ne correspond à ces critères.
                                 @else

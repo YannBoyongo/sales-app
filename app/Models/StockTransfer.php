@@ -12,6 +12,10 @@ class StockTransfer extends Model
 
     public const SCOPE_EXTERNAL = 'external';
 
+    public const STATUS_PENDING = 'pending';
+
+    public const STATUS_CONFIRMED = 'confirmed';
+
     protected $fillable = [
         'from_location_id',
         'to_location_id',
@@ -19,6 +23,7 @@ class StockTransfer extends Model
         'transferred_at',
         'user_id',
         'notes',
+        'status',
     ];
 
     protected function casts(): array
@@ -61,6 +66,25 @@ class StockTransfer extends Model
     public function isExternal(): bool
     {
         return $this->transfer_scope === self::SCOPE_EXTERNAL;
+    }
+
+    public function isPending(): bool
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isConfirmed(): bool
+    {
+        return $this->status === self::STATUS_CONFIRMED;
+    }
+
+    public static function statusLabel(string $status): string
+    {
+        return match ($status) {
+            self::STATUS_PENDING => 'En attente',
+            self::STATUS_CONFIRMED => 'Confirmé',
+            default => $status,
+        };
     }
 
     public static function scopeLabel(string $scope): string

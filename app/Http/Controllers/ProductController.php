@@ -65,7 +65,7 @@ class ProductController extends Controller
 
     public function create(): View
     {
-        abort_unless(! auth()->user()?->isInventoryReadOnly(), 403);
+        abort_unless(auth()->user()?->canCreateOrImportProducts(), 403);
 
         $departments = Department::orderBy('name')->get();
 
@@ -74,7 +74,7 @@ class ProductController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless(! $request->user()?->isInventoryReadOnly(), 403);
+        abort_unless($request->user()?->canCreateOrImportProducts(), 403);
 
         $data = $request->validate([
             'department_id' => ['required', 'exists:departments,id'],
@@ -92,7 +92,7 @@ class ProductController extends Controller
 
     public function edit(Product $product): View
     {
-        abort_unless(! auth()->user()?->isInventoryReadOnly(), 403);
+        abort_unless(auth()->user()?->canMutateProductCatalog(), 403);
 
         $this->ensureProductAccessibleForBranchUser($product);
 
@@ -103,7 +103,7 @@ class ProductController extends Controller
 
     public function update(Request $request, Product $product): RedirectResponse
     {
-        abort_unless(! $request->user()?->isInventoryReadOnly(), 403);
+        abort_unless($request->user()?->canMutateProductCatalog(), 403);
 
         $this->ensureProductAccessibleForBranchUser($product);
 
@@ -123,7 +123,7 @@ class ProductController extends Controller
 
     public function destroy(Product $product): RedirectResponse
     {
-        abort_unless(! auth()->user()?->isInventoryReadOnly(), 403);
+        abort_unless(auth()->user()?->canMutateProductCatalog(), 403);
 
         $this->ensureProductAccessibleForBranchUser($product);
 
@@ -145,6 +145,8 @@ class ProductController extends Controller
      */
     public function importSample(): BinaryFileResponse|RedirectResponse
     {
+        abort_unless(auth()->user()?->canCreateOrImportProducts(), 403);
+
         if (! $this->zipExtensionAvailable()) {
             return redirect()->route('products.index')->withErrors([
                 'file' => $this->zipExtensionMissingMessage(),
@@ -167,7 +169,7 @@ class ProductController extends Controller
      */
     public function import(Request $request): RedirectResponse
     {
-        abort_unless(! $request->user()?->isInventoryReadOnly(), 403);
+        abort_unless($request->user()?->canCreateOrImportProducts(), 403);
 
         $request->validate([
             'file' => ['required', 'file', 'max:10240'],

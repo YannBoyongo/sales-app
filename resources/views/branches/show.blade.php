@@ -142,6 +142,7 @@
                             <tr class="border-b border-neutral-100 bg-neutral-50/80 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">
                                 <th class="whitespace-nowrap px-6 py-3.5">Nom</th>
                                 <th class="whitespace-nowrap px-6 py-3.5">Type</th>
+                                <th class="px-6 py-3.5">Magasiniers</th>
                                 <th class="whitespace-nowrap px-6 py-3.5 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -161,6 +162,13 @@
                                             <span class="h-1.5 w-1.5 rounded-full {{ $kindBadge['dot'] }}" aria-hidden="true"></span>
                                             {{ \App\Models\Location::kindLabel($location->kind) }}
                                         </span>
+                                    </td>
+                                    <td class="max-w-xs px-6 py-4 text-neutral-600">
+                                        @if ($location->stockManagers->isEmpty())
+                                            <span class="text-neutral-400">—</span>
+                                        @else
+                                            <span class="leading-snug">{{ $location->stockManagers->pluck('name')->join(', ') }}</span>
+                                        @endif
                                     </td>
                                     <td class="whitespace-nowrap px-6 py-4 text-right">
                                         <div class="inline-flex items-center justify-end gap-0.5">
@@ -193,7 +201,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="3" class="px-6 py-14 text-center">
+                                    <td colspan="4" class="px-6 py-14 text-center">
                                         <div class="mx-auto max-w-sm">
                                             <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
                                                 <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">

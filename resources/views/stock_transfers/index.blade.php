@@ -16,6 +16,7 @@
             <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
                 <tr>
                     <th class="px-4 py-3">Réf.</th>
+                    <th class="px-4 py-3">Statut</th>
                     <th class="px-4 py-3">Type</th>
                     <th class="px-4 py-3">Date</th>
                     <th class="px-4 py-3">De</th>
@@ -29,6 +30,13 @@
                 @forelse ($transfers as $t)
                     <tr class="hover:bg-neutral-50/80">
                         <td class="px-4 py-3 font-medium text-neutral-900 tabular-nums">#{{ $t->id }}</td>
+                        <td class="px-4 py-3">
+                            @if ($t->isPending())
+                                <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_PENDING) }}</span>
+                            @else
+                                <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_CONFIRMED) }}</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-3 text-neutral-700">{{ \App\Models\StockTransfer::scopeLabel($t->transfer_scope ?? \App\Models\StockTransfer::SCOPE_INTERNAL) }}</td>
                         <td class="px-4 py-3 text-neutral-600 whitespace-nowrap">{{ $t->transferred_at->translatedFormat('d/m/Y') }}</td>
                         <td class="px-4 py-3 text-neutral-700">{{ $t->fromLocation->name }} <span class="text-neutral-400">({{ $t->fromLocation->branch->name }})</span></td>
@@ -41,7 +49,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-8 text-center text-neutral-500">Aucun transfert pour le moment.</td>
+                        <td colspan="9" class="px-4 py-8 text-center text-neutral-500">Aucun transfert pour le moment.</td>
                     </tr>
                 @endforelse
             </tbody>

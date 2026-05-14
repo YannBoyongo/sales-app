@@ -63,6 +63,16 @@ class User extends Authenticatable
         return $this->belongsToMany(PosTerminal::class, 'pos_terminal_user')->withTimestamps();
     }
 
+    /**
+     * Emplacements dont ce magasinier a la charge (rôle stock_manager).
+     *
+     * @return BelongsToMany<Location>
+     */
+    public function managedLocations(): BelongsToMany
+    {
+        return $this->belongsToMany(Location::class, 'location_stock_manager')->withTimestamps();
+    }
+
     public function roles(): BelongsToMany
     {
         return $this->belongsToMany(Role::class)->withTimestamps();
@@ -109,6 +119,11 @@ class User extends Authenticatable
     public function isManager(): bool
     {
         return $this->hasRole(UserRole::Manager);
+    }
+
+    public function isStockManager(): bool
+    {
+        return $this->hasRole(UserRole::StockManager);
     }
 
     public function isPosUser(): bool
@@ -161,19 +176,52 @@ class User extends Authenticatable
      */
     public function isInventoryReadOnly(): bool
     {
-        return $this->isAccountant() && ! $this->isAdmin();
+        return $this->isAccountant() && ! $this->isAdmin() && ! $this->isStockManager();
     }
 
     /** Créer ou enregistrer un transfert de stock (hors caisse / point de vente / comptable en lecture seule). */
     public function canManageStockTransfers(): bool
     {
-        return ! $this->isPosUser() && ! $this->isCashier() && ! $this->isAccountant();
+        if ($this->isPosUser() || $this->isCashier()) {
+            return false;
+        }
+
+        if ($this->isStockManager()) {
+            return true;
+        }
+
+        return ! $this->isAccountant();
     }
 
     /** Voir la liste et le détail des transferts (y compris comptable). */
     public function canViewStockTransfers(): bool
     {
         return $this->canManageStockTransfers() || $this->isAccountant();
+    }
+
+    /** Création de fiche produit et import fichier (magasinier : pas d’écriture catalogue). */
+    public function canCreateOrImportProducts(): bool
+    {
+        return $this->canMutateProductCatalog();
+    }
+
+    /** Modifier ou supprimer une fiche produit. */
+    public function canEditOrDeleteProducts(): bool
+    {
+        return $this->canMutateProductCatalog();
+    }
+
+    /**
+     * Création, import, modification ou suppression de produits.
+     * Le magasinier consulte le catalogue ; le comptable seul est en lecture seule.
+     */
+    public function canMutateProductCatalog(): bool
+    {
+        if ($this->isInventoryReadOnly()) {
+            return false;
+        }
+
+        return ! $this->isStockManager();
     }
 
     /**

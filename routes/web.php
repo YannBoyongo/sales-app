@@ -135,12 +135,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('bons-de-caisse/{cashVoucher}/approve', [CashVoucherController::class, 'approve'])->name('cash-vouchers.approve');
     });
 
-    Route::middleware('accounting_or_cashier')->group(function () {
+    Route::middleware('clients_module')->group(function () {
         Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
         Route::get('clients/create', [ClientController::class, 'create'])->name('clients.create');
         Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
-        Route::get('clients/{client}', [ClientController::class, 'show'])->name('clients.show');
-        Route::post('clients/{client}/payments', [ClientController::class, 'storePayment'])->name('clients.payments.store');
+        Route::get('clients/{client}', [ClientController::class, 'show'])->name('clients.show')->whereNumber('client');
+        Route::get('clients/{client}/edit', [ClientController::class, 'edit'])->name('clients.edit')->whereNumber('client');
+        Route::patch('clients/{client}', [ClientController::class, 'update'])->name('clients.update')->whereNumber('client');
+        Route::post('clients/{client}/payments', [ClientController::class, 'storePayment'])
+            ->name('clients.payments.store')
+            ->whereNumber('client')
+            ->middleware('client_payments');
+    });
+
+    Route::middleware('accounting_or_cashier')->group(function () {
         Route::get('bons-de-caisse', [CashVoucherController::class, 'index'])->name('cash-vouchers.index');
         Route::post('bons-de-caisse', [CashVoucherController::class, 'store'])->name('cash-vouchers.store');
         Route::get('bons-de-caisse/{cashVoucher}/comptabiliser', [CashVoucherController::class, 'createAccountingEntry'])->name('cash-vouchers.accounting.create');

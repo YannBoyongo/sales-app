@@ -511,7 +511,7 @@ trait RespectsUserBranch
     }
 
     /**
-     * @param  bool  $forClosedShiftsListing  Caissier rattaché à une branche (sans terminal pivot) : inclure tous les terminaux de la branche pour l’historique des shifts fermés / bons de caisse.
+     * @param  bool  $forClosedShiftsListing  Caissier sans rôle « utilisateur POS » et avec branche : historique shifts = tous les terminaux de cette branche. Sinon (dont caissier+utilisateur POS) : uniquement le pivot utilisateur-terminal.
      * @return Collection<int, PosTerminal>
      */
     protected function posTerminalsForUser(?Branch $branch = null, bool $forClosedShiftsListing = false): Collection
@@ -520,11 +520,14 @@ trait RespectsUserBranch
         if (! $user) {
             return collect();
         }
-        $cashierMayListBranchClosedShifts = $forClosedShiftsListing
+        // Caissier sans rôle « utilisateur POS » : historique shifts fermés = tous les terminaux de sa branche.
+        // Dès qu’il a aussi le rôle utilisateur POS (ou pour le flux /caisse), on n’affiche que les terminaux du pivot.
+        $cashierBranchWideClosedShiftsOnly = $forClosedShiftsListing
             && $user->isCashier()
+            && ! $user->isPosUser()
             && $user->branch_id;
         $accountingMayListClosedShifts = $forClosedShiftsListing && $user->canAccessAccounting();
-        if (! $user->canAccessPosSales() && ! $cashierMayListBranchClosedShifts && ! $accountingMayListClosedShifts) {
+        if (! $user->canAccessPosSales() && ! $cashierBranchWideClosedShiftsOnly && ! $accountingMayListClosedShifts) {
             return collect();
         }
 
@@ -537,30 +540,18 @@ trait RespectsUserBranch
             return $q->orderBy('branch_id')->orderBy('name')->get();
         }
 
-        if ($user->isCashier()) {
-            $branchIds = $user->branch_id
-                ? [(int) $user->branch_id]
-                : $user->posTerminals()
-                    ->pluck('branch_id')
-                    ->unique()
-                    ->filter()
-                    ->map(fn ($id) => (int) $id)
-                    ->values()
-                    ->all();
-            if ($branchIds === []) {
-                return collect();
-            }
+        if ($cashierBranchWideClosedShiftsOnly) {
             $q = PosTerminal::query()
                 ->with('location', 'branch')
-                ->whereIn('branch_id', $branchIds);
+                ->where('branch_id', (int) $user->branch_id);
             if ($branch !== null) {
                 $q->where('branch_id', $branch->id);
             }
 
-            return $q->orderBy('branch_id')->orderBy('name')->get();
+            return $q->orderBy('name')->get();
         }
 
-        if ($user->isPosUser()) {
+        if ($user->isPosUser() || $user->isCashier()) {
             $q = $user->posTerminals()->with('location', 'branch');
             if ($branch !== null) {
                 $q->where('pos_terminals.branch_id', $branch->id);

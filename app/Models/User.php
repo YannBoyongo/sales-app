@@ -141,6 +141,12 @@ class User extends Authenticatable
         return $this->hasRole(UserRole::Logistician);
     }
 
+    /** Choisir « Revendeur » (vente avec solde / dette client) sur le formulaire nouvelle vente caisse. */
+    public function canChooseDealerCustomerOnPosSale(): bool
+    {
+        return $this->isAdmin() || $this->isLogistician();
+    }
+
     /** Admin, comptable ou logisticien : vue agrégée multi-branches (filtre désactivé). */
     public function canBypassBranchScope(): bool
     {
@@ -156,6 +162,30 @@ class User extends Authenticatable
     public function canAccessCashDeskFinanceFeatures(): bool
     {
         return $this->canAccessAccounting() || $this->isCashier();
+    }
+
+    /** Liens Clients dans le menu (logisticien ou profil finances caisse). */
+    public function canAccessClientsNav(): bool
+    {
+        return $this->canAccessCashDeskFinanceFeatures() || $this->isLogistician();
+    }
+
+    /** Suivi détaillé ventes à crédit / paiements (pas le simple logisticien). */
+    public function canViewClientsLedger(): bool
+    {
+        return $this->canAccessCashDeskFinanceFeatures();
+    }
+
+    /** Créer ou modifier le nom / téléphone d’un client. */
+    public function canEditClientProfile(): bool
+    {
+        return $this->isLogistician() || $this->canAccessCashDeskFinanceFeatures();
+    }
+
+    /** Enregistrer un paiement contre la dette (entrée bon de caisse). */
+    public function canRecordClientDebtPayments(): bool
+    {
+        return $this->canAccessCashDeskFinanceFeatures();
     }
 
     /** Depuis un shift fermé : créer l’écriture + bon de caisse (caissier responsable ou compta). */

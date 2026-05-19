@@ -19,6 +19,8 @@ class CashVoucher extends Model
         'approved_at',
         'approved_by',
         'accounting_transaction_id',
+        'pos_shift_id',
+        'department_id',
     ];
 
     protected function casts(): array
@@ -38,5 +40,15 @@ class CashVoucher extends Model
     public function accountingTransaction(): BelongsTo
     {
         return $this->belongsTo(AccountingTransaction::class, 'accounting_transaction_id');
+    }
+
+    public function posShift(): BelongsTo
+    {
+        return $this->belongsTo(PosShift::class);
+    }
+
+    public function department(): BelongsTo
+    {
+        return $this->belongsTo(Department::class);
     }
 }

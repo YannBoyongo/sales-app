@@ -143,6 +143,12 @@ class SaleItemController extends Controller
             ->values()
             ->all();
 
+        $canChooseDealerCustomer = auth()->user()?->canChooseDealerCustomerOnPosSale() ?? false;
+        $saleEffectiveCustomerType = (string) old('customer_type', 'walkin');
+        if (! $canChooseDealerCustomer && $saleEffectiveCustomerType === 'dealer') {
+            $saleEffectiveCustomerType = 'walkin';
+        }
+
         return view('sale_items.create', compact(
             'branch',
             'posTerminal',
@@ -152,6 +158,8 @@ class SaleItemController extends Controller
             'saleLineRows',
             'productsCount',
             'clients',
+            'canChooseDealerCustomer',
+            'saleEffectiveCustomerType',
         ));
     }
 
@@ -172,8 +180,12 @@ class SaleItemController extends Controller
 
         $departmentId = (int) $department->id;
 
+        $allowedCustomerTypes = $request->user()->canChooseDealerCustomerOnPosSale()
+            ? ['walkin', 'dealer']
+            : ['walkin'];
+
         $data = $request->validate([
-            'customer_type' => ['required', 'in:walkin,dealer'],
+            'customer_type' => ['required', Rule::in($allowedCustomerTypes)],
             'client_name' => ['nullable', 'string', 'max:255'],
             'client_phone' => ['nullable', 'string', 'max:50'],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],

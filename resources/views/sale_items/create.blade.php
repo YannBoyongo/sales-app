@@ -65,7 +65,7 @@
                 method="POST"
                 class="space-y-6"
                 x-data="{
-                    customerType: @js(old('customer_type', 'walkin')),
+                    customerType: @js($saleEffectiveCustomerType),
                     catalog: @js($saleCatalog),
                     rows: @js($saleLineRows),
                     posName: @js($pointOfSale->name),
@@ -420,15 +420,17 @@
                     <div class="mt-4 space-y-4">
                         <div>
                             <x-input-label value="Type de client" class="text-sm font-semibold text-neutral-800" />
-                            <div class="mt-2 grid gap-2 sm:grid-cols-2">
+                            <div class="mt-2 grid gap-2 @if ($canChooseDealerCustomer) sm:grid-cols-2 @endif">
                                 <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
                                     <input type="radio" name="customer_type" value="walkin" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
                                     Client comptant
                                 </label>
-                                <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
-                                    <input type="radio" name="customer_type" value="dealer" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
-                                    Revendeur
-                                </label>
+                                @if ($canChooseDealerCustomer)
+                                    <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
+                                        <input type="radio" name="customer_type" value="dealer" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
+                                        Revendeur
+                                    </label>
+                                @endif
                             </div>
                             <x-input-error :messages="$errors->get('customer_type')" class="mt-2" />
                         </div>
@@ -436,7 +438,9 @@
                         <div>
                             <p class="text-xs text-neutral-500">
                                 <strong>Client comptant :</strong> vente au comptant sans dette client.
-                                <strong>Revendeur :</strong> le solde impayé devient la dette du client.
+                                @if ($canChooseDealerCustomer)
+                                    <strong>Revendeur :</strong> le solde impayé devient la dette du client.
+                                @endif
                             </p>
                             <div class="mt-4 space-y-4">
                                 <div x-show="customerType === 'dealer'" x-cloak>

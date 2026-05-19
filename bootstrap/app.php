@@ -4,6 +4,8 @@ use App\Http\Middleware\EnsureAccounting;
 use App\Http\Middleware\EnsureAccountingOrCashier;
 use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureCanManageStockTransfers;
+use App\Http\Middleware\EnsureClientPaymentsAccess;
+use App\Http\Middleware\EnsureClientsModuleAccess;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +21,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => EnsureAdmin::class,
             'accounting' => EnsureAccounting::class,
             'accounting_or_cashier' => EnsureAccountingOrCashier::class,
+            'clients_module' => EnsureClientsModuleAccess::class,
+            'client_payments' => EnsureClientPaymentsAccess::class,
             'stock_transfer' => EnsureCanManageStockTransfers::class,
         ]);
     })

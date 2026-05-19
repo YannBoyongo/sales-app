@@ -19,6 +19,12 @@
                 <x-input-error :messages="$errors->get('name')" class="mt-2" />
             </div>
 
+            <div>
+                <x-input-label for="phone" value="Téléphone (optionnel)" />
+                <x-text-input id="phone" name="phone" type="text" class="mt-1 block w-full" :value="old('phone')" />
+                <x-input-error :messages="$errors->get('phone')" class="mt-2" />
+            </div>
+
             <div class="flex justify-end gap-3 pt-2">
                 <a href="{{ route('clients.index') }}" class="rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
                 <x-primary-button>Créer le client</x-primary-button>

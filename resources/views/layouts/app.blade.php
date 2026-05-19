@@ -100,6 +100,13 @@
                             <span>Shifts fermés</span>
                         </a>
                     @endif
+                    @if (Auth::user()->canAccessClientsNav() && ! Auth::user()->canAccessCashDeskFinanceFeatures())
+                        <p class="pt-4 pb-1 px-3 text-xs uppercase tracking-wider text-neutral-500">Clients</p>
+                        <a href="{{ route('clients.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('clients.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.964 0a9 9 0 10-11.964 0m11.964 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span>Clients</span>
+                        </a>
+                    @endif
                     @if (Auth::user()->canAccessCashDeskFinanceFeatures())
                         <p class="pt-4 pb-1 px-3 text-xs uppercase tracking-wider text-neutral-500">Finances</p>
                         <a href="{{ route('clients.index') }}" class="flex items-center gap-3 rounded-md px-3 py-2 {{ request()->routeIs('clients.*') ? 'bg-primary text-white' : 'text-neutral-300 hover:bg-neutral-800 hover:text-white' }}">

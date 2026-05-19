@@ -9,6 +9,7 @@ use App\Models\Payment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ClientController extends Controller
@@ -28,18 +29,44 @@ class ClientController extends Controller
 
     public function create(): View
     {
+        abort_unless(auth()->user()?->canEditClientProfile(), 403);
+
         return view('clients.create');
     }
 
     public function store(Request $request): RedirectResponse
     {
+        abort_unless($request->user()?->canEditClientProfile(), 403);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:clients,name'],
+            'phone' => ['nullable', 'string', 'max:50'],
         ]);
 
         $client = Client::create($data);
 
         return redirect()->route('clients.show', $client)->with('success', 'Client créé.');
+    }
+
+    public function edit(Client $client): View
+    {
+        abort_unless(auth()->user()?->canEditClientProfile(), 403);
+
+        return view('clients.edit', compact('client'));
+    }
+
+    public function update(Request $request, Client $client): RedirectResponse
+    {
+        abort_unless($request->user()?->canEditClientProfile(), 403);
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('clients', 'name')->ignore($client->id)],
+            'phone' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $client->update($data);
+
+        return redirect()->route('clients.show', $client)->with('success', 'Client mis à jour.');
     }
 
     public function show(Client $client): View
@@ -52,16 +79,30 @@ class ClientController extends Controller
             abort_unless($accessible, 403, 'Accès non autorisé pour ce client.');
         }
 
-        $client->load([
-            'creditSales' => fn ($q) => $q->latest()->with(['branch', 'product', 'sale']),
-            'payments' => fn ($q) => $q->latest()->with('user'),
-        ]);
+        $showFinanceDetail = auth()->user()?->canViewClientsLedger() ?? false;
 
-        $totalCredit = $client->totalCreditAmount();
-        $totalPaid = $client->totalPaidAmount();
-        $balance = $client->debtBalance();
+        $totalCredit = '0';
+        $totalPaid = '0';
+        $balance = '0';
 
-        return view('clients.show', compact('client', 'totalCredit', 'totalPaid', 'balance'));
+        if ($showFinanceDetail) {
+            $client->load([
+                'creditSales' => fn ($q) => $q->latest()->with(['branch', 'product', 'sale']),
+                'payments' => fn ($q) => $q->latest()->with('user'),
+            ]);
+
+            $totalCredit = $client->totalCreditAmount();
+            $totalPaid = $client->totalPaidAmount();
+            $balance = $client->debtBalance();
+        }
+
+        return view('clients.show', compact(
+            'client',
+            'totalCredit',
+            'totalPaid',
+            'balance',
+            'showFinanceDetail',
+        ));
     }
 
     public function storePayment(Request $request, Client $client): RedirectResponse

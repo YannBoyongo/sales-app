@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PosShiftController extends Controller
@@ -53,30 +54,48 @@ class PosShiftController extends Controller
             ->when($terminalIds !== [], fn ($q) => $q->whereIn('pos_terminal_id', $terminalIds))
             ->when($registrationFilter === 'registered', function (Builder $q) {
                 $q->where(function (Builder $outer) {
-                    $outer->whereExists(function ($sub) {
-                        $sub->selectRaw('1')
-                            ->from('accounting_transactions')
-                            ->whereRaw("accounting_transactions.reference LIKE CONCAT('%(shift #', pos_shifts.id, ')%')");
-                    })->orWhereExists(function ($sub) {
-                        $sub->selectRaw('1')
-                            ->from('cash_vouchers')
-                            ->whereRaw("cash_vouchers.voucher_no LIKE CONCAT('CV-SHIFT-', pos_shifts.id, '-%')")
-                            ->whereNotNull('cash_vouchers.accounting_transaction_id');
-                    });
+                    $outer
+                        ->whereExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('accounting_transactions')
+                                ->whereRaw("accounting_transactions.reference LIKE CONCAT('%(shift #', pos_shifts.id, ') |%')");
+                        })
+                        ->orWhereExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('accounting_transactions')
+                                ->whereRaw("accounting_transactions.reference LIKE CONCAT('%Bon de caisse CV-SHIFT-', pos_shifts.id, '-%')");
+                        })
+                        ->orWhereExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('cash_vouchers')
+                                ->where(function ($v) {
+                                    $v->whereColumn('cash_vouchers.pos_shift_id', 'pos_shifts.id')
+                                        ->orWhereRaw("cash_vouchers.voucher_no LIKE CONCAT('CV-SHIFT-', pos_shifts.id, '-%')");
+                                });
+                        });
                 });
             })
             ->when($registrationFilter === 'unregistered', function (Builder $q) {
                 $q->where(function (Builder $outer) {
-                    $outer->whereNotExists(function ($sub) {
-                        $sub->selectRaw('1')
-                            ->from('accounting_transactions')
-                            ->whereRaw("accounting_transactions.reference LIKE CONCAT('%(shift #', pos_shifts.id, ')%')");
-                    })->whereNotExists(function ($sub) {
-                        $sub->selectRaw('1')
-                            ->from('cash_vouchers')
-                            ->whereRaw("cash_vouchers.voucher_no LIKE CONCAT('CV-SHIFT-', pos_shifts.id, '-%')")
-                            ->whereNotNull('cash_vouchers.accounting_transaction_id');
-                    });
+                    $outer
+                        ->whereNotExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('accounting_transactions')
+                                ->whereRaw("accounting_transactions.reference LIKE CONCAT('%(shift #', pos_shifts.id, ') |%')");
+                        })
+                        ->whereNotExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('accounting_transactions')
+                                ->whereRaw("accounting_transactions.reference LIKE CONCAT('%Bon de caisse CV-SHIFT-', pos_shifts.id, '-%')");
+                        })
+                        ->whereNotExists(function ($sub) {
+                            $sub->selectRaw('1')
+                                ->from('cash_vouchers')
+                                ->where(function ($v) {
+                                    $v->whereColumn('cash_vouchers.pos_shift_id', 'pos_shifts.id')
+                                        ->orWhereRaw("cash_vouchers.voucher_no LIKE CONCAT('CV-SHIFT-', pos_shifts.id, '-%')");
+                                });
+                        });
                 });
             })
             ->orderByDesc('closed_at')
@@ -113,19 +132,7 @@ class PosShiftController extends Controller
 
         $shifts->setCollection(
             $shifts->getCollection()->map(function (PosShift $shift) use ($cashByShiftId) {
-                $legacyReference = $this->closedShiftAccountingReference($shift);
-                $legacyCount = AccountingTransaction::query()
-                    ->where(function ($q) use ($shift, $legacyReference) {
-                        $q->where('reference', $legacyReference)
-                            ->orWhere('reference', 'like', '%(shift #'.$shift->id.') | %');
-                    })
-                    ->count();
-                $accountedShiftBons = CashVoucher::query()
-                    ->where('voucher_no', 'like', 'CV-SHIFT-'.$shift->id.'-%')
-                    ->whereNotNull('accounting_transaction_id')
-                    ->count();
-
-                $shift->setAttribute('accounting_registered_count', $legacyCount + $accountedShiftBons);
+                $shift->setAttribute('accounting_registered_count', $this->closedShiftAccountingRegistrationCount($shift));
                 $shift->setAttribute(
                     'shift_cash_collected_sum',
                     $cashByShiftId[(int) $shift->id] ?? '0.00'
@@ -136,7 +143,9 @@ class PosShiftController extends Controller
         );
 
         $closedShiftsDescription = ($user?->isCashier() && ! $user->canAccessAccounting())
-            ? 'Toutes les sessions fermées de votre branche (bons de caisse, suivi d’encaissement). Filtrez par enregistrement comptable si besoin.'
+            ? ($user->isPosUser()
+                ? 'Sessions fermées uniquement pour les terminaux POS auxquels vous êtes affecté.'
+                : 'Toutes les sessions fermées de votre branche (bons de caisse, suivi d’encaissement). Filtrez par enregistrement comptable si besoin.')
             : 'Liste des sessions de caisse déjà clôturées pour les terminaux auxquels vous avez accès.';
 
         return view('pos_terminals.closed_shifts', compact('shifts', 'registrationFilter', 'closedShiftsDescription'));
@@ -165,18 +174,18 @@ class PosShiftController extends Controller
             fn (string $carry, array $row) => bcadd($carry, $row['total'], 2),
             '0.00'
         );
-        $pushedShiftDepartmentVoucherNos = CashVoucher::query()
-            ->where('voucher_no', 'like', 'CV-SHIFT-'.$shift->id.'-%')
-            ->pluck('voucher_no')
-            ->map(fn ($n) => (string) $n)
-            ->all();
+        foreach ($summaries as $i => $row) {
+            $summaries[$i]['bon_already_created'] = $this->departmentRowHasShiftCashVoucher(
+                $shift,
+                $row['department']?->id
+            );
+        }
 
         return view('pos_terminals.closed_shift_show', compact(
             'shift',
             'branch',
             'summaries',
             'grandTotal',
-            'pushedShiftDepartmentVoucherNos',
         ));
     }
 
@@ -188,10 +197,29 @@ class PosShiftController extends Controller
         $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
         abort_unless(in_array((int) $shift->pos_terminal_id, $allowedTerminalIds, true), 403, 'Session non autorisée.');
 
+        $request->merge([
+            'department_id' => (($v = $request->input('department_id')) !== null && $v !== '')
+                ? (int) $v
+                : null,
+        ]);
+        $request->merge([
+            'voucher_no' => is_string($request->input('voucher_no'))
+                ? trim($request->input('voucher_no'))
+                : '',
+        ]);
+
         $data = $request->validate([
             'department_id' => ['nullable', 'integer'],
+            'voucher_no' => [
+                'required',
+                'string',
+                'max:100',
+                'regex:/^[A-Za-zÀ-ÖØ-öø-ÿ0-9_\-. %\/]+$/u',
+                Rule::unique('cash_vouchers', 'voucher_no'),
+            ],
         ]);
-        $departmentId = isset($data['department_id']) && $data['department_id'] !== ''
+
+        $departmentId = isset($data['department_id'])
             ? (int) $data['department_id']
             : null;
 
@@ -215,13 +243,12 @@ class PosShiftController extends Controller
         }
 
         $departmentLabel = (string) ($selected['label'] ?? 'Département inconnu');
-        $voucherNo = sprintf('CV-SHIFT-%d-%s', $shift->id, (string) ($selected['department']?->id ?? 'ND'));
+        $voucherNo = $data['voucher_no'];
 
-        $alreadyPushed = CashVoucher::query()->where('voucher_no', $voucherNo)->exists();
-
-        if ($alreadyPushed) {
+        if ($this->departmentRowHasShiftCashVoucher($shift, $selected['department']?->id)) {
             return redirect()
                 ->route('pos-terminal.shifts.closed.show', $shift)
+                ->withInput()
                 ->with('warning', 'Un bon de caisse existe déjà pour ce département et cette session.');
         }
 
@@ -232,20 +259,20 @@ class PosShiftController extends Controller
                 ->with('warning', 'Aucun montant à enregistrer pour ce département.');
         }
 
-        CashVoucher::query()->firstOrCreate(
-            ['voucher_no' => $voucherNo],
-            [
-                'date' => optional($shift->closed_at)->toDateString() ?? now()->toDateString(),
-                'description' => sprintf(
-                    'Entrée caisse issue de la clôture session #%d - %s (%s)',
-                    $shift->id,
-                    $departmentLabel,
-                    optional($shift->posTerminal)->name ?? 'Terminal'
-                ),
-                'type' => 'entry',
-                'amount' => $total,
-            ]
-        );
+        CashVoucher::query()->create([
+            'voucher_no' => $voucherNo,
+            'pos_shift_id' => $shift->id,
+            'department_id' => $selected['department']?->id,
+            'date' => optional($shift->closed_at)->toDateString() ?? now()->toDateString(),
+            'description' => sprintf(
+                'Entrée caisse issue de la clôture session #%d - %s (%s)',
+                $shift->id,
+                $departmentLabel,
+                optional($shift->posTerminal)->name ?? 'Terminal'
+            ),
+            'type' => 'entry',
+            'amount' => $total,
+        ]);
 
         return redirect()
             ->route('pos-terminal.shifts.closed.show', $shift)
@@ -418,7 +445,7 @@ class PosShiftController extends Controller
     /**
      * @param  Collection<int, Sale>  $sales
      * @return list<array{department: Department|null, label: string, sales_count: int, total: string, sales: Collection<int, Sale>}>
-     *         {@see Sale::cashForShiftTotals()} pour total (encaissements figés après clôture).
+     *                                                                                                                                {@see Sale::cashForShiftTotals()} pour total (encaissements figés après clôture).
      */
     private function departmentSummariesForShift(Collection $sales): array
     {
@@ -462,20 +489,79 @@ class PosShiftController extends Controller
         ), 0, 255);
     }
 
-    private function closedShiftHasFinanceLinks(PosShift $shift): bool
+    /**
+     * Compte pour l’historique shifts : écritures comptables habituelles, ou bons liés au shift créés depuis
+     * la clôture — y compris **avant** comptabilisation (bons en attente d’approb / d’écriture).
+     */
+    private function closedShiftAccountingRegistrationCount(PosShift $shift): int
     {
         $legacyReference = $this->closedShiftAccountingReference($shift);
-        if (AccountingTransaction::query()
+        $legacyCount = AccountingTransaction::query()
             ->where(function ($q) use ($shift, $legacyReference) {
                 $q->where('reference', $legacyReference)
                     ->orWhere('reference', 'like', '%(shift #'.$shift->id.') | %');
             })
-            ->exists()) {
+            ->count();
+
+        /** Comptées aussi les écritures créées depuis « Bons de caisse » (référence standard). */
+        $bonRefPattern = '%Bon de caisse CV-SHIFT-'.$shift->id.'-%';
+        $fromBonRefs = AccountingTransaction::query()
+            ->where('reference', 'like', $bonRefPattern)
+            ->count();
+
+        $cashVouchersForShift = fn () => CashVoucher::query()
+            ->where(function (Builder $q) use ($shift): void {
+                $q->where('voucher_no', 'like', 'CV-SHIFT-'.$shift->id.'-%')
+                    ->orWhere('pos_shift_id', $shift->id);
+            });
+
+        $postedVouchers = $cashVouchersForShift()
+            ->whereNotNull('accounting_transaction_id')
+            ->count();
+
+        $totalLinkedVouchers = $cashVouchersForShift()->count();
+
+        if ($postedVouchers > 0) {
+            return $postedVouchers;
+        }
+
+        $legacyPlusBon = max($legacyCount, $fromBonRefs);
+
+        if ($totalLinkedVouchers > 0) {
+            return max($legacyPlusBon, $totalLinkedVouchers);
+        }
+
+        return $legacyPlusBon;
+    }
+
+    private function closedShiftHasFinanceLinks(PosShift $shift): bool
+    {
+        if ($this->closedShiftAccountingRegistrationCount($shift) > 0) {
             return true;
         }
 
         return CashVoucher::query()
-            ->where('voucher_no', 'like', 'CV-SHIFT-'.$shift->id.'-%')
+            ->where(function (Builder $q) use ($shift): void {
+                $q->where('voucher_no', 'like', 'CV-SHIFT-'.$shift->id.'-%')
+                    ->orWhere('pos_shift_id', $shift->id);
+            })
+            ->exists();
+    }
+
+    /** Bon de caisse créé depuis la clôture pour cette ligne département (référence par défaut ou pivot sur le shift). */
+    private function departmentRowHasShiftCashVoucher(PosShift $shift, ?int $departmentId): bool
+    {
+        $suffix = $departmentId === null ? 'ND' : (string) $departmentId;
+        $defaultVoucherNo = sprintf('CV-SHIFT-%d-%s', $shift->id, $suffix);
+
+        if (CashVoucher::query()->where('voucher_no', $defaultVoucherNo)->exists()) {
+            return true;
+        }
+
+        return CashVoucher::query()
+            ->where('pos_shift_id', $shift->id)
+            ->when($departmentId === null, fn (Builder $q) => $q->whereNull('department_id'),
+                fn (Builder $q) => $q->where('department_id', $departmentId))
             ->exists();
     }
 }

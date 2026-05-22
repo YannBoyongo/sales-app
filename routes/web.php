@@ -128,6 +128,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'update'])->whereNumber('purchase_order')->name('purchase-orders.update');
         Route::get('parametre', [SettingController::class, 'edit'])->name('parametre.edit');
         Route::patch('parametre', [SettingController::class, 'update'])->name('parametre.update');
+        Route::delete('parametre/logo', [SettingController::class, 'destroyLogo'])->name('parametre.logo.destroy');
 
         Route::get('branches/{branch}/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit')->whereNumber('sale');
         Route::patch('branches/{branch}/sales/{sale}', [SaleController::class, 'update'])->name('sales.update')->whereNumber('sale');

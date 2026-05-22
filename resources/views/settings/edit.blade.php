@@ -88,9 +88,25 @@
                         </div>
                     </template>
                     @if ($setting->logo)
-                        <div x-show="!previewUrl" x-cloak>
-                            <p class="text-xs font-medium text-neutral-500">Logo enregistré</p>
-                            <img src="{{ asset('storage/'.$setting->logo) }}" alt="Logo actuel" class="mt-1 h-16 w-auto rounded border border-neutral-200 bg-white p-1 object-contain" />
+                        <div x-show="!previewUrl" x-cloak class="flex flex-wrap items-end gap-3">
+                            <div>
+                                <p class="text-xs font-medium text-neutral-500">Logo enregistré</p>
+                                <img src="{{ asset('storage/'.$setting->logo) }}" alt="Logo actuel" class="mt-1 h-16 w-auto rounded border border-neutral-200 bg-white p-1 object-contain" />
+                            </div>
+                            <form
+                                action="{{ route('parametre.logo.destroy') }}"
+                                method="POST"
+                                onsubmit="return confirm('Supprimer le logo enregistré ?');"
+                            >
+                                @csrf
+                                @method('DELETE')
+                                <button
+                                    type="submit"
+                                    class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
+                                >
+                                    Supprimer le logo
+                                </button>
+                            </form>
                         </div>
                     @endif
                 </div>

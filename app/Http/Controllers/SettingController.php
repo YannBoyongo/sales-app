@@ -67,4 +67,18 @@ class SettingController extends Controller
 
         return redirect()->route('parametre.edit')->with('success', 'Paramètre mis à jour.');
     }
+
+    public function destroyLogo(): RedirectResponse
+    {
+        $setting = Setting::query()->firstOrFail();
+
+        if ($setting->logo) {
+            Storage::disk('public')->delete($setting->logo);
+            $setting->update(['logo' => null]);
+        }
+
+        return redirect()
+            ->route('parametre.edit')
+            ->with('success', 'Logo supprimé.');
+    }
 }

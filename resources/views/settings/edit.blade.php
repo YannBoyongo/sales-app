@@ -93,20 +93,14 @@
                                 <p class="text-xs font-medium text-neutral-500">Logo enregistré</p>
                                 <img src="{{ asset('storage/'.$setting->logo) }}" alt="Logo actuel" class="mt-1 h-16 w-auto rounded border border-neutral-200 bg-white p-1 object-contain" />
                             </div>
-                            <form
-                                action="{{ route('parametre.logo.destroy') }}"
-                                method="POST"
-                                onsubmit="return confirm('Supprimer le logo enregistré ?');"
+                            <button
+                                type="submit"
+                                form="parametre-logo-delete"
+                                class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
+                                onclick="return confirm('Supprimer le logo enregistré ?');"
                             >
-                                @csrf
-                                @method('DELETE')
-                                <button
-                                    type="submit"
-                                    class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
-                                >
-                                    Supprimer le logo
-                                </button>
-                            </form>
+                                Supprimer le logo
+                            </button>
                         </div>
                     @endif
                 </div>
@@ -117,5 +111,17 @@
                 <x-primary-button>Enregistrer</x-primary-button>
             </div>
         </form>
+
+        @if ($setting->logo)
+            <form
+                id="parametre-logo-delete"
+                action="{{ route('parametre.logo.destroy') }}"
+                method="POST"
+                class="hidden"
+            >
+                @csrf
+                @method('DELETE')
+            </form>
+        @endif
     </section>
 </x-app-layout>

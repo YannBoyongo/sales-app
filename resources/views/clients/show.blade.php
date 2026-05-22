@@ -67,8 +67,14 @@
         <section class="mb-6 overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
             <div class="border-b border-neutral-200 bg-neutral-50 px-6 py-4">
                 <h2 class="text-lg font-semibold text-neutral-900">Ventes à crédit</h2>
+                <p class="mt-1 text-sm text-neutral-600">Montants « à payer », « payé » et « solde » correspondent au total de la vente (facture), pas à la ligne seule.</p>
             </div>
             <div class="overflow-x-auto px-6 py-4">
+                @php
+                    $creditLines = $client->creditSales;
+                    $linesPerSale = $creditLines->groupBy(fn ($line) => $line->sale_id ?? 'orphan-'.$line->id)->map->count();
+                    $saleTotalsRendered = [];
+                @endphp
                 <table class="min-w-full text-sm">
                     <thead class="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
                         <tr>
@@ -76,27 +82,65 @@
                             <th class="py-3 pr-4">Vente</th>
                             <th class="py-3 pr-4">Produit</th>
                             <th class="py-3 pr-4 text-right">Qté</th>
-                            <th class="py-3 text-right">Montant</th>
+                            <th class="py-3 pr-4 text-right">À payer</th>
+                            <th class="py-3 pr-4 text-right">Total payé</th>
+                            <th class="py-3 text-right">Solde</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-neutral-100">
-                        @forelse ($client->creditSales as $sale)
+                        @forelse ($creditLines as $line)
+                            @php
+                                $saleGroupKey = $line->sale_id ?? 'orphan-'.$line->id;
+                                $parentSale = $line->sale;
+                                $showSaleTotals = ! isset($saleTotalsRendered[$saleGroupKey]);
+                                if ($showSaleTotals) {
+                                    $saleTotalsRendered[$saleGroupKey] = true;
+                                }
+                                $saleRowSpan = $linesPerSale[$saleGroupKey] ?? 1;
+                                $expectedAmount = $parentSale?->expectedPayableAmount();
+                                $paidAmount = $parentSale?->paidAmountValue();
+                                $remainingAmount = $parentSale?->remainingAmountValue();
+                            @endphp
                             <tr>
-                                <td class="py-3 pr-4 text-neutral-600">{{ $sale->created_at->translatedFormat('d/m/Y H:i') }}</td>
+                                <td class="py-3 pr-4 text-neutral-600">{{ $line->created_at->translatedFormat('d/m/Y H:i') }}</td>
                                 <td class="py-3 pr-4">
-                                    @if ($sale->sale)
-                                        <a class="text-primary hover:underline" href="{{ route('sales.show', [$sale->branch, $sale->sale]) }}">{{ $sale->sale->reference }}</a>
+                                    @if ($parentSale)
+                                        <a class="font-medium text-primary hover:underline" href="{{ route('sales.show', [$line->branch, $parentSale]) }}">{{ $parentSale->reference }}</a>
                                     @else
                                         —
                                     @endif
                                 </td>
-                                <td class="py-3 pr-4 text-neutral-700">{{ $sale->product->name }}</td>
-                                <td class="py-3 pr-4 text-right tabular-nums">{{ $sale->quantity }}</td>
-                                <td class="py-3 text-right tabular-nums">{{ \App\Support\Money::usd($sale->line_total) }}</td>
+                                <td class="py-3 pr-4 text-neutral-700">{{ $line->product->name }}</td>
+                                <td class="py-3 pr-4 text-right tabular-nums">{{ $line->quantity }}</td>
+                                @if ($showSaleTotals)
+                                    <td rowspan="{{ $saleRowSpan }}" class="border-l border-neutral-100 bg-neutral-50/60 py-3 pr-4 text-right align-top tabular-nums font-medium text-neutral-900">
+                                        @if ($parentSale)
+                                            {{ \App\Support\Money::usd($expectedAmount) }}
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                    <td rowspan="{{ $saleRowSpan }}" class="bg-neutral-50/60 py-3 pr-4 text-right align-top tabular-nums text-neutral-800">
+                                        @if ($parentSale)
+                                            {{ \App\Support\Money::usd($paidAmount) }}
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                    <td rowspan="{{ $saleRowSpan }}" class="bg-neutral-50/60 py-3 text-right align-top tabular-nums font-semibold">
+                                        @if ($parentSale)
+                                            <span class="{{ (float) $remainingAmount > 0 ? 'text-amber-800' : 'text-emerald-700' }}">
+                                                {{ \App\Support\Money::usd($remainingAmount) }}
+                                            </span>
+                                        @else
+                                            —
+                                        @endif
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="py-8 text-center text-neutral-500">Aucune vente à crédit.</td>
+                                <td colspan="7" class="py-8 text-center text-neutral-500">Aucune vente à crédit.</td>
                             </tr>
                         @endforelse
                     </tbody>

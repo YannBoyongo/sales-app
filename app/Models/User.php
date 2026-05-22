@@ -229,10 +229,16 @@ class User extends Authenticatable
         return $this->canManageStockTransfers() || $this->isAccountant();
     }
 
-    /** Création de fiche produit et import fichier (magasinier : pas d’écriture catalogue). */
+    /** Création de fiche produit et import CSV/Excel — admin ou logisticien uniquement. */
     public function canCreateOrImportProducts(): bool
     {
-        return $this->canMutateProductCatalog();
+        return $this->isAdmin() || $this->isLogistician();
+    }
+
+    /** Enregistrer un mouvement de stock manuel (entrée / sortie / transfert). */
+    public function canCreateStockMovement(): bool
+    {
+        return $this->isAdmin() || $this->isLogistician();
     }
 
     /** Modifier ou supprimer une fiche produit. */

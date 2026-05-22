@@ -158,6 +158,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('accounting')->group(function () {
         Route::get('plan-comptable', [ChartOfAccountController::class, 'index'])->name('chart-of-accounts.index');
         Route::post('plan-comptable', [ChartOfAccountController::class, 'store'])->name('chart-of-accounts.store');
+        Route::get('plan-comptable/{chartOfAccount}/modifier', [ChartOfAccountController::class, 'edit'])->name('chart-of-accounts.edit')->whereNumber('chartOfAccount');
+        Route::patch('plan-comptable/{chartOfAccount}', [ChartOfAccountController::class, 'update'])->name('chart-of-accounts.update')->whereNumber('chartOfAccount');
         Route::get('comptabilite', [AccountingController::class, 'index'])->name('accounting.index');
         Route::post('comptabilite/ecritures', [AccountingController::class, 'store'])->name('accounting.store');
     });

@@ -128,6 +128,7 @@ class SaleItemController extends Controller
             'name' => $department->name,
             'products' => $products->map(fn (Product $p) => [
                 'id' => $p->id,
+                'name' => $p->name,
                 'label' => $p->name.' — '.Money::usd($p->unit_price),
                 'unit_price' => (float) $p->unit_price,
                 'stock_qty' => (int) ($stockAtPos[$p->id] ?? 0),
@@ -194,6 +195,12 @@ class SaleItemController extends Controller
             'items.*.department_id' => ['required', 'integer', Rule::in([$departmentId])],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.unit_price' => [
+                Rule::requiredIf(fn () => $request->input('customer_type') === 'dealer'),
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
             'apply_sale_discount' => ['sometimes', 'boolean'],
             'sale_discount_amount' => [
                 Rule::requiredIf(function () use ($request) {
@@ -275,7 +282,14 @@ class SaleItemController extends Controller
                     $qty = (int) $row['quantity'];
                     Stock::modifyQuantity($product->id, $pointOfSale->id, -$qty);
 
-                    $unit = (string) $product->unit_price;
+                    if ($customerType === 'dealer') {
+                        $unit = number_format((float) ($row['unit_price'] ?? 0), 2, '.', '');
+                        if (bccomp($unit, '0', 2) <= 0) {
+                            throw new RuntimeException('Chaque ligne revendeur doit avoir un prix unitaire supérieur à zéro.');
+                        }
+                    } else {
+                        $unit = (string) $product->unit_price;
+                    }
                     $lineTotal = bcmul($unit, (string) $qty, 2);
                     $saleTotal = bcadd($saleTotal, $lineTotal, 2);
 
@@ -427,7 +441,14 @@ class SaleItemController extends Controller
     }
 
     /**
-     * @return list<array{department_id: string, product_id: string, quantity: int}>
+     * @return list<array{
+     *     department_id: string,
+     *     product_id: string,
+     *     quantity: int,
+     *     product_name?: string|null,
+     *     unit_price?: float|null,
+     *     catalog_unit_price?: float|null
+     * }>
      */
     private function normalizedSaleLineRowsFromOld(): array
     {
@@ -440,15 +461,27 @@ class SaleItemController extends Controller
             $productIdRaw = $row['product_id'] ?? null;
             $hasProductId = filled($productIdRaw);
 
+            $product = $hasProductId
+                ? Product::query()->whereKey((int) $productIdRaw)->first(['department_id', 'name', 'unit_price'])
+                : null;
+
             $deptId = filled($row['department_id'] ?? null) ? (string) $row['department_id'] : '';
-            if ($deptId === '' && $hasProductId) {
-                $deptId = (string) (Product::query()->whereKey((int) $productIdRaw)->value('department_id') ?? '');
+            if ($deptId === '' && $product !== null) {
+                $deptId = (string) $product->department_id;
             }
+
+            $catalogPrice = $product !== null ? (float) $product->unit_price : null;
+            $unitPrice = isset($row['unit_price']) && $row['unit_price'] !== '' && $row['unit_price'] !== null
+                ? (float) $row['unit_price']
+                : $catalogPrice;
 
             return [
                 'department_id' => $deptId,
                 'product_id' => $hasProductId ? (string) $productIdRaw : '',
                 'quantity' => (int) ($row['quantity'] ?? 1),
+                'product_name' => $product?->name,
+                'unit_price' => $unitPrice,
+                'catalog_unit_price' => $catalogPrice,
             ];
         })->all();
     }

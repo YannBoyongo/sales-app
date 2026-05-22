@@ -11,14 +11,14 @@
                         Journal des entrées, sorties, transferts et ajustements sur votre périmètre. Les transferts liés à un bon de transfert affichent un lien lorsque vous y avez accès.
                     </p>
                 </div>
-                @unless (auth()->user()?->isInventoryReadOnly())
+                @if (auth()->user()?->canCreateStockMovement())
                     <a
                         href="{{ route('stock-movements.create') }}"
                         class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >
                         Nouveau mouvement
                     </a>
-                @endunless
+                @endif
             </div>
         </x-slot>
 

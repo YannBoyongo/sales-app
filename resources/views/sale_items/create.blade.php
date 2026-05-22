@@ -3,50 +3,22 @@
 
     <x-caisse-flow max-width="max-w-7xl" :with-card="false">
         <x-slot name="header">
-            <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Caisse</p>
-                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Enregistrer une vente</h1>
-                    <p class="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600">
-                        Ajoutez des lignes, choisissez le paiement et validez. Le stock est mis à jour sur <strong class="font-semibold text-neutral-800">{{ $pointOfSale->name }}</strong>.
+                    <h1 class="mt-1 text-2xl font-semibold tracking-tight text-neutral-900 sm:text-3xl">Nouvelle vente</h1>
+                    <p class="mt-2 text-sm text-neutral-600">
+                        {{ $department->name }} · {{ $pointOfSale->name }} · {{ $branch->name }}
                     </p>
-                    <p class="mt-3 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-neutral-200/80 bg-white/80 px-4 py-1.5 text-sm text-neutral-700 shadow-sm backdrop-blur-sm">
-                        <span class="text-neutral-500">Branche</span>
-                        <strong class="text-neutral-900">{{ $branch->name }}</strong>
-                        <span class="text-neutral-300">·</span>
-                        <span class="text-neutral-500">Terminal</span>
-                        <strong class="text-neutral-900">{{ $posTerminal->name }}</strong>
-                        <span class="text-neutral-300">·</span>
-                        <span class="text-neutral-500">Département</span>
-                        <strong class="text-neutral-900">{{ $department->name }}</strong>
-                    </p>
-                    <div class="mt-4 flex flex-wrap gap-2">
-                        <a
-                            href="{{ route('sales.choose-department', [$branch, $posTerminal]) }}"
-                            class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm transition hover:border-primary/30 hover:text-primary"
-                        >
-                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                            </svg>
-                            Autre département
-                        </a>
-                        <a
-                            href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
-                            class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-white/80 hover:text-primary"
-                        >
-                            Espace caisse
-                        </a>
-                    </div>
                 </div>
-                <a
-                    href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
-                    class="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-neutral-200/90 bg-white/90 px-5 py-2.5 text-sm font-semibold text-neutral-800 shadow-md shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm transition hover:border-primary/30 hover:text-primary lg:mt-10"
-                >
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                    </svg>
-                    Retour caisse
-                </a>
+                <div class="flex flex-wrap gap-2">
+                    <a href="{{ route('sales.choose-department', [$branch, $posTerminal]) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:border-primary/30 hover:text-primary">
+                        Autre département
+                    </a>
+                    <a href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}" class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary">
+                        Retour caisse
+                    </a>
+                </div>
             </div>
         </x-slot>
 
@@ -58,509 +30,584 @@
             <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('sale') }}</div>
         @endif
 
-        <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
-            <form
-                action="{{ route('sales.store', [$branch, $posTerminal, $department]) }}"
-                method="POST"
-                class="space-y-6"
-                x-data="{
-                    customerType: @js($saleEffectiveCustomerType),
-                    catalog: @js($saleCatalog),
-                    rows: @js($saleLineRows),
-                    posName: @js($pointOfSale->name),
-                    searchQuery: '',
-                    pendingProduct: null,
-                    pickerOpen: false,
-                    addQuantity: 1,
-                    addLineError: '',
-                    apply_sale_discount: @js(
-                        filter_var(old('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN)
-                    ),
-                    sale_discount_amount: @js(old('sale_discount_amount', '')),
-                    clientName: @js(old('client_name', '')),
-                    clientPhone: @js(old('client_phone', '')),
-                    clients: @js($clients->map(fn ($client) => [
-                        'name' => $client->name,
-                        'phone' => $client->phone,
-                    ])->values()),
-                    clientPanelOpen: false,
-                    isAdmin: @js(auth()->user()->isAdmin()),
-                    amountPaid: @js(old('amount_paid', '0')),
-                    allProductsFlat() {
-                        const list = [];
-                        for (const dept of this.catalog) {
-                            for (const p of (dept.products || [])) {
-                                list.push({
-                                    id: p.id,
-                                    department_id: dept.id,
-                                    department_name: dept.name,
-                                    label: p.label,
-                                    unit_price: p.unit_price,
-                                    stock_qty: Number(p.stock_qty) || 0,
-                                });
-                            }
-                        }
-                        return list;
-                    },
-                    qtyInCartForProduct(productId) {
-                        if (!productId) return 0;
-                        return this.rows
-                            .filter(r => String(r.product_id) === String(productId))
-                            .reduce((s, r) => s + (Number(r.quantity) || 0), 0);
-                    },
-                    stockRemainingForProduct(productId) {
-                        const p = this.findProduct(productId);
-                        if (!p) return 0;
-                        const base = Number(p.stock_qty) || 0;
-                        return Math.max(0, base - this.qtyInCartForProduct(productId));
-                    },
-                    get filteredProducts() {
-                        const q = String(this.searchQuery || '').trim().toLowerCase();
-                        const all = this.allProductsFlat();
-                        if (q.length < 1) return all.slice(0, 12);
-                        return all.filter(p => {
-                            const t = (String(p.label) + ' ' + String(p.department_name)).toLowerCase();
-                            return t.includes(q);
-                        }).slice(0, 25);
-                    },
-                    findProduct(productId) {
-                        if (!productId) return null;
-                        for (const dept of this.catalog) {
-                            const p = (dept.products || []).find(x => String(x.id) === String(productId));
-                            if (p) return p;
-                        }
-                        return null;
-                    },
-                    rowProductLabel(row) {
-                        if (row.product_label) return row.product_label;
-                        const p = this.findProduct(row.product_id);
-                        return p ? p.label : '—';
-                    },
-                    rowDepartmentName(row) {
-                        if (row.department_name) return row.department_name;
-                        const dept = this.catalog.find(d => String(d.id) === String(row.department_id));
-                        return dept ? dept.name : '—';
-                    },
-                    lineAmount(row) {
-                        const p = this.findProduct(row.product_id);
-                        if (!p) return 0;
-                        const unit = Number(p.unit_price) || 0;
-                        const qty = Number(row.quantity) || 0;
-                        return Math.round(unit * qty * 100) / 100;
-                    },
-                    subtotalAmount() {
-                        return this.rows.reduce((s, row) => s + this.lineAmount(row), 0);
-                    },
-                    saleDiscountNumber() {
-                        if (!this.apply_sale_discount) return 0;
-                        const v = parseFloat(String(this.sale_discount_amount).replace(',', '.'));
-                        return (Number.isFinite(v) && v > 0) ? v : 0;
-                    },
-                    grandTotal() {
-                        return Math.max(0, Math.round((this.subtotalAmount() - this.saleDiscountNumber()) * 100) / 100);
-                    },
-                    displayTotalLabel() {
-                        if (!this.apply_sale_discount || this.saleDiscountNumber() <= 0) return 'Total';
-                        if (this.isAdmin) return 'Total';
-                        return 'Total enregistré (remise en attente)';
-                    },
-                    displayTotalAmount() {
-                        if (!this.apply_sale_discount || this.saleDiscountNumber() <= 0) return this.subtotalAmount();
-                        if (this.isAdmin) return this.grandTotal();
-                        return this.subtotalAmount();
-                    },
-                    totalPaidNumber() {
-                        const v = parseFloat(String(this.amountPaid).replace(',', '.'));
-                        return Number.isFinite(v) && v > 0 ? v : 0;
-                    },
-                    dealerBalance() {
-                        return Math.max(0, Math.round((this.displayTotalAmount() - this.totalPaidNumber()) * 100) / 100);
-                    },
-                    formatUsd(n) {
-                        return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                    },
-                    pickProduct(p) {
-                        this.pendingProduct = p;
-                        this.searchQuery = p.label;
-                        this.pickerOpen = false;
-                        this.addLineError = '';
-                    },
-                    clearPick() {
-                        this.pendingProduct = null;
-                        this.searchQuery = '';
-                        this.pickerOpen = true;
-                    },
-                    addLine() {
-                        this.addLineError = '';
-                        if (!this.pendingProduct) {
-                            this.addLineError = 'Sélectionnez un produit dans les résultats de recherche.';
-                            return;
-                        }
-                        const qty = parseInt(String(this.addQuantity), 10);
-                        if (!Number.isFinite(qty) || qty < 1) {
-                            this.addLineError = 'Indiquez une quantité valide (minimum 1).';
-                            return;
-                        }
-                        const avail = this.stockRemainingForProduct(this.pendingProduct.id);
-                        if (qty > avail) {
-                            this.addLineError = avail <= 0
-                                ? 'Stock insuffisant sur ce point de vente pour ce produit.'
-                                : ('Stock disponible : ' + avail + ' (déjà ' + this.qtyInCartForProduct(this.pendingProduct.id) + ' dans le panier).');
-                            return;
-                        }
-                        this.rows.push({
-                            _key: 'k' + Date.now() + '-' + Math.random().toString(16).slice(2),
-                            department_id: String(this.pendingProduct.department_id),
-                            product_id: String(this.pendingProduct.id),
-                            product_label: this.pendingProduct.label,
-                            department_name: this.pendingProduct.department_name,
-                            quantity: qty,
-                        });
-                        this.pendingProduct = null;
-                        this.searchQuery = '';
-                        this.addQuantity = 1;
-                    },
-                    removeRow(index) {
-                        this.rows.splice(index, 1);
-                    },
-                    get filteredClients() {
-                        if (this.customerType !== 'dealer') return [];
-                        const term = String(this.clientName || '').trim().toLowerCase();
-                        if (!term) return this.clients.slice(0, 8);
-                        return this.clients.filter(c => String(c.name || '').toLowerCase().includes(term)).slice(0, 8);
-                    },
-                }"
-            >
-                @csrf
+        @php
+            $hasProducts = count($saleCatalog) > 0 && ($saleCatalog[0]['products'] ?? []) !== [];
+        @endphp
 
-                <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
-                    Produits du département <strong>{{ $department->name }}</strong> uniquement, stock déduit sur <strong>{{ $pointOfSale->name }}</strong>. Recherchez un <strong>produit</strong>, indiquez la <strong>quantité</strong>, puis <strong>Ajouter</strong>.
-                    Les lignes apparaissent dans le tableau ; vous pouvez en ajouter plusieurs.
-                </div>
+        <form
+            action="{{ route('sales.store', [$branch, $posTerminal, $department]) }}"
+            method="POST"
+            class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,360px)] lg:items-start"
+            x-data="posSaleForm({
+                customerType: @js($saleEffectiveCustomerType),
+                canChooseDealer: @js($canChooseDealerCustomer),
+                catalog: @js($saleCatalog),
+                rows: @js($saleLineRows),
+                posName: @js($pointOfSale->name),
+                apply_sale_discount: @js(filter_var(old('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN)),
+                sale_discount_amount: @js(old('sale_discount_amount', '')),
+                clientName: @js(old('client_name', '')),
+                clientPhone: @js(old('client_phone', '')),
+                clients: @js($clients->map(fn ($c) => ['name' => $c->name, 'phone' => $c->phone])->values()),
+                isAdmin: @js(auth()->user()->isAdmin()),
+                amountPaid: @js(old('amount_paid', '0')),
+            })"
+        >
+            @csrf
 
-                @if (count($saleCatalog) === 0 || ($saleCatalog[0]['products'] ?? []) === [])
-                    <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
-                        Aucun produit dans ce département pour cette branche.
+            {{-- Colonne principale : étapes 1 et 2 --}}
+            <div class="space-y-6">
+                {{-- Étape 1 : type de client --}}
+                <section class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+                    <div class="flex items-start gap-3">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">1</span>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="text-base font-semibold text-neutral-900">Type de vente</h2>
+                            <p class="mt-0.5 text-sm text-neutral-600">Comptant ou revendeur avec prix négociables et solde client.</p>
+                        </div>
                     </div>
-                @endif
 
-                <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                    <h2 class="text-base font-semibold text-neutral-900">Lignes de produits</h2>
-                    <p class="mt-1 text-sm text-neutral-600">Recherche, quantité, puis ajout au panier.</p>
+                    <div class="mt-5 grid gap-3 @if ($canChooseDealerCustomer) sm:grid-cols-2 @endif">
+                        <label
+                            class="relative cursor-pointer rounded-xl border-2 p-4 transition"
+                            :class="customerType === 'walkin' ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-neutral-200 hover:border-neutral-300'"
+                        >
+                            <input type="radio" name="customer_type" value="walkin" x-model="customerType" class="sr-only">
+                            <div class="flex items-start gap-3">
+                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-lg" aria-hidden="true">💵</span>
+                                <div>
+                                    <span class="font-semibold text-neutral-900">Client comptant</span>
+                                    <p class="mt-1 text-xs leading-relaxed text-neutral-600">Prix catalogue, paiement immédiat, pas de dette.</p>
+                                </div>
+                            </div>
+                        </label>
 
-                    <div class="mt-4 space-y-3">
-                        <div class="relative" @click.outside="pickerOpen = false">
-                            <label for="sale-product-search" class="mb-1.5 block text-xs font-semibold text-neutral-700">Rechercher un produit</label>
+                        @if ($canChooseDealerCustomer)
+                            <label
+                                class="relative cursor-pointer rounded-xl border-2 p-4 transition"
+                                :class="customerType === 'dealer' ? 'border-primary bg-primary/5 ring-1 ring-primary/20' : 'border-neutral-200 hover:border-neutral-300'"
+                            >
+                                <input type="radio" name="customer_type" value="dealer" x-model="customerType" class="sr-only">
+                                <div class="flex items-start gap-3">
+                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50 text-lg" aria-hidden="true">🏪</span>
+                                    <div>
+                                        <span class="font-semibold text-neutral-900">Revendeur</span>
+                                        <p class="mt-1 text-xs leading-relaxed text-neutral-600">Prix modifiables par ligne, acompte et solde en dette.</p>
+                                    </div>
+                                </div>
+                            </label>
+                        @endif
+                    </div>
+                    <x-input-error :messages="$errors->get('customer_type')" class="mt-3" />
+
+                    <div x-show="customerType === 'dealer'" x-cloak class="mt-5 space-y-4 rounded-xl border border-amber-200/80 bg-amber-50/50 p-4">
+                        <p class="text-xs font-medium text-amber-950">Identifiez le revendeur avant de valider.</p>
+                        <div class="relative">
+                            <x-input-label for="client_name" value="Nom du revendeur" class="text-sm font-semibold text-neutral-800" />
                             <input
-                                id="sale-product-search"
-                                type="search"
-                                autocomplete="off"
-                                x-model="searchQuery"
-                                @focus="pickerOpen = true"
-                                @input="pickerOpen = true; if (pendingProduct && searchQuery !== pendingProduct.label) pendingProduct = null"
-                                placeholder="Nom, prix affiché, département…"
-                                class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
+                                id="client_name"
+                                name="client_name"
+                                type="text"
+                                x-model="clientName"
+                                x-bind:required="customerType === 'dealer'"
+                                x-on:focus="clientPanelOpen = true"
+                                x-on:input="clientPanelOpen = true"
+                                placeholder="Rechercher ou saisir un nom"
+                                class="mt-1.5 block w-full rounded-xl border-neutral-200 bg-white pr-10 shadow-sm focus:border-primary focus:ring-primary"
                             />
                             <div
-                                x-show="pickerOpen && filteredProducts.length > 0 && catalog.length > 0"
+                                x-show="clientPanelOpen && filteredClients.length"
                                 x-cloak
-                                class="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
+                                @click.outside="clientPanelOpen = false"
+                                class="absolute z-20 mt-1 max-h-48 w-full overflow-auto rounded-xl border border-neutral-200 bg-white py-1 shadow-lg"
                             >
-                                <template x-for="p in filteredProducts" :key="String(p.id) + '-' + String(p.department_id)">
+                                <template x-for="client in filteredClients" :key="client.name + (client.phone ?? '')">
                                     <button
                                         type="button"
-                                        class="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-neutral-50"
-                                        @click="pickProduct(p)"
-                                    >
-                                        <span class="min-w-0 flex flex-col items-start">
-                                            <span class="font-medium text-neutral-900" x-text="p.label"></span>
-                                            <span class="text-xs text-neutral-500" x-text="p.department_name"></span>
-                                        </span>
-                                        <span
-                                            class="shrink-0 rounded-md border px-2 py-0.5 text-xs font-semibold tabular-nums"
-                                            :class="stockRemainingForProduct(p.id) <= 0 ? 'border-red-200 bg-red-50 text-red-800' : 'border-neutral-200 bg-neutral-50 text-neutral-700'"
-                                            x-text="'Stock : ' + stockRemainingForProduct(p.id)"
-                                        ></span>
-                                    </button>
+                                        class="block w-full px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-50"
+                                        x-text="client.name"
+                                        @click="clientName = client.name; clientPhone = client.phone ?? ''; clientPanelOpen = false"
+                                    ></button>
                                 </template>
                             </div>
+                            <x-input-error :messages="$errors->get('client_name')" class="mt-1" />
                         </div>
-
-                        <div x-show="pendingProduct" x-cloak class="rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-sm text-neutral-800">
-                            <span class="text-neutral-600">Sélection :</span>
-                            <strong class="ml-1" x-text="pendingProduct.label"></strong>
-                            <span class="ml-2 text-xs font-medium text-neutral-600">
-                                — <span x-text="'disponible : ' + stockRemainingForProduct(pendingProduct.id)"></span>
-                            </span>
-                            <button type="button" class="ml-2 text-xs font-semibold text-primary hover:underline" @click="clearPick()">Changer</button>
+                        <div>
+                            <x-input-label for="client_phone" value="Téléphone (optionnel)" class="text-sm text-neutral-700" />
+                            <input id="client_phone" name="client_phone" type="text" x-model="clientPhone" class="mt-1.5 block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary" />
                         </div>
+                    </div>
+                </section>
 
-                        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-                            <div class="w-full sm:w-28">
-                                <label for="sale-add-qty" class="mb-1.5 block text-xs font-semibold text-neutral-700">Quantité</label>
+                {{-- Étape 2 : produits --}}
+                <section class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm sm:p-6">
+                    <div class="flex items-start gap-3">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">2</span>
+                        <div class="min-w-0 flex-1">
+                            <h2 class="text-base font-semibold text-neutral-900">Articles</h2>
+                            <p class="mt-0.5 text-sm text-neutral-600">
+                                Recherchez, ajoutez au panier
+                                <span x-show="customerType === 'dealer'" x-cloak>— puis ajustez le <strong>prix unitaire</strong> si besoin</span>.
+                            </p>
+                        </div>
+                    </div>
+
+                    @unless ($hasProducts)
+                        <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                            Aucun produit disponible dans ce département.
+                        </div>
+                    @endunless
+
+                    @if ($hasProducts)
+                        <div class="mt-5 rounded-xl border border-neutral-100 bg-neutral-50/80 p-4">
+                            <label for="sale-product-search" class="text-xs font-semibold uppercase tracking-wide text-neutral-600">Ajouter un produit</label>
+                            <div class="relative mt-2" @click.outside="pickerOpen = false">
                                 <input
-                                    id="sale-add-qty"
-                                    type="number"
-                                    min="1"
-                                    x-model.number="addQuantity"
-                                    class="block w-full rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
+                                    id="sale-product-search"
+                                    type="search"
+                                    autocomplete="off"
+                                    x-model="searchQuery"
+                                    @focus="pickerOpen = true"
+                                    @input="pickerOpen = true; if (pendingProduct && searchQuery !== pendingProduct.label) pendingProduct = null"
+                                    placeholder="Tapez le nom du produit…"
+                                    class="block w-full rounded-xl border-neutral-200 bg-white py-2.5 pl-10 shadow-sm focus:border-primary focus:ring-primary"
                                 />
-                            </div>
-                            <button
-                                type="button"
-                                class="inline-flex w-full shrink-0 items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:w-auto"
-                                @click="addLine()"
-                            >
-                                Ajouter
-                            </button>
-                        </div>
-
-                        <p x-show="addLineError" x-text="addLineError" class="text-sm font-medium text-red-600" x-cloak></p>
-                    </div>
-
-                    <div class="mt-6 overflow-x-auto rounded-xl border border-neutral-200">
-                        <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                            <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
-                                <tr>
-                                    <th class="px-3 py-3">Produit</th>
-                                    <th class="px-3 py-3">Département</th>
-                                    <th class="px-3 py-3">Point de vente</th>
-                                    <th class="px-3 py-3 text-right">Qté</th>
-                                    <th class="px-3 py-3 text-right">Montant</th>
-                                    <th class="px-3 py-3 text-right w-24"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-neutral-100">
-                                <template x-for="(row, index) in rows" :key="row._key">
-                                    <tr class="bg-white">
-                                        <td class="px-3 py-3 font-medium text-neutral-900" x-text="rowProductLabel(row)"></td>
-                                        <td class="px-3 py-3 text-neutral-600" x-text="rowDepartmentName(row)"></td>
-                                        <td class="px-3 py-3 text-neutral-600" x-text="posName"></td>
-                                        <td class="px-3 py-3 text-right tabular-nums" x-text="row.quantity"></td>
-                                        <td class="px-3 py-3 text-right tabular-nums font-medium text-neutral-900" x-text="formatUsd(lineAmount(row))"></td>
-                                        <td class="px-3 py-3 text-right">
-                                            <button
-                                                type="button"
-                                                class="text-xs font-semibold text-red-600 hover:text-red-800"
-                                                @click="removeRow(index)"
-                                            >
-                                                Retirer
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
-                        <p x-show="rows.length === 0" class="px-4 py-8 text-center text-sm text-neutral-500" x-cloak>Aucune ligne — recherchez un produit et cliquez sur <strong>Ajouter</strong>.</p>
-                    </div>
-
-                    <template x-for="(row, index) in rows" :key="'hid-' + row._key">
-                        <div class="hidden" aria-hidden="true">
-                            <input type="hidden" :name="`items[${index}][department_id]`" :value="row.department_id" />
-                            <input type="hidden" :name="`items[${index}][product_id]`" :value="row.product_id" />
-                            <input type="hidden" :name="`items[${index}][quantity]`" :value="row.quantity" />
-                        </div>
-                    </template>
-
-                    <x-input-error :messages="$errors->get('items')" class="mt-2" />
-                </div>
-
-                <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                    <h2 class="text-base font-semibold text-neutral-900">Totaux et remise sur la vente</h2>
-                    <p class="mt-1 text-sm text-neutral-600">La remise s’applique à l’ensemble de la vente (pas ligne par ligne).</p>
-                    <div class="mt-4 space-y-3 rounded-xl border border-neutral-100 bg-neutral-50/80 px-4 py-3">
-                        <div class="flex items-center justify-between text-sm">
-                            <span class="font-medium text-neutral-700">Sous-total</span>
-                            <span class="tabular-nums font-semibold text-neutral-900" x-text="formatUsd(subtotalAmount())"></span>
-                        </div>
-                        <div class="flex items-start gap-3 border-t border-neutral-200/80 pt-3">
-                            <input
-                                id="apply_sale_discount"
-                                type="checkbox"
-                                name="apply_sale_discount"
-                                value="1"
-                                class="mt-1 rounded border-neutral-300 text-primary focus:ring-primary"
-                                x-model="apply_sale_discount"
-                            />
-                            <div class="min-w-0 flex-1">
-                                <label for="apply_sale_discount" class="text-sm font-semibold text-neutral-900">Appliquer une remise</label>
-                                <div class="mt-2" x-show="apply_sale_discount" x-cloak>
-                                    <label for="sale_discount_amount" class="mb-1 block text-xs font-medium text-neutral-600">Montant de la remise (USD)</label>
-                                    <input
-                                        id="sale_discount_amount"
-                                        name="sale_discount_amount"
-                                        type="number"
-                                        step="0.01"
-                                        min="0"
-                                        class="block max-w-xs rounded-xl border-neutral-200 bg-white shadow-sm focus:border-primary focus:ring-primary"
-                                        x-model="sale_discount_amount"
-                                    />
-                                    <template x-if="!isAdmin">
-                                        <p class="mt-2 text-xs text-amber-900">La remise ne sera effective sur le total qu’après approbation d’un administrateur. Jusqu’à ce moment, le montant enregistré pour la vente reste le sous-total.</p>
+                                <svg class="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <div
+                                    x-show="pickerOpen && filteredProducts.length"
+                                    x-cloak
+                                    class="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-neutral-200 bg-white py-1 shadow-xl"
+                                >
+                                    <template x-for="p in filteredProducts" :key="p.id">
+                                        <button
+                                            type="button"
+                                            class="flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-sm hover:bg-neutral-50"
+                                            @click="pickProduct(p)"
+                                        >
+                                            <span>
+                                                <span class="font-medium text-neutral-900" x-text="p.name || p.label"></span>
+                                                <span class="mt-0.5 block text-xs text-neutral-500" x-text="formatUsd(p.unit_price) + ' · stock ' + stockRemainingForProduct(p.id)"></span>
+                                            </span>
+                                            <span
+                                                class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+                                                :class="stockRemainingForProduct(p.id) <= 0 ? 'bg-red-100 text-red-800' : 'bg-neutral-100 text-neutral-700'"
+                                                x-text="stockRemainingForProduct(p.id)"
+                                            ></span>
+                                        </button>
                                     </template>
                                 </div>
                             </div>
-                        </div>
-                        <div class="flex items-center justify-between border-t border-neutral-200/80 pt-3 text-sm" x-show="apply_sale_discount && saleDiscountNumber() > 0" x-cloak>
-                            <span class="text-neutral-600">Montant si la remise est approuvée</span>
-                            <span class="tabular-nums font-semibold text-primary" x-text="formatUsd(grandTotal())"></span>
-                        </div>
-                        <div class="flex items-center justify-between border-t border-neutral-200/80 pt-3 text-sm font-semibold text-neutral-900">
-                            <span x-text="displayTotalLabel()"></span>
-                            <span class="tabular-nums text-primary" x-text="formatUsd(displayTotalAmount())"></span>
-                        </div>
-                    </div>
-                    <x-input-error :messages="$errors->get('apply_sale_discount')" class="mt-2" />
-                    <x-input-error :messages="$errors->get('sale_discount_amount')" class="mt-2" />
-                </div>
 
-                <div class="rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm">
-                    <h2 class="text-base font-semibold text-neutral-900">Paiement</h2>
-                    <div class="mt-4 space-y-4">
-                        <div>
-                            <x-input-label value="Type de client" class="text-sm font-semibold text-neutral-800" />
-                            <div class="mt-2 grid gap-2 @if ($canChooseDealerCustomer) sm:grid-cols-2 @endif">
-                                <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
-                                    <input type="radio" name="customer_type" value="walkin" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
-                                    Client comptant
-                                </label>
-                                @if ($canChooseDealerCustomer)
-                                    <label class="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-700">
-                                        <input type="radio" name="customer_type" value="dealer" x-model="customerType" class="border-neutral-300 text-primary focus:ring-primary">
-                                        Revendeur
-                                    </label>
-                                @endif
+                            <div x-show="pendingProduct" x-cloak class="mt-3 flex flex-wrap items-end gap-3 rounded-lg border border-primary/30 bg-white p-3">
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-xs text-neutral-500">Sélection</p>
+                                    <p class="font-semibold text-neutral-900" x-text="pendingProduct?.name || pendingProduct?.label"></p>
+                                    <p class="text-xs text-neutral-600">
+                                        Catalogue : <span x-text="formatUsd(pendingProduct?.unit_price)"></span>
+                                        · dispo <span x-text="stockRemainingForProduct(pendingProduct?.id)"></span>
+                                    </p>
+                                </div>
+                                <div class="w-24">
+                                    <label class="text-xs font-semibold text-neutral-600">Qté</label>
+                                    <input type="number" min="1" x-model.number="addQuantity" class="mt-1 block w-full rounded-lg border-neutral-200 text-sm focus:border-primary focus:ring-primary" />
+                                </div>
+                                <button type="button" @click="addLine()" class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95">
+                                    Ajouter
+                                </button>
+                                <button type="button" @click="clearPick()" class="text-xs font-medium text-neutral-500 hover:text-primary">Annuler</button>
                             </div>
-                            <x-input-error :messages="$errors->get('customer_type')" class="mt-2" />
+                            <p x-show="addLineError" x-text="addLineError" class="mt-2 text-sm font-medium text-red-600" x-cloak></p>
                         </div>
 
-                        <div>
-                            <p class="text-xs text-neutral-500">
-                                <strong>Client comptant :</strong> vente au comptant sans dette client.
-                                @if ($canChooseDealerCustomer)
-                                    <strong>Revendeur :</strong> le solde impayé devient la dette du client.
-                                @endif
-                            </p>
-                            <div class="mt-4 space-y-4">
-                                <div x-show="customerType === 'dealer'" x-cloak>
-                                    <x-input-label for="client_name" value="Nom du revendeur" class="text-sm font-semibold text-neutral-800" />
-                                    <div class="relative mt-2">
-                                        <input
-                                            id="client_name"
-                                            name="client_name"
-                                            type="text"
-                                            x-model="clientName"
-                                            x-bind:required="customerType === 'dealer'"
-                                            x-on:focus="if (customerType === 'dealer') clientPanelOpen = true"
-                                            x-on:input="if (customerType === 'dealer') clientPanelOpen = true"
-                                            x-on:keydown.escape="clientPanelOpen = false"
-                                            x-on:click.outside="clientPanelOpen = false"
-                                            placeholder="Ex. Jean Dupont"
-                                            class="block w-full rounded-xl border-neutral-200 pr-10 shadow-sm focus:border-primary focus:ring-primary"
-                                        />
-                                        <button type="button" class="absolute inset-y-0 right-3 my-auto text-neutral-500" x-show="customerType === 'dealer'" x-on:click="clientPanelOpen = !clientPanelOpen" aria-label="Afficher les suggestions">
-                                            ▼
-                                        </button>
-                                        <div
-                                            x-show="customerType === 'dealer' && clientPanelOpen && filteredClients.length"
-                                            x-cloak
-                                            class="absolute z-20 mt-2 max-h-56 w-full overflow-auto rounded-xl border border-neutral-200 bg-white p-1 shadow-lg"
-                                        >
-                                            <template x-for="client in filteredClients" :key="`${client.name}-${client.phone ?? ''}`">
+                        {{-- Panier --}}
+                        <div class="mt-5">
+                            <div class="flex items-center justify-between">
+                                <h3 class="text-sm font-semibold text-neutral-800">
+                                    Panier
+                                    <span class="ml-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs tabular-nums text-neutral-600" x-text="rows.length"></span>
+                                </h3>
+                                <span x-show="customerType === 'dealer' && rows.length" x-cloak class="text-xs text-amber-800">Prix négociables</span>
+                            </div>
+
+                            <div x-show="rows.length === 0" class="mt-3 rounded-xl border border-dashed border-neutral-200 px-4 py-10 text-center text-sm text-neutral-500">
+                                Le panier est vide. Recherchez un produit ci-dessus.
+                            </div>
+
+                            <ul class="mt-3 space-y-3">
+                                <template x-for="(row, index) in rows" :key="row._key">
+                                    <li class="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <div class="min-w-0">
+                                                <p class="font-semibold text-neutral-900" x-text="rowProductName(row)"></p>
+                                                <p class="mt-0.5 text-xs text-neutral-500" x-text="posName"></p>
+                                            </div>
+                                            <button type="button" @click="removeRow(index)" class="shrink-0 text-xs font-semibold text-red-600 hover:text-red-800">Retirer</button>
+                                        </div>
+                                        <div class="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                            <div>
+                                                <label class="text-xs font-semibold text-neutral-600">Quantité</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    x-model.number="row.quantity"
+                                                    class="mt-1 block w-full rounded-lg border-neutral-200 text-sm tabular-nums focus:border-primary focus:ring-primary"
+                                                />
+                                            </div>
+                                            <div x-show="customerType === 'dealer'" x-cloak class="col-span-2 sm:col-span-1">
+                                                <label class="text-xs font-semibold text-neutral-600">Prix unit. (USD)</label>
+                                                <div class="mt-1 flex gap-1">
+                                                    <input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        x-model.number="row.unit_price"
+                                                        class="block w-full rounded-lg border-amber-200 bg-amber-50/50 text-sm tabular-nums focus:border-primary focus:ring-primary"
+                                                    />
+                                                </div>
                                                 <button
                                                     type="button"
-                                                    class="block w-full rounded-lg px-3 py-2 text-left text-sm text-neutral-700 hover:bg-neutral-100"
-                                                    x-text="client.name"
-                                                    x-on:click="clientName = client.name; clientPhone = client.phone ?? ''; clientPanelOpen = false"
-                                                ></button>
-                                            </template>
+                                                    x-show="priceDiffersFromCatalog(row)"
+                                                    @click="resetRowPrice(row)"
+                                                    class="mt-1 text-[10px] font-medium text-primary hover:underline"
+                                                >
+                                                    Rétablir <span x-text="formatUsd(row.catalog_unit_price)"></span>
+                                                </button>
+                                            </div>
+                                            <div x-show="customerType === 'walkin'" x-cloak>
+                                                <label class="text-xs font-semibold text-neutral-600">Prix unit.</label>
+                                                <p class="mt-2 text-sm tabular-nums text-neutral-800" x-text="formatUsd(catalogUnitPrice(row))"></p>
+                                            </div>
+                                            <div class="text-right">
+                                                <label class="text-xs font-semibold text-neutral-600">Ligne</label>
+                                                <p class="mt-2 text-sm font-bold tabular-nums text-primary" x-text="formatUsd(lineAmount(row))"></p>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <p class="mt-2 text-xs text-neutral-500" x-show="customerType === 'dealer'" x-cloak>Suggestions à partir des clients déjà enregistrés.</p>
-                                    <x-input-error :messages="$errors->get('client_name')" class="mt-2" />
+                                    </li>
+                                </template>
+                            </ul>
+
+                            <template x-for="(row, index) in rows" :key="'hid-' + row._key">
+                                <div class="hidden" aria-hidden="true">
+                                    <input type="hidden" :name="`items[${index}][department_id]`" :value="row.department_id" />
+                                    <input type="hidden" :name="`items[${index}][product_id]`" :value="row.product_id" />
+                                    <input type="hidden" :name="`items[${index}][quantity]`" :value="row.quantity" />
+                                    <template x-if="customerType === 'dealer'">
+                                        <input type="hidden" :name="`items[${index}][unit_price]`" :value="rowUnitPrice(row)" />
+                                    </template>
                                 </div>
-                                <div x-show="customerType === 'dealer'" x-cloak>
-                                    <x-input-label for="client_phone" value="Téléphone" class="text-sm font-semibold text-neutral-800" />
-                                    <input
-                                        id="client_phone"
-                                        name="client_phone"
-                                        type="text"
-                                        x-model="clientPhone"
-                                        inputmode="tel"
-                                        autocomplete="tel"
-                                        placeholder="Optionnel"
-                                        class="mt-2 block w-full rounded-xl border-neutral-200 shadow-sm focus:border-primary focus:ring-primary"
-                                    />
-                                    <x-input-error :messages="$errors->get('client_phone')" class="mt-2" />
-                                </div>
-                                <div x-show="customerType === 'dealer'" x-cloak class="grid gap-3 sm:grid-cols-2">
-                                    <div>
-                                        <x-input-label for="amount_paid" value="Total payé" class="text-sm font-semibold text-neutral-800" />
-                                        <input
-                                            id="amount_paid"
-                                            name="amount_paid"
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            x-model="amountPaid"
-                                            class="mt-2 block w-full rounded-xl border-neutral-200 shadow-sm focus:border-primary focus:ring-primary"
-                                        />
-                                        <x-input-error :messages="$errors->get('amount_paid')" class="mt-2" />
-                                    </div>
-                                    <div>
-                                        <x-input-label for="balance" value="Solde (dette)" class="text-sm font-semibold text-neutral-800" />
-                                        <input
-                                            id="balance"
-                                            name="balance"
-                                            type="text"
-                                            :value="dealerBalance().toFixed(2)"
-                                            readonly
-                                            class="mt-2 block w-full rounded-xl border-neutral-200 bg-neutral-50 shadow-sm"
-                                        />
-                                        <x-input-error :messages="$errors->get('balance')" class="mt-2" />
-                                    </div>
-                                </div>
-                            </div>
+                            </template>
+                            <x-input-error :messages="$errors->get('items')" class="mt-2" />
+                            <x-input-error :messages="$errors->get('items.*.unit_price')" class="mt-2" />
+                        </div>
+                    @endif
+                </section>
+            </div>
+
+            {{-- Panneau récapitulatif (sticky) --}}
+            <aside class="lg:sticky lg:top-6">
+                <div class="space-y-4 rounded-2xl border border-neutral-200 bg-white p-5 shadow-md ring-1 ring-neutral-900/5">
+                    <div class="flex items-start gap-3 border-b border-neutral-100 pb-4">
+                        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-800 text-sm font-bold text-white">3</span>
+                        <div>
+                            <h2 class="text-base font-semibold text-neutral-900">Récapitulatif</h2>
+                            <p class="text-xs text-neutral-500">Vérifiez puis validez la vente</p>
                         </div>
                     </div>
+
+                    <dl class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <dt class="text-neutral-600">Lignes</dt>
+                            <dd class="font-semibold tabular-nums text-neutral-900" x-text="rows.length"></dd>
+                        </div>
+                        <div class="flex justify-between">
+                            <dt class="text-neutral-600">Sous-total</dt>
+                            <dd class="font-semibold tabular-nums text-neutral-900" x-text="formatUsd(subtotalAmount())"></dd>
+                        </div>
+                    </dl>
+
+                    <div class="border-t border-neutral-100 pt-3">
+                        <label class="flex cursor-pointer items-start gap-2">
+                            <input type="checkbox" name="apply_sale_discount" value="1" class="mt-0.5 rounded border-neutral-300 text-primary focus:ring-primary" x-model="apply_sale_discount" />
+                            <span class="text-sm font-medium text-neutral-800">Remise globale</span>
+                        </label>
+                        <div x-show="apply_sale_discount" x-cloak class="mt-2">
+                            <input
+                                name="sale_discount_amount"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Montant USD"
+                                class="block w-full rounded-lg border-neutral-200 text-sm focus:border-primary focus:ring-primary"
+                                x-model="sale_discount_amount"
+                            />
+                            <p x-show="!isAdmin" class="mt-1 text-[11px] text-amber-900">Approbation admin requise pour appliquer la remise.</p>
+                        </div>
+                        <x-input-error :messages="$errors->get('sale_discount_amount')" class="mt-1" />
+                    </div>
+
+                    <div class="rounded-xl bg-neutral-50 px-3 py-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-semibold text-neutral-800" x-text="displayTotalLabel()"></span>
+                            <span class="text-xl font-bold tabular-nums text-primary" x-text="formatUsd(displayTotalAmount())"></span>
+                        </div>
+                    </div>
+
+                    <div x-show="customerType === 'dealer'" x-cloak class="space-y-3 border-t border-neutral-100 pt-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Encaissement revendeur</p>
+                        <div>
+                            <label for="amount_paid" class="text-xs font-semibold text-neutral-700">Montant payé maintenant</label>
+                            <input id="amount_paid" name="amount_paid" type="number" step="0.01" min="0" x-model="amountPaid" class="mt-1 block w-full rounded-xl border-neutral-200 text-sm tabular-nums focus:border-primary focus:ring-primary" />
+                            <x-input-error :messages="$errors->get('amount_paid')" class="mt-1" />
+                        </div>
+                        <div class="flex justify-between rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm">
+                            <span class="font-medium text-amber-950">Solde (dette)</span>
+                            <span class="font-bold tabular-nums text-amber-950" x-text="formatUsd(dealerBalance())"></span>
+                        </div>
+                        <input type="hidden" name="balance" :value="dealerBalance().toFixed(2)" />
+                    </div>
+
+                    <div class="flex flex-col gap-2 pt-2">
+                        <button
+                            type="submit"
+                            class="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="rows.length === 0 || (customerType === 'dealer' && !String(clientName || '').trim())"
+                            @unless ($hasProducts) disabled @endunless
+                        >
+                            Valider la vente
+                        </button>
+                        <a href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}" class="inline-flex w-full items-center justify-center rounded-xl border border-neutral-200 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50">
+                            Annuler
+                        </a>
+                    </div>
+
+                    <p class="text-center text-[11px] text-neutral-400">
+                        Stock déduit sur {{ $pointOfSale->name }}
+                    </p>
                 </div>
 
-                <div class="flex flex-col-reverse gap-3 border-t border-neutral-100 pt-2 sm:flex-row sm:justify-end">
-                    <a href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}" class="inline-flex items-center justify-center rounded-xl border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
-                    <button
-                        type="submit"
-                        class="inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        x-bind:disabled="rows.length === 0"
-                        @if (count($saleCatalog) === 0 || ($saleCatalog[0]['products'] ?? []) === []) disabled @endif
-                    >
-                        Valider la vente
-                    </button>
+                <div class="mt-4 hidden rounded-xl border border-neutral-200 bg-neutral-50/80 px-4 py-3 text-xs text-neutral-600 lg:block">
+                    <p><strong>{{ $productsCount }}</strong> produits dans {{ $department->name }}</p>
+                    <p class="mt-1">Terminal : {{ $posTerminal->name }}</p>
                 </div>
-            </form>
-        </section>
-
-        <aside class="h-fit rounded-2xl border border-neutral-200 bg-gradient-to-b from-white to-neutral-50 p-6 shadow-sm">
-            <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Contexte</h2>
-            <div class="mt-4 space-y-3">
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Branche</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $branch->name }}</p>
-                </div>
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Point de vente</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $pointOfSale->name }}</p>
-                </div>
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Département</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $department->name }}</p>
-                </div>
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
-                    <p class="text-xs text-neutral-500">Produits (ce département)</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $productsCount }}</p>
-                </div>
-            </div>
-        </aside>
-        </div>
+            </aside>
+        </form>
     </x-caisse-flow>
+
+    @push('scripts')
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('posSaleForm', (config) => ({
+                customerType: config.customerType,
+                canChooseDealer: config.canChooseDealer,
+                catalog: config.catalog,
+                rows: config.rows,
+                posName: config.posName,
+                searchQuery: '',
+                pendingProduct: null,
+                pickerOpen: false,
+                addQuantity: 1,
+                addLineError: '',
+                apply_sale_discount: config.apply_sale_discount,
+                sale_discount_amount: config.sale_discount_amount,
+                clientName: config.clientName,
+                clientPhone: config.clientPhone,
+                clients: config.clients,
+                clientPanelOpen: false,
+                isAdmin: config.isAdmin,
+                amountPaid: config.amountPaid,
+
+                init() {
+                    this.rows.forEach((row) => this.ensureRowPricing(row));
+                },
+
+                ensureRowPricing(row) {
+                    const catalog = this.catalogUnitPrice(row);
+                    if (row.catalog_unit_price == null) row.catalog_unit_price = catalog;
+                    if (row.unit_price == null || row.unit_price === '') row.unit_price = catalog;
+                },
+
+                allProductsFlat() {
+                    const list = [];
+                    for (const dept of this.catalog) {
+                        for (const p of (dept.products || [])) {
+                            list.push({
+                                id: p.id,
+                                department_id: dept.id,
+                                department_name: dept.name,
+                                name: p.name,
+                                label: p.label,
+                                unit_price: p.unit_price,
+                                stock_qty: Number(p.stock_qty) || 0,
+                            });
+                        }
+                    }
+                    return list;
+                },
+
+                qtyInCartForProduct(productId) {
+                    if (!productId) return 0;
+                    return this.rows
+                        .filter((r) => String(r.product_id) === String(productId))
+                        .reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+                },
+
+                stockRemainingForProduct(productId) {
+                    const p = this.findProduct(productId);
+                    if (!p) return 0;
+                    return Math.max(0, (Number(p.stock_qty) || 0) - this.qtyInCartForProduct(productId));
+                },
+
+                get filteredProducts() {
+                    const q = String(this.searchQuery || '').trim().toLowerCase();
+                    const all = this.allProductsFlat();
+                    if (q.length < 1) return all.slice(0, 10);
+                    return all.filter((p) => {
+                        const t = (String(p.name || '') + ' ' + String(p.label) + ' ' + String(p.department_name)).toLowerCase();
+                        return t.includes(q);
+                    }).slice(0, 20);
+                },
+
+                findProduct(productId) {
+                    if (!productId) return null;
+                    for (const dept of this.catalog) {
+                        const p = (dept.products || []).find((x) => String(x.id) === String(productId));
+                        if (p) return p;
+                    }
+                    return null;
+                },
+
+                rowProductName(row) {
+                    if (row.product_name) return row.product_name;
+                    const p = this.findProduct(row.product_id);
+                    return p ? (p.name || p.label) : '—';
+                },
+
+                catalogUnitPrice(row) {
+                    if (row.catalog_unit_price != null) return Number(row.catalog_unit_price) || 0;
+                    const p = this.findProduct(row.product_id);
+                    return p ? Number(p.unit_price) || 0 : 0;
+                },
+
+                rowUnitPrice(row) {
+                    if (this.customerType === 'dealer') {
+                        const v = Number(row.unit_price);
+                        return Number.isFinite(v) && v >= 0 ? v : this.catalogUnitPrice(row);
+                    }
+                    return this.catalogUnitPrice(row);
+                },
+
+                lineAmount(row) {
+                    const unit = this.rowUnitPrice(row);
+                    const qty = Number(row.quantity) || 0;
+                    return Math.round(unit * qty * 100) / 100;
+                },
+
+                priceDiffersFromCatalog(row) {
+                    return Math.abs(this.rowUnitPrice(row) - this.catalogUnitPrice(row)) > 0.001;
+                },
+
+                resetRowPrice(row) {
+                    row.unit_price = this.catalogUnitPrice(row);
+                },
+
+                subtotalAmount() {
+                    return this.rows.reduce((s, row) => s + this.lineAmount(row), 0);
+                },
+
+                saleDiscountNumber() {
+                    if (!this.apply_sale_discount) return 0;
+                    const v = parseFloat(String(this.sale_discount_amount).replace(',', '.'));
+                    return Number.isFinite(v) && v > 0 ? v : 0;
+                },
+
+                grandTotal() {
+                    return Math.max(0, Math.round((this.subtotalAmount() - this.saleDiscountNumber()) * 100) / 100);
+                },
+
+                displayTotalLabel() {
+                    if (!this.apply_sale_discount || this.saleDiscountNumber() <= 0) return 'Total à payer';
+                    return this.isAdmin ? 'Total à payer' : 'Total (remise en attente)';
+                },
+
+                displayTotalAmount() {
+                    if (!this.apply_sale_discount || this.saleDiscountNumber() <= 0) return this.subtotalAmount();
+                    return this.isAdmin ? this.grandTotal() : this.subtotalAmount();
+                },
+
+                totalPaidNumber() {
+                    const v = parseFloat(String(this.amountPaid).replace(',', '.'));
+                    return Number.isFinite(v) && v >= 0 ? v : 0;
+                },
+
+                dealerBalance() {
+                    return Math.max(0, Math.round((this.displayTotalAmount() - this.totalPaidNumber()) * 100) / 100);
+                },
+
+                formatUsd(n) {
+                    return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                },
+
+                pickProduct(p) {
+                    this.pendingProduct = p;
+                    this.searchQuery = p.name || p.label;
+                    this.pickerOpen = false;
+                    this.addLineError = '';
+                },
+
+                clearPick() {
+                    this.pendingProduct = null;
+                    this.searchQuery = '';
+                    this.pickerOpen = true;
+                },
+
+                addLine() {
+                    this.addLineError = '';
+                    if (!this.pendingProduct) {
+                        this.addLineError = 'Choisissez un produit dans la liste.';
+                        return;
+                    }
+                    const qty = parseInt(String(this.addQuantity), 10);
+                    if (!Number.isFinite(qty) || qty < 1) {
+                        this.addLineError = 'Quantité invalide (minimum 1).';
+                        return;
+                    }
+                    const avail = this.stockRemainingForProduct(this.pendingProduct.id);
+                    if (qty > avail) {
+                        this.addLineError = avail <= 0
+                            ? 'Stock insuffisant.'
+                            : `Stock disponible : ${avail}.`;
+                        return;
+                    }
+                    const catalogPrice = Number(this.pendingProduct.unit_price) || 0;
+                    this.rows.push({
+                        _key: 'k' + Date.now() + '-' + Math.random().toString(16).slice(2),
+                        department_id: String(this.pendingProduct.department_id),
+                        product_id: String(this.pendingProduct.id),
+                        product_name: this.pendingProduct.name || this.pendingProduct.label,
+                        department_name: this.pendingProduct.department_name,
+                        quantity: qty,
+                        unit_price: catalogPrice,
+                        catalog_unit_price: catalogPrice,
+                    });
+                    this.pendingProduct = null;
+                    this.searchQuery = '';
+                    this.addQuantity = 1;
+                },
+
+                removeRow(index) {
+                    this.rows.splice(index, 1);
+                },
+
+                get filteredClients() {
+                    if (this.customerType !== 'dealer') return [];
+                    const term = String(this.clientName || '').trim().toLowerCase();
+                    if (!term) return this.clients.slice(0, 8);
+                    return this.clients.filter((c) => String(c.name || '').toLowerCase().includes(term)).slice(0, 8);
+                },
+            }));
+        });
+    </script>
+    @endpush
 </x-app-layout>

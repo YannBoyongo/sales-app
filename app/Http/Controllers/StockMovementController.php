@@ -38,7 +38,7 @@ class StockMovementController extends Controller
 
     public function create(): View
     {
-        abort_unless(! auth()->user()?->isInventoryReadOnly(), 403);
+        abort_unless(auth()->user()?->canCreateStockMovement(), 403);
 
         $productQuery = Product::query()->with('department')->orderBy('name');
         $this->applyProductBranchScope($productQuery);
@@ -50,7 +50,7 @@ class StockMovementController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless(! $request->user()?->isInventoryReadOnly(), 403);
+        abort_unless($request->user()?->canCreateStockMovement(), 403);
 
         $data = $request->validate([
             'type' => ['required', 'in:entry,exit,transfer'],

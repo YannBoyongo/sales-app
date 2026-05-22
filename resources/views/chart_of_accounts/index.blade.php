@@ -30,6 +30,7 @@
                             <th class="px-4 py-3">Libellé</th>
                             <th class="px-4 py-3">Type</th>
                             <th class="px-4 py-3">Statut</th>
+                            <th class="px-4 py-3 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-neutral-100">
@@ -56,10 +57,22 @@
                                         <span class="inline-flex rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">Inactif</span>
                                     @endif
                                 </td>
+                                <td class="px-4 py-3 text-right">
+                                    <a
+                                        href="{{ route('chart-of-accounts.edit', $account) }}"
+                                        title="Modifier"
+                                        aria-label="Modifier {{ $account->account_code }}"
+                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.1 2.1 0 112.97 2.97L9.75 16.54 6 17.25l.71-3.75 10.152-10.013z" />
+                                        </svg>
+                                    </a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="px-4 py-10 text-center text-neutral-500">Aucun compte comptable.</td>
+                                <td colspan="5" class="px-4 py-10 text-center text-neutral-500">Aucun compte comptable.</td>
                             </tr>
                         @endforelse
                     </tbody>

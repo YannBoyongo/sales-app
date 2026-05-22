@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChartOfAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ChartOfAccountController extends Controller
@@ -37,5 +38,36 @@ class ChartOfAccountController extends Controller
         return redirect()
             ->route('chart-of-accounts.index')
             ->with('success', 'Compte comptable ajouté.');
+    }
+
+    public function edit(ChartOfAccount $chartOfAccount): View
+    {
+        return view('chart_of_accounts.edit', compact('chartOfAccount'));
+    }
+
+    public function update(Request $request, ChartOfAccount $chartOfAccount): RedirectResponse
+    {
+        $data = $request->validate([
+            'account_code' => [
+                'required',
+                'string',
+                'max:30',
+                Rule::unique('chart_of_accounts', 'account_code')->ignore($chartOfAccount->id),
+            ],
+            'name' => ['required', 'string', 'max:150'],
+            'account_type' => ['required', 'in:asset,liability,equity,revenue,expense'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+
+        $chartOfAccount->update([
+            'account_code' => $data['account_code'],
+            'name' => $data['name'],
+            'account_type' => $data['account_type'],
+            'is_active' => (bool) ($data['is_active'] ?? false),
+        ]);
+
+        return redirect()
+            ->route('chart-of-accounts.index')
+            ->with('success', 'Compte comptable mis à jour.');
     }
 }

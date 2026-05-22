@@ -143,9 +143,7 @@ class PosShiftController extends Controller
         );
 
         $closedShiftsDescription = ($user?->isCashier() && ! $user->canAccessAccounting())
-            ? ($user->isPosUser()
-                ? 'Sessions fermées uniquement pour les terminaux POS auxquels vous êtes affecté.'
-                : 'Toutes les sessions fermées de votre branche (bons de caisse, suivi d’encaissement). Filtrez par enregistrement comptable si besoin.')
+            ? 'Toutes les sessions fermées de votre branche (bons de caisse, suivi d’encaissement). Filtrez par enregistrement comptable si besoin.'
             : 'Liste des sessions de caisse déjà clôturées pour les terminaux auxquels vous avez accès.';
 
         return view('pos_terminals.closed_shifts', compact('shifts', 'registrationFilter', 'closedShiftsDescription'));

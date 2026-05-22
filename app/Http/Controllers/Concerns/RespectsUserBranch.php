@@ -511,7 +511,7 @@ trait RespectsUserBranch
     }
 
     /**
-     * @param  bool  $forClosedShiftsListing  Caissier sans rôle « utilisateur POS » et avec branche : historique shifts = tous les terminaux de cette branche. Sinon (dont caissier+utilisateur POS) : uniquement le pivot utilisateur-terminal.
+     * @param  bool  $forClosedShiftsListing  Caissier avec branche : historique shifts fermés = tous les terminaux de cette branche (comme l’admin sur sa branche). Flux /caisse : pivot utilisateur-terminal.
      * @return Collection<int, PosTerminal>
      */
     protected function posTerminalsForUser(?Branch $branch = null, bool $forClosedShiftsListing = false): Collection
@@ -520,11 +520,8 @@ trait RespectsUserBranch
         if (! $user) {
             return collect();
         }
-        // Caissier sans rôle « utilisateur POS » : historique shifts fermés = tous les terminaux de sa branche.
-        // Dès qu’il a aussi le rôle utilisateur POS (ou pour le flux /caisse), on n’affiche que les terminaux du pivot.
         $cashierBranchWideClosedShiftsOnly = $forClosedShiftsListing
             && $user->isCashier()
-            && ! $user->isPosUser()
             && $user->branch_id;
         $accountingMayListClosedShifts = $forClosedShiftsListing && $user->canAccessAccounting();
         if (! $user->canAccessPosSales() && ! $cashierBranchWideClosedShiftsOnly && ! $accountingMayListClosedShifts) {

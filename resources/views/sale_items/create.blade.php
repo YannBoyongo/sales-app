@@ -327,6 +327,7 @@
                         </div>
                     </dl>
 
+                    {{-- Remise globale — désactivée temporairement (réactiver sur demande)
                     <div class="border-t border-neutral-100 pt-3">
                         <label class="flex cursor-pointer items-start gap-2">
                             <input type="checkbox" name="apply_sale_discount" value="1" class="mt-0.5 rounded border-neutral-300 text-primary focus:ring-primary" x-model="apply_sale_discount" />
@@ -346,6 +347,7 @@
                         </div>
                         <x-input-error :messages="$errors->get('sale_discount_amount')" class="mt-1" />
                     </div>
+                    --}}
 
                     <div class="rounded-xl bg-neutral-50 px-3 py-3">
                         <div class="flex items-center justify-between">

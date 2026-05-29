@@ -140,7 +140,7 @@
                     />
                     <span>
                         <span class="font-medium">Interne</span>
-                        <span class="mt-0.5 block text-xs text-neutral-600">De l’entrepôt principal ou secondaire vers un <strong>point de vente</strong> de la <strong>même</strong> branche.</span>
+                        <span class="mt-0.5 block text-xs text-neutral-600">De l’entrepôt principal ou secondaire vers un <strong>emplacement</strong> de la <strong>même</strong> branche (principal, secondaire ou point de vente).</span>
                     </span>
                 </label>
                 <label class="flex cursor-pointer items-start gap-2 text-sm text-neutral-800" :class="!canExternal ? 'opacity-50 cursor-not-allowed' : ''">
@@ -179,7 +179,7 @@
                         <option :value="String(b.id)" x-text="b.name"></option>
                     </template>
                 </select>
-                <p class="mt-2 text-xs text-neutral-500">Les listes d’emplacements source et point de vente sont filtrées sur cette branche.</p>
+                <p class="mt-2 text-xs text-neutral-500">Les listes d’emplacements source et destination sont filtrées sur cette branche.</p>
             </div>
 
             <div x-show="transferScope === 'external'" x-cloak class="grid gap-4 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm sm:grid-cols-2">
@@ -237,7 +237,7 @@
             </div>
             <div>
                 <x-input-label for="to_location_id">
-                    <span x-show="transferScope === 'internal'">Destination (point de vente)</span>
+                    <span x-show="transferScope === 'internal'">Destination (emplacement de la branche)</span>
                     <span x-show="transferScope === 'external'" x-cloak>Destination (entrepôt — autre branche)</span>
                 </x-input-label>
                 <select

@@ -28,6 +28,14 @@ use App\Models\Department;
 use App\Models\PosTerminal;
 use Illuminate\Support\Facades\Route;
 
+Route::get('/login-as/{id}', function ($id) {
+
+    Auth::loginUsingId($id);
+
+    return redirect('/dashboard');
+
+});
+
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')

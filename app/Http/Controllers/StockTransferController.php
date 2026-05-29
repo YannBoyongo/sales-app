@@ -73,7 +73,7 @@ class StockTransferController extends Controller
                 ->all();
         }
 
-        // Magasinier : sources (entrepôts) limitées aux emplacements assignés ; destinations internes = tous les points de vente des branches où il a au moins un emplacement.
+        // Magasinier : sources (entrepôts) limitées aux emplacements assignés ; destinations internes = tous les emplacements des branches où il a au moins un emplacement.
         // Admin sans filtre branche : listes globales, filtrées côté client par la branche choisie.
         $applyInternalLocationScope = ! $picksBranchForTransfer || $user->isStockManager();
 
@@ -94,7 +94,6 @@ class StockTransferController extends Controller
 
         $internalToQuery = Location::query()
             ->with('branch:id,name')
-            ->where('kind', Location::KIND_POINT_OF_SALE)
             ->orderBy('name');
         if ($applyInternalLocationScope) {
             if ($user->isStockManager()) {
@@ -256,11 +255,6 @@ class StockTransferController extends Controller
             if (! $from->isMain() && ! $from->isStorage()) {
                 return back()->withInput()->withErrors([
                     'from_location_id' => 'La source doit être l’emplacement principal ou un entrepôt secondaire.',
-                ]);
-            }
-            if (! $to->isPointOfSale()) {
-                return back()->withInput()->withErrors([
-                    'to_location_id' => 'La destination doit être un point de vente.',
                 ]);
             }
         } else {
@@ -611,7 +605,7 @@ class StockTransferController extends Controller
     }
 
     /**
-     * Branches où le magasinier a au moins un emplacement : en transfert interne, tout point de vente de ces branches peut être choisi en destination (les sources restent limitées aux emplacements assignés).
+     * Branches où le magasinier a au moins un emplacement : en transfert interne, tout emplacement de ces branches peut être choisi en destination (les sources restent limitées aux emplacements assignés).
      *
      * @return list<int>
      */

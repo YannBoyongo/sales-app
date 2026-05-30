@@ -16,6 +16,8 @@ class StockTransfer extends Model
 
     public const STATUS_CONFIRMED = 'confirmed';
 
+    public const STATUS_CANCELLED = 'cancelled';
+
     protected $fillable = [
         'from_location_id',
         'to_location_id',
@@ -78,11 +80,22 @@ class StockTransfer extends Model
         return $this->status === self::STATUS_CONFIRMED;
     }
 
+    public function isCancelled(): bool
+    {
+        return $this->status === self::STATUS_CANCELLED;
+    }
+
+    public function canBeCancelled(): bool
+    {
+        return ! $this->isCancelled();
+    }
+
     public static function statusLabel(string $status): string
     {
         return match ($status) {
             self::STATUS_PENDING => 'En attente',
             self::STATUS_CONFIRMED => 'Confirmé',
+            self::STATUS_CANCELLED => 'Annulé',
             default => $status,
         };
     }

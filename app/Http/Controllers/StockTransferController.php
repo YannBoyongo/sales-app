@@ -345,6 +345,7 @@ class StockTransferController extends Controller
         ]);
 
         $canManageTransfer = auth()->user()?->canManageStockTransfers() ?? false;
+        $canCancelTransfer = auth()->user()?->isAdmin() && $stockTransfer->canBeCancelled();
 
         $lineQtyByProduct = $stockTransfer->items->pluck('quantity', 'product_id');
 
@@ -376,7 +377,7 @@ class StockTransferController extends Controller
             })->values()->all();
         }
 
-        return view('stock_transfers.show', compact('stockTransfer', 'canManageTransfer', 'transferProducts'));
+        return view('stock_transfers.show', compact('stockTransfer', 'canManageTransfer', 'canCancelTransfer', 'transferProducts'));
     }
 
     public function storeItem(Request $request, StockTransfer $stockTransfer): RedirectResponse
@@ -541,6 +542,60 @@ class StockTransferController extends Controller
         }
 
         return back()->with('success', 'Transfert confirmé : les stocks ont été mis à jour.');
+    }
+
+    public function cancel(Request $request, StockTransfer $stockTransfer): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+
+        $this->ensureUserCanAccessStockTransfer($stockTransfer);
+
+        if (! $stockTransfer->canBeCancelled()) {
+            return back()->withErrors(['stock' => 'Ce transfert est déjà annulé.']);
+        }
+
+        $fromId = (int) $stockTransfer->from_location_id;
+        $toId = (int) $stockTransfer->to_location_id;
+        $wasConfirmed = $stockTransfer->isConfirmed();
+
+        try {
+            DB::transaction(function () use ($stockTransfer, $fromId, $toId) {
+                $transfer = StockTransfer::query()->whereKey($stockTransfer->id)->lockForUpdate()->first();
+                if (! $transfer || ! $transfer->canBeCancelled()) {
+                    throw new RuntimeException('Ce transfert ne peut pas être annulé.');
+                }
+
+                if ($transfer->isConfirmed()) {
+                    $items = StockTransferItem::query()
+                        ->where('stock_transfer_id', $transfer->id)
+                        ->orderBy('id')
+                        ->lockForUpdate()
+                        ->get();
+
+                    foreach ($items as $item) {
+                        $pid = (int) $item->product_id;
+                        $q = (int) $item->quantity;
+
+                        Stock::modifyQuantity($pid, $fromId, $q);
+                        Stock::modifyQuantity($pid, $toId, -$q);
+                    }
+
+                    StockMovement::query()
+                        ->where('stock_transfer_id', $transfer->id)
+                        ->delete();
+                }
+
+                $transfer->update(['status' => StockTransfer::STATUS_CANCELLED]);
+            });
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['stock' => $e->getMessage()]);
+        }
+
+        $message = $wasConfirmed
+            ? 'Transfert annulé : les stocks ont été rétablis à la source.'
+            : 'Transfert annulé.';
+
+        return back()->with('success', $message);
     }
 
     private function applyStockTransferBranchFilter(Builder $query): void

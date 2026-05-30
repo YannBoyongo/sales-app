@@ -7,6 +7,24 @@
             <p class="mt-1 text-sm text-neutral-600">Date : {{ $stockTransfer->transferred_at->translatedFormat('d/m/Y') }} — par {{ $stockTransfer->user->name }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+            @if ($canCancelTransfer)
+                <form
+                    method="POST"
+                    action="{{ route('stock-transfers.cancel', $stockTransfer) }}"
+                    class="inline"
+                    onsubmit="return confirm(@js($stockTransfer->isConfirmed()
+                        ? 'Annuler ce transfert confirmé ? Les quantités seront réintégrées à l’emplacement source et retirées de la destination.'
+                        : 'Annuler ce transfert en attente ? Aucun stock n’a encore été déplacé.'));"
+                >
+                    @csrf
+                    <button
+                        type="submit"
+                        class="inline-flex items-center rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50"
+                    >
+                        Annuler le transfert
+                    </button>
+                </form>
+            @endif
             @if ($canManageTransfer && $stockTransfer->isPending())
                 <form
                     method="POST"
@@ -49,6 +67,8 @@
                 <dd class="mt-1">
                     @if ($stockTransfer->isPending())
                         <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_PENDING) }}</span>
+                    @elseif ($stockTransfer->isCancelled())
+                        <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_CANCELLED) }}</span>
                     @else
                         <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_CONFIRMED) }}</span>
                     @endif
@@ -213,7 +233,9 @@
         <div class="border-b border-neutral-200 px-4 py-3">
             <h2 class="text-sm font-semibold text-neutral-900">Articles à transférer</h2>
             <p class="mt-0.5 text-xs text-neutral-500">
-                @if ($stockTransfer->isConfirmed())
+                @if ($stockTransfer->isCancelled())
+                    Ce transfert a été annulé.
+                @elseif ($stockTransfer->isConfirmed())
                     Les mouvements de stock (type Transfert) ont été enregistrés pour cette date comptable.
                 @else
                     Après confirmation, les mouvements apparaîtront dans « Mouvements de stock » avec la date du transfert.

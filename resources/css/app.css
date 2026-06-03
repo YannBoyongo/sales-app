@@ -180,12 +180,12 @@
 
     /* ── Sidebar nav ── */
     .app-nav-link {
-        @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-white/75 transition
-            hover:bg-sidebar-hover hover:text-white;
+        @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition
+            hover:bg-sidebar-hover hover:text-primary;
     }
 
     .app-nav-link-active {
-        @apply bg-sidebar-active text-white shadow-inner;
+        @apply bg-sidebar-active font-semibold text-primary;
     }
 
     .app-nav-section {

@@ -32,16 +32,16 @@
 
             <aside
                 :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-                class="fixed lg:static inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-white shadow-xl shadow-primary-dark/25 transition-transform duration-200 ease-out lg:transition-none"
+                class="fixed lg:static inset-y-0 left-0 z-50 flex w-64 shrink-0 flex-col border-r border-sidebar-border bg-white text-slate-800 shadow-card transition-transform duration-200 ease-out lg:transition-none"
             >
-                <div class="flex h-16 items-center justify-between border-b border-white/10 px-4">
+                <div class="flex h-16 items-center justify-between border-b border-sidebar-border px-4">
                     <a href="{{ route('dashboard') }}" class="min-w-0">
-                        <p class="truncate text-lg font-bold tracking-tight text-white">{{ $appSetting?->shopname ?? config('app.name') }}</p>
+                        <p class="truncate text-lg font-bold tracking-tight text-primary">{{ $appSetting?->shopname ?? config('app.name') }}</p>
                         @if ($appSetting?->phone)
                             <p class="truncate text-xs text-sidebar-muted">{{ $appSetting->phone }}</p>
                         @endif
                     </a>
-                    <button type="button" class="lg:hidden p-2 rounded-md text-neutral-400 hover:text-white hover:bg-neutral-800" @click="sidebarOpen = false" aria-label="Fermer le menu">
+                    <button type="button" class="rounded-md p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800 lg:hidden" @click="sidebarOpen = false" aria-label="Fermer le menu">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
                 </div>
@@ -161,13 +161,13 @@
                     @endif
                 </nav>
 
-                <div class="border-t border-white/10 p-3 text-sm">
-                    <div class="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2.5">
-                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-bold text-white ring-1 ring-white/30">
+                <div class="border-t border-sidebar-border p-3 text-sm">
+                    <div class="flex items-center gap-3 rounded-lg bg-slate-50 px-3 py-2.5">
+                        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-white">
                             {{ strtoupper(substr(Auth::user()->name, 0, 1)) }}
                         </span>
                         <div class="min-w-0 flex-1">
-                            <div class="truncate font-medium text-white">{{ Auth::user()->name }}</div>
+                            <div class="truncate font-medium text-slate-900">{{ Auth::user()->name }}</div>
                             <div class="truncate text-[10px] font-semibold uppercase tracking-wide text-sidebar-muted">
                                 {{ Auth::user()->roles()->pluck('name')->implode(' · ') ?: 'Aucun rôle' }}
                             </div>

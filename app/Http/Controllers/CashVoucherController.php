@@ -167,4 +167,21 @@ class CashVoucherController extends Controller
             ->route('cash-vouchers.index')
             ->with('success', 'Bon de caisse enregistré en comptabilité.');
     }
+
+    public function destroy(Request $request, CashVoucher $cashVoucher): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403, 'Action non autorisée.');
+
+        if ($cashVoucher->accounting_transaction_id !== null) {
+            return redirect()
+                ->route('cash-vouchers.index')
+                ->with('warning', 'Impossible de supprimer un bon déjà comptabilisé.');
+        }
+
+        $cashVoucher->delete();
+
+        return redirect()
+            ->route('cash-vouchers.index')
+            ->with('success', 'Bon de caisse supprimé.');
+    }
 }

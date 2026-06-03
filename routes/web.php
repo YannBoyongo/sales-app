@@ -147,6 +147,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('branches/{branch}/sales/{sale}', [SaleController::class, 'update'])->name('sales.update')->whereNumber('sale');
         Route::delete('branches/{branch}/sales/{sale}', [SaleController::class, 'destroy'])->name('sales.destroy')->whereNumber('sale');
         Route::post('bons-de-caisse/{cashVoucher}/approve', [CashVoucherController::class, 'approve'])->name('cash-vouchers.approve');
+        Route::delete('bons-de-caisse/{cashVoucher}', [CashVoucherController::class, 'destroy'])->name('cash-vouchers.destroy');
         Route::post('stock-transfers/{stock_transfer}/cancel', [StockTransferController::class, 'cancel'])
             ->name('stock-transfers.cancel')
             ->whereNumber('stock_transfer');

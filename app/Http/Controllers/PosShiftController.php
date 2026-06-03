@@ -22,14 +22,16 @@ class PosShiftController extends Controller
 {
     use RespectsUserBranch;
 
-    public function closed(): View
+    public function closed(Request $request): View
     {
         abort_unless(auth()->user()?->canAccessCashDeskFinanceFeatures(), 403, 'Vous n’avez pas accès à cet historique.');
 
-        $filters = request()->validate([
+        $filters = $request->validate([
             'registration' => ['nullable', 'in:registered,unregistered,all'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
-        $user = auth()->user();
+        $user = $request->user();
         $defaultRegistration = ($user?->isCashier() && ! $user->canAccessAccounting())
             ? 'all'
             : 'unregistered';
@@ -52,6 +54,8 @@ class PosShiftController extends Controller
             ->whereNotNull('closed_at')
             ->when($terminalIds === [], fn ($q) => $q->whereRaw('1 = 0'))
             ->when($terminalIds !== [], fn ($q) => $q->whereIn('pos_terminal_id', $terminalIds))
+            ->when($filters['date_from'] ?? null, fn (Builder $q, $value) => $q->whereRaw('COALESCE(session_date, DATE(opened_at)) >= ?', [$value]))
+            ->when($filters['date_to'] ?? null, fn (Builder $q, $value) => $q->whereRaw('COALESCE(session_date, DATE(opened_at)) <= ?', [$value]))
             ->when($registrationFilter === 'registered', function (Builder $q) {
                 $q->where(function (Builder $outer) {
                     $outer
@@ -98,7 +102,7 @@ class PosShiftController extends Controller
                         });
                 });
             })
-            ->orderByDesc('closed_at')
+            ->orderByDesc(DB::raw('COALESCE(session_date, DATE(opened_at))'))
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
@@ -146,7 +150,7 @@ class PosShiftController extends Controller
             ? 'Toutes les sessions fermées de votre branche (bons de caisse, suivi d’encaissement). Filtrez par enregistrement comptable si besoin.'
             : 'Liste des sessions de caisse déjà clôturées pour les terminaux auxquels vous avez accès.';
 
-        return view('pos_terminals.closed_shifts', compact('shifts', 'registrationFilter', 'closedShiftsDescription'));
+        return view('pos_terminals.closed_shifts', compact('shifts', 'filters', 'registrationFilter', 'closedShiftsDescription'));
     }
 
     public function showClosed(PosShift $shift): View
@@ -287,33 +291,38 @@ class PosShiftController extends Controller
 
         if ($shift->sales()->exists()) {
             return redirect()
-                ->route('pos-terminal.shifts.closed', $request->only('registration'))
+                ->route('pos-terminal.shifts.closed', $request->only(['registration', 'date_from', 'date_to']))
                 ->with('warning', 'Impossible de supprimer : ce shift a des ventes liées.');
         }
 
         $shift->loadMissing('posTerminal');
         if ($this->closedShiftHasFinanceLinks($shift)) {
             return redirect()
-                ->route('pos-terminal.shifts.closed', $request->only('registration'))
+                ->route('pos-terminal.shifts.closed', $request->only(['registration', 'date_from', 'date_to']))
                 ->with('warning', 'Impossible de supprimer : des écritures ou bons de caisse sont liés à ce shift.');
         }
 
         $shift->delete();
 
         return redirect()
-            ->route('pos-terminal.shifts.closed', $request->only('registration'))
+            ->route('pos-terminal.shifts.closed', $request->only(['registration', 'date_from', 'date_to']))
             ->with('success', 'Session sans vente supprimée.');
     }
 
-    public function open(Branch $branch, PosTerminal $posTerminal): RedirectResponse
+    public function open(Request $request, Branch $branch, PosTerminal $posTerminal): RedirectResponse
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
 
-        $user = request()->user();
-        $alreadyOpen = false;
+        $data = $request->validate([
+            'session_date' => ['required', 'date'],
+        ]);
 
-        DB::transaction(function () use ($posTerminal, $user, &$alreadyOpen) {
+        $user = $request->user();
+        $alreadyOpen = false;
+        $sessionDate = $data['session_date'];
+
+        DB::transaction(function () use ($posTerminal, $user, $sessionDate, &$alreadyOpen) {
             $existing = PosShift::query()
                 ->where('pos_terminal_id', $posTerminal->id)
                 ->whereNull('closed_at')
@@ -329,6 +338,7 @@ class PosShiftController extends Controller
             PosShift::create([
                 'pos_terminal_id' => $posTerminal->id,
                 'opened_by' => $user->id,
+                'session_date' => $sessionDate,
                 'opened_at' => now(),
             ]);
         });

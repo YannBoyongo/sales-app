@@ -6,7 +6,7 @@
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <div class="flex flex-wrap items-center gap-2">
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Caisse</p>
+                        <p class="app-page-eyebrow">Caisse</p>
                         @if ($openShift)
                             <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
                                 <span class="relative flex h-2 w-2">
@@ -19,8 +19,8 @@
                             <span class="rounded-full bg-neutral-200/80 px-2.5 py-0.5 text-xs font-semibold text-neutral-700">Session fermée</span>
                         @endif
                     </div>
-                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">{{ $posTerminal->name }}</h1>
-                    <p class="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600">
+                    <h1 class="app-page-title">{{ $posTerminal->name }}</h1>
+                    <p class="app-page-desc max-w-2xl">
                         Point de vente et déstockage sur l’emplacement lié. Ouvrez une session pour encaisser, consultez les ventes de la session en cours.
                     </p>
                     <p class="mt-3 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-neutral-200/80 bg-white/80 px-4 py-1.5 text-sm text-neutral-700 shadow-sm backdrop-blur-sm">
@@ -36,7 +36,7 @@
 
         <div class="space-y-6">
                 @if ($openShift)
-                    <div class="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-white p-6 shadow-lg shadow-emerald-900/5 ring-1 ring-emerald-900/5 sm:p-8">
+                    <div class="app-panel app-panel-body border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-white sm:p-8">
                         <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                             <div class="flex gap-4">
                                 <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-md shadow-emerald-500/30">
@@ -47,7 +47,7 @@
                                 <div>
                                     <p class="text-sm font-semibold text-emerald-950">Caisse prête</p>
                                     <p class="mt-1 text-sm text-emerald-900/85">
-                                        Ouverte le {{ $openShift->opened_at->translatedFormat('d/m/Y à H:i') }}
+                                        Session du {{ $openShift->effectiveSessionDate()->translatedFormat('d/m/Y') }}
                                         @if ($openShift->openedByUser)
                                             <span class="text-emerald-800/80">— {{ $openShift->openedByUser->name }}</span>
                                         @endif
@@ -60,7 +60,7 @@
                             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                                 <a
                                     href="{{ route('sales.choose-department', [$branch, $posTerminal]) }}"
-                                    class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                    class="app-btn-primary gap-2 px-6 py-3"
                                 >
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -69,7 +69,7 @@
                                 </a>
                                 <a
                                     href="{{ route('pos-terminal.shifts.close-review', [$branch, $posTerminal]) }}"
-                                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-neutral-300/90 bg-white px-6 py-3 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-neutral-400 focus-visible:ring-offset-2 sm:w-auto"
+                                    class="app-btn-secondary w-full gap-2 px-6 py-3 sm:w-auto"
                                 >
                                     <svg class="h-5 w-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -80,7 +80,7 @@
                         </div>
                     </div>
 
-                    <div class="rounded-2xl border border-neutral-200/90 bg-white/90 p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm sm:p-8">
+                    <div class="app-panel app-panel-body sm:p-8">
                         <div class="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                             <div>
                                 <h2 class="text-lg font-semibold text-neutral-900">Ventes de cette session</h2>
@@ -91,14 +91,14 @@
                             </span>
                         </div>
 
-                        <div class="mt-6 overflow-hidden rounded-xl border border-neutral-100 bg-neutral-50/40">
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                                    <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                        <div class="app-table-shell mt-6">
+                            <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                                <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                                         <tr>
                                             <th class="px-4 py-3 whitespace-nowrap">Date</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Référence</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Caissier</th>
+                                            <th class="px-4 py-3 whitespace-nowrap">Type</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Statut paiement</th>
                                             <th class="px-4 py-3 text-right whitespace-nowrap">A payer</th>
                                             <th class="px-4 py-3 text-right whitespace-nowrap">Payé</th>
@@ -112,9 +112,18 @@
                                                 'transition-colors hover:bg-neutral-50/80' => ! $sale->isPendingDiscount(),
                                                 'bg-amber-50/90 hover:bg-amber-100/80' => $sale->isPendingDiscount(),
                                             ])>
-                                                <td class="px-4 py-3.5 text-neutral-600 whitespace-nowrap">{{ $sale->sold_at->translatedFormat('d/m/Y') }}</td>
+                                                <td class="px-4 py-3.5 text-neutral-600 whitespace-nowrap">{{ $sale->effectiveSoldAt()->translatedFormat('d/m/Y') }}</td>
                                                 <td class="px-4 py-3.5 font-mono text-sm text-neutral-800">{{ $sale->reference }}</td>
                                                 <td class="px-4 py-3.5 text-neutral-700">{{ $sale->user?->name ?? '—' }}</td>
+                                                <td class="px-4 py-3.5 whitespace-nowrap">
+                                                    @if ($sale->payment_type === 'credit')
+                                                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">Crédit</span>
+                                                    @elseif ($sale->payment_type === 'caution')
+                                                        <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-900">Caution</span>
+                                                    @else
+                                                        <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">Cash</span>
+                                                    @endif
+                                                </td>
                                                 <td class="px-4 py-3.5">
                                                     @php($effectiveStatus = $sale->effectivePaymentStatus())
                                                     @if ($sale->isPendingDiscount())
@@ -140,7 +149,7 @@
                                                 <td class="px-4 py-3.5 text-right whitespace-nowrap">
                                                     <a
                                                         href="{{ route('sales.show', [$branch, $sale]) }}"
-                                                        class="inline-flex rounded-lg p-2 text-primary transition hover:bg-primary/10"
+                                                        class="app-icon-btn"
                                                         title="Voir la vente"
                                                     >
                                                         <span class="sr-only">Voir</span>
@@ -153,7 +162,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="8" class="px-4 py-14">
+                                                <td colspan="9" class="px-4 py-14">
                                                     <div class="flex flex-col items-center text-center">
                                                         <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-400">
                                                             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -168,11 +177,10 @@
                                         @endforelse
                                     </tbody>
                                 </table>
-                            </div>
                         </div>
                     </div>
                 @else
-                    <div class="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-white to-white p-6 shadow-lg shadow-amber-900/5 ring-1 ring-amber-900/5 sm:p-8">
+                    <div class="app-panel app-panel-body border-amber-200/80 bg-gradient-to-br from-amber-50/90 via-white to-white sm:p-8">
                         <div class="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                             <div class="flex gap-4">
                                 <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-900">
@@ -187,11 +195,23 @@
                                     </p>
                                 </div>
                             </div>
-                            <form action="{{ route('pos-terminal.shifts.open', [$branch, $posTerminal]) }}" method="POST" class="shrink-0">
+                            <form action="{{ route('pos-terminal.shifts.open', [$branch, $posTerminal]) }}" method="POST" class="w-full shrink-0 space-y-3 sm:w-auto sm:min-w-[14rem]">
                                 @csrf
+                                <div>
+                                    <label for="session_date" class="block text-xs font-semibold uppercase tracking-wide text-amber-900/80">Date de session</label>
+                                    <input
+                                        id="session_date"
+                                        name="session_date"
+                                        type="date"
+                                        value="{{ old('session_date', now()->format('Y-m-d')) }}"
+                                        required
+                                        class="mt-1 block w-full rounded-lg border-amber-200/80 bg-white px-3 py-2 text-sm text-neutral-900 shadow-sm focus:border-primary focus:ring-primary"
+                                    />
+                                    <x-input-error :messages="$errors->get('session_date')" class="mt-1" />
+                                </div>
                                 <button
                                     type="submit"
-                                    class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:w-auto"
+                                    class="app-btn-primary w-full gap-2 px-6 py-3"
                                 >
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />

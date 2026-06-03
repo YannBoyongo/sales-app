@@ -9,6 +9,7 @@ class PurchaseOrderReception extends Model
 {
     protected $fillable = [
         'purchase_order_id',
+        'reception_batch_id',
         'purchase_order_item_id',
         'product_id',
         'location_id',
@@ -27,6 +28,11 @@ class PurchaseOrderReception extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function batch(): BelongsTo
+    {
+        return $this->belongsTo(PurchaseOrderReceptionBatch::class, 'reception_batch_id');
     }
 
     public function item(): BelongsTo

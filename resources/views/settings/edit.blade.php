@@ -2,11 +2,11 @@
     <x-slot name="header">Paramètre</x-slot>
 
     <div class="mb-6">
-        <h1 class="text-2xl font-semibold text-neutral-900">Paramètre</h1>
-        <p class="mt-1 text-sm text-neutral-600">Modifier les informations de la boutique.</p>
+        <h1 class="app-page-title">Paramètre</h1>
+        <p class="app-page-desc">Modifier les informations de la boutique.</p>
     </div>
 
-    <section class="rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+    <section class="app-panel app-panel-body">
         <form action="{{ route('parametre.update') }}" method="POST" enctype="multipart/form-data" class="grid gap-4 md:grid-cols-2">
             @csrf
             @method('PATCH')
@@ -96,7 +96,7 @@
                             <button
                                 type="submit"
                                 form="parametre-logo-delete"
-                                class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-800 hover:bg-red-100"
+                                class="app-btn-danger"
                                 onclick="return confirm('Supprimer le logo enregistré ?');"
                             >
                                 Supprimer le logo

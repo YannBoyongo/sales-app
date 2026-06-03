@@ -15,47 +15,31 @@
         </nav>
 
         @if (session('success'))
-            <div class="flex items-start gap-3 rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-950 shadow-sm" role="status">
-                <svg class="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p class="font-medium leading-relaxed">{{ session('success') }}</p>
-            </div>
+            <div class="app-alert-success" role="status">{{ session('success') }}</div>
         @endif
 
         @if ($errors->has('location'))
-            <div class="flex items-start gap-3 rounded-xl border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm text-red-950 shadow-sm" role="alert">
-                <svg class="mt-0.5 h-5 w-5 shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                </svg>
-                <p class="font-medium leading-relaxed">{{ $errors->first('location') }}</p>
-            </div>
+            <div class="app-alert-danger" role="alert">{{ $errors->first('location') }}</div>
         @endif
 
         @if ($errors->has('terminal'))
-            <div class="flex items-start gap-3 rounded-xl border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm text-red-950 shadow-sm" role="alert">
-                <svg class="mt-0.5 h-5 w-5 shrink-0 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                </svg>
-                <p class="font-medium leading-relaxed">{{ $errors->first('terminal') }}</p>
-            </div>
+            <div class="app-alert-danger" role="alert">{{ $errors->first('terminal') }}</div>
         @endif
 
         {{-- En-tête & actions --}}
-        <div class="relative overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-sm ring-1 ring-black/[0.03]">
-            <div class="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-primary via-blue-500 to-sky-400" aria-hidden="true"></div>
-            <div class="flex flex-col gap-6 p-6 sm:flex-row sm:items-start sm:justify-between sm:p-8">
-                <div class="min-w-0 space-y-1">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-primary/90">Fiche branche</p>
-                    <h1 class="text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">{{ $branch->name }}</h1>
-                    <p class="max-w-xl pt-1 text-sm leading-relaxed text-neutral-600">
+        <div class="app-panel">
+            <div class="app-panel-body flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                <div class="min-w-0">
+                    <p class="app-page-eyebrow">Fiche branche</p>
+                    <h1 class="app-page-title">{{ $branch->name }}</h1>
+                    <p class="app-page-desc max-w-xl">
                         Gérez les emplacements stock et les terminaux de caisse rattachés à cette branche.
                     </p>
                 </div>
-                <div class="flex shrink-0 items-center gap-1 rounded-xl border border-neutral-200/90 bg-neutral-50/80 p-1 shadow-inner">
+                <div class="flex shrink-0 items-center gap-1">
                     <a
                         href="{{ route('branches.edit', $branch) }}"
-                        class="inline-flex rounded-lg p-2.5 text-neutral-600 transition hover:bg-white hover:text-neutral-900 hover:shadow-sm"
+                        class="app-icon-btn"
                         title="Modifier la branche"
                     >
                         <span class="sr-only">Modifier</span>
@@ -68,7 +52,7 @@
                         @method('DELETE')
                         <button
                             type="submit"
-                            class="inline-flex rounded-lg p-2.5 text-red-600 transition hover:bg-white hover:text-red-700 hover:shadow-sm"
+                            class="app-icon-btn text-red-600 hover:bg-red-50 hover:text-red-700"
                             title="Supprimer la branche"
                         >
                             <span class="sr-only">Supprimer</span>
@@ -80,55 +64,33 @@
                 </div>
             </div>
 
-            {{-- Statistiques --}}
-            <div class="grid gap-px border-t border-neutral-200/80 bg-neutral-200/80 sm:grid-cols-3">
-                <div class="flex items-center gap-4 bg-white px-6 py-4 sm:px-8">
-                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-semibold tabular-nums text-neutral-900">{{ $locationTotal }}</p>
-                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Emplacements</p>
-                    </div>
+            <div class="grid gap-4 border-t border-slate-100 px-4 pb-5 pt-0 sm:grid-cols-3 sm:px-5 lg:px-6">
+                <div class="app-stat-card">
+                    <p class="text-xs uppercase tracking-wide text-neutral-500">Emplacements</p>
+                    <p class="mt-2 text-2xl font-semibold tabular-nums text-neutral-900">{{ $locationTotal }}</p>
                 </div>
-                <div class="flex items-center gap-4 bg-white px-6 py-4 sm:px-8">
-                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V5.25M2.25 18.75V5.25m0 13.5h15.75m-15.75 0v.75A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25v-.75m-18 0h18" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-semibold tabular-nums text-neutral-900">{{ $terminalTotal }}</p>
-                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Terminaux POS</p>
-                    </div>
+                <div class="app-stat-card">
+                    <p class="text-xs uppercase tracking-wide text-neutral-500">Terminaux POS</p>
+                    <p class="mt-2 text-2xl font-semibold tabular-nums text-neutral-900">{{ $terminalTotal }}</p>
                 </div>
-                <div class="flex items-center gap-4 bg-white px-6 py-4 sm:px-8">
-                    <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-neutral-100 text-neutral-600">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-                        </svg>
-                    </div>
-                    <div>
-                        <p class="text-sm font-semibold tabular-nums text-neutral-900">#{{ $branch->id }}</p>
-                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Réf. interne</p>
-                    </div>
+                <div class="app-stat-card">
+                    <p class="text-xs uppercase tracking-wide text-neutral-500">Réf. interne</p>
+                    <p class="mt-2 text-2xl font-semibold tabular-nums text-neutral-900">#{{ $branch->id }}</p>
                 </div>
             </div>
         </div>
 
         <div class="space-y-8">
             {{-- Emplacements --}}
-            <section class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-sm ring-1 ring-black/[0.03]">
-                <div class="flex flex-col gap-4 border-b border-neutral-100 bg-gradient-to-b from-neutral-50/90 to-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <section class="app-panel">
+                <div class="app-panel-header">
                     <div>
                         <h2 class="text-base font-semibold text-neutral-900">Emplacements</h2>
                         <p class="mt-0.5 text-sm text-neutral-600">Entrepôts et points de vente — le stock est suivi par emplacement.</p>
                     </div>
                     <a
                         href="{{ route('branches.locations.create', $branch) }}"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        class="app-btn-primary shrink-0"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -136,45 +98,42 @@
                         Nouvel emplacement
                     </a>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="app-table-shell border-0 shadow-none">
                     <table class="min-w-full text-sm">
                         <thead>
-                            <tr class="border-b border-neutral-100 bg-neutral-50/80 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                                <th class="whitespace-nowrap px-6 py-3.5">Nom</th>
-                                <th class="whitespace-nowrap px-6 py-3.5">Type</th>
-                                <th class="px-6 py-3.5">Magasiniers</th>
-                                <th class="whitespace-nowrap px-6 py-3.5 text-right">Actions</th>
+                            <tr>
+                                <th class="whitespace-nowrap">Nom</th>
+                                <th class="whitespace-nowrap">Type</th>
+                                <th>Magasiniers</th>
+                                <th class="whitespace-nowrap text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-neutral-100">
+                        <tbody>
                             @forelse ($locations as $location)
                                 @php
-                                    $kindBadge = match ($location->kind) {
-                                        \App\Models\Location::KIND_MAIN => ['class' => 'bg-sky-50 text-sky-800 ring-sky-200/60', 'dot' => 'bg-sky-500'],
-                                        \App\Models\Location::KIND_POINT_OF_SALE => ['class' => 'bg-emerald-50 text-emerald-800 ring-emerald-200/60', 'dot' => 'bg-emerald-500'],
-                                        default => ['class' => 'bg-neutral-100 text-neutral-800 ring-neutral-200/60', 'dot' => 'bg-neutral-400'],
+                                    $kindBadgeClass = match ($location->kind) {
+                                        \App\Models\Location::KIND_MAIN => 'app-badge-info',
+                                        \App\Models\Location::KIND_POINT_OF_SALE => 'app-badge-success',
+                                        default => 'app-badge-neutral',
                                     };
                                 @endphp
-                                <tr class="transition-colors hover:bg-neutral-50/70">
-                                    <td class="whitespace-nowrap px-6 py-4 font-medium text-neutral-900">{{ $location->name }}</td>
-                                    <td class="px-6 py-4">
-                                        <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ring-1 ring-inset {{ $kindBadge['class'] }}">
-                                            <span class="h-1.5 w-1.5 rounded-full {{ $kindBadge['dot'] }}" aria-hidden="true"></span>
-                                            {{ \App\Models\Location::kindLabel($location->kind) }}
-                                        </span>
+                                <tr>
+                                    <td class="font-medium text-neutral-900">{{ $location->name }}</td>
+                                    <td>
+                                        <span class="{{ $kindBadgeClass }}">{{ \App\Models\Location::kindLabel($location->kind) }}</span>
                                     </td>
-                                    <td class="max-w-xs px-6 py-4 text-neutral-600">
+                                    <td class="max-w-xs text-neutral-600">
                                         @if ($location->stockManagers->isEmpty())
                                             <span class="text-neutral-400">—</span>
                                         @else
                                             <span class="leading-snug">{{ $location->stockManagers->pluck('name')->join(', ') }}</span>
                                         @endif
                                     </td>
-                                    <td class="whitespace-nowrap px-6 py-4 text-right">
+                                    <td class="whitespace-nowrap text-right">
                                         <div class="inline-flex items-center justify-end gap-0.5">
                                             <a
                                                 href="{{ route('branches.locations.edit', [$branch, $location]) }}"
-                                                class="inline-flex rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+                                                class="app-icon-btn"
                                                 title="Modifier l’emplacement"
                                             >
                                                 <span class="sr-only">Modifier</span>
@@ -187,7 +146,7 @@
                                                 @method('DELETE')
                                                 <button
                                                     type="submit"
-                                                    class="inline-flex rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                                                    class="app-icon-btn text-red-600 hover:bg-red-50 hover:text-red-700"
                                                     title="Supprimer l’emplacement"
                                                 >
                                                     <span class="sr-only">Supprimer</span>
@@ -210,7 +169,7 @@
                                             </div>
                                             <p class="mt-4 text-sm font-medium text-neutral-900">Aucun emplacement</p>
                                             <p class="mt-1 text-sm text-neutral-600">Ajoutez un entrepôt principal, un secondaire ou un point de vente.</p>
-                                            <a href="{{ route('branches.locations.create', $branch) }}" class="mt-4 inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Créer un emplacement</a>
+                                            <a href="{{ route('branches.locations.create', $branch) }}" class="app-btn-primary mt-4">Créer un emplacement</a>
                                         </div>
                                     </td>
                                 </tr>
@@ -224,15 +183,15 @@
             </section>
 
             {{-- Terminaux POS --}}
-            <section class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white shadow-sm ring-1 ring-black/[0.03]">
-                <div class="flex flex-col gap-4 border-b border-neutral-100 bg-gradient-to-b from-neutral-50/90 to-white px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <section class="app-panel">
+                <div class="app-panel-header">
                     <div>
                         <h2 class="text-base font-semibold text-neutral-900">Terminaux POS</h2>
                         <p class="mt-0.5 text-sm text-neutral-600">Caisse et sessions — chaque terminal est lié à un point de vente.</p>
                     </div>
                     <a
                         href="{{ route('branches.pos-terminals.create', $branch) }}"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                        class="app-btn-primary shrink-0"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -240,29 +199,29 @@
                         Nouveau terminal
                     </a>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="app-table-shell border-0 shadow-none">
                     <table class="min-w-full text-sm">
                         <thead>
-                            <tr class="border-b border-neutral-100 bg-neutral-50/80 text-left text-xs font-semibold uppercase tracking-wider text-neutral-500">
-                                <th class="whitespace-nowrap px-6 py-3.5">Nom</th>
-                                <th class="whitespace-nowrap px-6 py-3.5">Emplacement</th>
-                                <th class="whitespace-nowrap px-6 py-3.5">Caissiers</th>
-                                <th class="whitespace-nowrap px-6 py-3.5 text-right">Actions</th>
+                            <tr>
+                                <th class="whitespace-nowrap">Nom</th>
+                                <th class="whitespace-nowrap">Emplacement</th>
+                                <th class="whitespace-nowrap">Caissiers</th>
+                                <th class="whitespace-nowrap text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-neutral-100">
+                        <tbody>
                             @forelse ($terminals as $t)
-                                <tr class="transition-colors hover:bg-neutral-50/70">
-                                    <td class="whitespace-nowrap px-6 py-4 font-medium text-neutral-900">{{ $t->name }}</td>
-                                    <td class="px-6 py-4 text-neutral-600">{{ $t->location?->name ?? '—' }}</td>
-                                    <td class="px-6 py-4">
-                                        <span class="inline-flex min-w-[2rem] items-center justify-center rounded-lg bg-neutral-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-neutral-800">{{ $t->pos_users_count }}</span>
+                                <tr>
+                                    <td class="font-medium text-neutral-900">{{ $t->name }}</td>
+                                    <td>{{ $t->location?->name ?? '—' }}</td>
+                                    <td>
+                                        <span class="app-badge-neutral tabular-nums">{{ $t->pos_users_count }}</span>
                                     </td>
-                                    <td class="whitespace-nowrap px-6 py-4 text-right">
+                                    <td class="whitespace-nowrap text-right">
                                         <div class="inline-flex items-center justify-end gap-0.5">
                                             <a
                                                 href="{{ route('branches.pos-terminals.edit', [$branch, $t]) }}"
-                                                class="inline-flex rounded-lg p-2 text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+                                                class="app-icon-btn"
                                                 title="Modifier le terminal"
                                             >
                                                 <span class="sr-only">Modifier</span>
@@ -275,7 +234,7 @@
                                                 @method('DELETE')
                                                 <button
                                                     type="submit"
-                                                    class="inline-flex rounded-lg p-2 text-red-500 transition hover:bg-red-50 hover:text-red-700"
+                                                    class="app-icon-btn text-red-600 hover:bg-red-50 hover:text-red-700"
                                                     title="Supprimer le terminal"
                                                 >
                                                     <span class="sr-only">Supprimer</span>
@@ -298,7 +257,7 @@
                                             </div>
                                             <p class="mt-4 text-sm font-medium text-neutral-900">Aucun terminal POS</p>
                                             <p class="mt-1 text-sm text-neutral-600">Créez un terminal et associez-le à un emplacement « Point de vente ».</p>
-                                            <a href="{{ route('branches.pos-terminals.create', $branch) }}" class="mt-4 inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white hover:opacity-95">Créer un terminal</a>
+                                            <a href="{{ route('branches.pos-terminals.create', $branch) }}" class="app-btn-primary mt-4">Créer un terminal</a>
                                         </div>
                                     </td>
                                 </tr>

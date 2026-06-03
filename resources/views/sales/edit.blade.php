@@ -3,14 +3,14 @@
 
     <div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Administration</p>
-            <h1 class="mt-2 text-2xl font-semibold tracking-tight text-neutral-900">Modifier la vente {{ $sale->reference }}</h1>
-            <p class="mt-2 text-sm text-neutral-600">{{ $branch->name }} — lignes de produit inchangées</p>
+            <p class="app-page-eyebrow">Administration</p>
+            <h1 class="app-page-title">Modifier la vente {{ $sale->reference }}</h1>
+            <p class="app-page-desc">{{ $branch->name }} — lignes de produit inchangées</p>
         </div>
         <a href="{{ route('sales.show', [$branch, $sale]) }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Retour à la vente</a>
     </div>
 
-    <form action="{{ route('sales.update', [$branch, $sale]) }}" method="POST" class="max-w-lg space-y-5 rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+    <form action="{{ route('sales.update', [$branch, $sale]) }}" method="POST" class="app-panel app-panel-body max-w-lg space-y-5">
         @csrf
         @method('PATCH')
 
@@ -32,6 +32,7 @@
             <select id="payment_type" name="payment_type" class="mt-1 block w-full rounded-lg border-neutral-300 shadow-sm focus:border-primary focus:ring-primary" required>
                 <option value="cash" @selected(old('payment_type', $sale->payment_type) === 'cash')>Cash</option>
                 <option value="credit" @selected(old('payment_type', $sale->payment_type) === 'credit')>Crédit</option>
+                <option value="caution" @selected(old('payment_type', $sale->payment_type) === 'caution')>Caution</option>
             </select>
             <x-input-error :messages="$errors->get('payment_type')" class="mt-2" />
         </div>
@@ -63,7 +64,7 @@
 
         <div class="flex flex-wrap gap-3 border-t border-neutral-100 pt-4">
             <x-primary-button>Enregistrer</x-primary-button>
-            <a href="{{ route('sales.show', [$branch, $sale]) }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
+            <a href="{{ route('sales.show', [$branch, $sale]) }}" class="app-btn-secondary">Annuler</a>
         </div>
     </form>
 </x-app-layout>

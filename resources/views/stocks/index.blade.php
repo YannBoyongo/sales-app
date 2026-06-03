@@ -18,9 +18,9 @@
             <x-slot name="header">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Stock</p>
-                        <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Stocks par emplacement</h1>
-                        <p class="mt-3 max-w-3xl text-sm leading-relaxed text-neutral-600">
+                        <p class="app-page-eyebrow">Stock</p>
+                        <h1 class="app-page-title">Stocks par emplacement</h1>
+                        <p class="app-page-desc max-w-3xl">
                             Une ligne par produit ; chaque colonne correspond à un emplacement. Les cellules en <span class="rounded bg-red-100 px-1 text-red-900">rouge</span> indiquent un stock strictement sous le seuil (emplacement ou seuil global du produit).
                             @if (auth()->user()->isPosUser())
                                 <span class="mt-2 block text-neutral-600">Votre branche et les colonnes affichées correspondent à votre affectation : seuls les emplacements liés à vos terminaux POS assignés apparaissent (pas les autres emplacements de la branche).</span>
@@ -33,7 +33,7 @@
                     @if ($showStockAdjustment)
                         <button
                             type="button"
-                            class="inline-flex shrink-0 items-center justify-center rounded-xl border border-neutral-200/90 bg-white/90 px-5 py-2.5 text-sm font-semibold text-neutral-800 shadow-md shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm transition hover:border-primary/30 hover:text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            class="app-btn-secondary shrink-0"
                             @click="openModal()"
                         >
                             Ajuster une quantité
@@ -77,9 +77,9 @@
                     Aucun emplacement dans votre périmètre pour la branche sélectionnée.
                 </div>
             @else
-                <div class="overflow-x-auto rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
+                <div class="app-table-shell overflow-x-auto">
                     <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                        <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                        <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                             <tr>
                                 <th scope="col" class="sticky left-0 z-20 min-w-[12rem] border-r border-neutral-200 bg-neutral-50/90 px-4 py-3 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">Produit</th>
                                 @foreach ($locations as $loc)
@@ -90,6 +90,7 @@
                                         @endif
                                     </th>
                                 @endforeach
+                                <th scope="col" class="min-w-[5rem] whitespace-nowrap border-l border-neutral-200 bg-neutral-100/90 px-3 py-3 text-right">Total</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-neutral-100">
@@ -115,10 +116,18 @@
                                             <span @class(['font-semibold' => $warn])>{{ $qty }}</span>
                                         </td>
                                     @endforeach
+                                    @php
+                                        $rowTotal = $locations->sum(
+                                            fn ($loc) => (int) (($matrix[$product->id][$loc->id] ?? null)?->quantity ?? 0)
+                                        );
+                                    @endphp
+                                    <td class="border-l border-neutral-200 bg-neutral-50/80 px-3 py-3 text-right tabular-nums font-semibold text-neutral-900">
+                                        {{ $rowTotal }}
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ $locations->count() + 1 }}" class="px-4 py-8 text-center text-neutral-500">Aucun produit à afficher.</td>
+                                    <td colspan="{{ $locations->count() + 2 }}" class="px-4 py-8 text-center text-neutral-500">Aucun produit à afficher.</td>
                                 </tr>
                             @endforelse
                         </tbody>

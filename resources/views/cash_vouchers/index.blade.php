@@ -9,15 +9,15 @@
             <x-slot name="header">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Finances</p>
-                        <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Bon de caisse</h1>
-                        <p class="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600">
+                        <p class="app-page-eyebrow">Finances</p>
+                        <h1 class="app-page-title">Bon de caisse</h1>
+                        <p class="app-page-desc max-w-2xl">
                             Suivez toutes les entrées et sorties de caisse avec une référence unique par bon.
                         </p>
                     </div>
                     <button
                         type="button"
-                        class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        class="app-btn-primary shrink-0"
                         @click="open = true"
                     >
                         Nouveau bon de caisse
@@ -43,7 +43,7 @@
                 Totaux et solde : <strong class="font-medium text-neutral-700">bons approuvés uniquement</strong> (avec les filtres date et type ci-dessous). La liste inclut tous les statuts.
             </p>
 
-            <form method="GET" action="{{ route('cash-vouchers.index') }}" class="grid gap-3 rounded-2xl border border-neutral-200/90 bg-white/90 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4">
+            <form method="GET" action="{{ route('cash-vouchers.index') }}" class="app-filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div class="lg:col-span-1">
                     <label for="date_from" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date du</label>
                     <input id="date_from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" />
@@ -61,14 +61,14 @@
                     </select>
                 </div>
                 <div class="flex items-end gap-2 lg:col-span-1">
-                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95">Filtrer</button>
-                    <a href="{{ route('cash-vouchers.index') }}" class="inline-flex items-center justify-center rounded-lg border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Réinitialiser</a>
+                    <button type="submit" class="app-btn-primary">Filtrer</button>
+                    <a href="{{ route('cash-vouchers.index') }}" class="app-btn-secondary">Réinitialiser</a>
                 </div>
             </form>
 
-            <div class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
+            <div class="app-table-shell">
                 <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                    <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                    <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                         <tr>
                             <th class="px-4 py-3">N° bon</th>
                             <th class="px-4 py-3">Date</th>

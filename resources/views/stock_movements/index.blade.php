@@ -5,16 +5,16 @@
         <x-slot name="header">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Stock</p>
-                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Mouvements de stock</h1>
-                    <p class="mt-3 max-w-3xl text-base leading-relaxed text-neutral-600">
+                    <p class="app-page-eyebrow">Stock</p>
+                    <h1 class="app-page-title">Mouvements de stock</h1>
+                    <p class="app-page-desc max-w-3xl">
                         Journal des entrées, sorties, transferts et ajustements sur votre périmètre. Les transferts liés à un bon de transfert affichent un lien lorsque vous y avez accès.
                     </p>
                 </div>
                 @if (auth()->user()?->canCreateStockMovement())
                     <a
                         href="{{ route('stock-movements.create') }}"
-                        class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        class="app-btn-primary shrink-0"
                     >
                         Nouveau mouvement
                     </a>
@@ -22,9 +22,9 @@
             </div>
         </x-slot>
 
-        <div class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
+        <div class="app-table-shell">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                     <tr>
                         <th class="px-4 py-3">Date</th>
                         <th class="px-4 py-3">Type</th>

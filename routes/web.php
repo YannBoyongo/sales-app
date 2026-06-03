@@ -5,7 +5,9 @@ use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CashVoucherController;
 use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ClientCautionController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\PendingActionController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PosShiftController;
@@ -44,6 +46,7 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/pending-actions', PendingActionController::class)->name('pending-actions.index');
 
     Route::get('products/export/pdf', [ProductController::class, 'exportPdf'])->name('products.export.pdf');
     Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');
@@ -134,6 +137,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('purchase-orders', [PurchaseOrderController::class, 'store'])->name('purchase-orders.store');
         Route::get('purchase-orders/{purchase_order}/edit', [PurchaseOrderController::class, 'edit'])->whereNumber('purchase_order')->name('purchase-orders.edit');
         Route::patch('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'update'])->whereNumber('purchase_order')->name('purchase-orders.update');
+        Route::post('purchase-orders/{purchase_order}/reception-batches/{batch}/approve', [PurchaseOrderController::class, 'approveReceptionBatch'])->whereNumber(['purchase_order', 'batch'])->name('purchase-orders.reception-batches.approve');
+        Route::post('purchase-orders/{purchase_order}/reception-batches/{batch}/reject', [PurchaseOrderController::class, 'rejectReceptionBatch'])->whereNumber(['purchase_order', 'batch'])->name('purchase-orders.reception-batches.reject');
         Route::get('parametre', [SettingController::class, 'edit'])->name('parametre.edit');
         Route::patch('parametre', [SettingController::class, 'update'])->name('parametre.update');
         Route::delete('parametre/logo', [SettingController::class, 'destroyLogo'])->name('parametre.logo.destroy');
@@ -145,9 +150,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('stock-transfers/{stock_transfer}/cancel', [StockTransferController::class, 'cancel'])
             ->name('stock-transfers.cancel')
             ->whereNumber('stock_transfer');
+        Route::delete('clients/{client}/caution-deposits/{deposit}', [ClientController::class, 'destroyCautionDeposit'])
+            ->name('clients.caution-deposits.destroy')
+            ->whereNumber(['client', 'deposit']);
     });
 
     Route::middleware('clients_module')->group(function () {
+        Route::get('caution', [ClientCautionController::class, 'index'])->name('caution.index');
         Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
         Route::get('clients/create', [ClientController::class, 'create'])->name('clients.create');
         Route::post('clients', [ClientController::class, 'store'])->name('clients.store');
@@ -156,6 +165,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('clients/{client}', [ClientController::class, 'update'])->name('clients.update')->whereNumber('client');
         Route::post('clients/{client}/payments', [ClientController::class, 'storePayment'])
             ->name('clients.payments.store')
+            ->whereNumber('client')
+            ->middleware('client_payments');
+        Route::post('clients/{client}/caution-deposits', [ClientController::class, 'storeCautionDeposit'])
+            ->name('clients.caution-deposits.store')
             ->whereNumber('client')
             ->middleware('client_payments');
     });

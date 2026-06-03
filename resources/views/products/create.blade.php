@@ -48,7 +48,7 @@
             </div>
             <div class="flex gap-3 border-t border-neutral-100 pt-6">
                 <x-primary-button>Enregistrer</x-primary-button>
-                <a href="{{ route('products.index') }}" class="inline-flex items-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50">Annuler</a>
+                <a href="{{ route('products.index') }}" class="app-btn-secondary">Annuler</a>
             </div>
         </form>
     </x-caisse-flow>

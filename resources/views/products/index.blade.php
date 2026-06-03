@@ -5,16 +5,16 @@
         <x-slot name="header">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Catalogue</p>
-                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Produits</h1>
-                    <p class="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600">
+                    <p class="app-page-eyebrow">Catalogue</p>
+                    <h1 class="app-page-title">Produits</h1>
+                    <p class="app-page-desc max-w-2xl">
                         Articles vendables par catégorie. Les seuils servent aux alertes dans la matrice des stocks.
                     </p>
                 </div>
                 <div class="flex shrink-0 flex-wrap items-center gap-2">
                     <a
                         href="{{ route('products.export.pdf') }}"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        class="app-btn-secondary"
                         title="Exporter en PDF"
                     >
                         <svg class="h-4 w-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
@@ -22,7 +22,7 @@
                     </a>
                     <a
                         href="{{ route('products.export.excel') }}"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl border border-neutral-200 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        class="app-btn-secondary"
                         title="Exporter en Excel (.xlsx)"
                     >
                         <svg class="h-4 w-4 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
@@ -31,7 +31,7 @@
                     @if (auth()->user()?->canCreateOrImportProducts())
                         <a
                             href="{{ route('products.create') }}"
-                            class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            class="app-btn-primary shrink-0"
                         >
                             Nouveau produit
                         </a>
@@ -89,7 +89,7 @@
             </div>
         @endif
 
-        <form method="GET" action="{{ route('products.index') }}" class="mb-6 flex flex-col gap-3 rounded-2xl border border-neutral-200/90 bg-white/90 p-4 shadow-sm sm:flex-row sm:flex-wrap sm:items-end">
+        <form method="GET" action="{{ route('products.index') }}" class="app-filter-bar">
             <div class="min-w-0 flex-1 sm:max-w-md">
                 <label for="product-search-q" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Recherche</label>
                 <input
@@ -103,7 +103,7 @@
                 />
             </div>
             <div class="w-full sm:w-56">
-                <label for="product-filter-department" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Département</label>
+                <label for="product-filter-department" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Département (catégorie)</label>
                 <select
                     id="product-filter-department"
                     name="department_id"
@@ -118,18 +118,14 @@
                 </select>
             </div>
             <div class="flex flex-wrap gap-2">
-                <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95">
-                    Filtrer
-                </button>
-                <a href="{{ route('products.index') }}" class="inline-flex items-center justify-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-800 hover:bg-neutral-50">
-                    Réinitialiser
-                </a>
+                <button type="submit" class="app-btn-primary">Filtrer</button>
+                <a href="{{ route('products.index') }}" class="app-btn-secondary">Réinitialiser</a>
             </div>
         </form>
 
-        <div class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
+        <div class="app-table-shell">
             <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                     <tr>
                         <th class="px-4 py-3">Nom</th>
                         <th class="px-4 py-3">Code</th>
@@ -156,7 +152,7 @@
                                             href="{{ route('products.edit', $product) }}"
                                             title="Modifier"
                                             aria-label="Modifier"
-                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                                            class="app-icon-btn"
                                         >
                                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.1 2.1 0 112.97 2.97L9.75 16.54 6 17.25l.71-3.75 10.152-10.013z" />
@@ -169,7 +165,7 @@
                                                 type="submit"
                                                 title="Supprimer"
                                                 aria-label="Supprimer"
-                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                                                class="app-icon-btn-danger"
                                             >
                                                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7.5h12m-9.75 0V6a1.5 1.5 0 011.5-1.5h4.5a1.5 1.5 0 011.5 1.5v1.5m-8.25 0v10.5A1.5 1.5 0 009 19.5h6a1.5 1.5 0 001.5-1.5V7.5M10.5 10.5v6m3-6v6" />

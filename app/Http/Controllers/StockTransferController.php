@@ -23,9 +23,23 @@ class StockTransferController extends Controller
 {
     use RespectsUserBranch;
 
-    public function index(): View
+    public function index(Request $request): View
     {
         abort_unless(auth()->user()?->canViewStockTransfers(), 403);
+
+        $filters = $request->validate([
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'status' => ['nullable', Rule::in([
+                StockTransfer::STATUS_PENDING,
+                StockTransfer::STATUS_CONFIRMED,
+                StockTransfer::STATUS_CANCELLED,
+            ])],
+            'transfer_scope' => ['nullable', Rule::in([
+                StockTransfer::SCOPE_INTERNAL,
+                StockTransfer::SCOPE_EXTERNAL,
+            ])],
+        ]);
 
         $query = StockTransfer::query()
             ->with([
@@ -34,15 +48,21 @@ class StockTransferController extends Controller
                 'toLocation:id,name,branch_id',
                 'toLocation.branch:id,name',
                 'user:id,name',
+                'items.product:id,name',
             ])
             ->withCount('items')
+            ->when($filters['date_from'] ?? null, fn (Builder $q, $value) => $q->whereDate('transferred_at', '>=', $value))
+            ->when($filters['date_to'] ?? null, fn (Builder $q, $value) => $q->whereDate('transferred_at', '<=', $value))
+            ->when($filters['status'] ?? null, fn (Builder $q, $value) => $q->where('status', $value))
+            ->when($filters['transfer_scope'] ?? null, fn (Builder $q, $value) => $q->where('transfer_scope', $value))
+            ->orderByDesc('transferred_at')
             ->orderByDesc('id');
 
         $this->applyStockTransferBranchFilter($query);
 
-        $transfers = $query->paginate(20);
+        $transfers = $query->paginate(20)->withQueryString();
 
-        return view('stock_transfers.index', compact('transfers'));
+        return view('stock_transfers.index', compact('transfers', 'filters'));
     }
 
     public function create(): View

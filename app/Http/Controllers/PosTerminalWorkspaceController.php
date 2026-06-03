@@ -21,8 +21,9 @@ class PosTerminalWorkspaceController extends Controller
         $shiftSales = collect();
         if ($openShift) {
             $openShift->load(['openedByUser:id,name']);
+            $openShift->alignSalesSoldAtToSessionDate();
             $shiftSales = $openShift->sales()
-                ->with(['user:id,name'])
+                ->with(['user:id,name', 'posShift:id,pos_terminal_id,session_date,opened_at'])
                 ->orderByDesc('sold_at')
                 ->orderByDesc('id')
                 ->get();

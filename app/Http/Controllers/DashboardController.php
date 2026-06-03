@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\AccountingTransaction;
 use App\Models\Branch;
 use App\Models\Product;
+use App\Models\PurchaseOrderReceptionBatch;
 use App\Models\Sale;
 use App\Models\Stock;
 use Illuminate\View\View;
@@ -33,6 +34,16 @@ class DashboardController extends Controller
         $pendingDiscountQuery = Sale::query()->where('sale_status', Sale::STATUS_PENDING_DISCOUNT);
         $this->applyBranchFilter($pendingDiscountQuery, 'branch_id');
         $pendingDiscountCount = $isAdmin ? (clone $pendingDiscountQuery)->count() : 0;
+
+        $pendingReceptionBatchCount = 0;
+        if ($isAdmin) {
+            $pendingReceptionQuery = PurchaseOrderReceptionBatch::query()
+                ->where('status', PurchaseOrderReceptionBatch::STATUS_PENDING)
+                ->whereHas('purchaseOrder.location', function ($q) {
+                    $this->applyBranchFilter($q);
+                });
+            $pendingReceptionBatchCount = (clone $pendingReceptionQuery)->count();
+        }
 
         $recentSales = Sale::query()
             ->with(['branch', 'user:id,name'])
@@ -94,6 +105,7 @@ class DashboardController extends Controller
             'recentSales',
             'weekSalesCount',
             'pendingDiscountCount',
+            'pendingReceptionBatchCount',
             'lowStocks',
             'lowStocksCount',
             'isAdmin',

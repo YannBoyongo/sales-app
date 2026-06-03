@@ -8,7 +8,7 @@
         :contextLine="'<span class=\'text-neutral-500\'>Branche</span> <strong class=\'text-neutral-900\'>' . e($branch->name) . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Terminal</span> <strong class=\'text-neutral-900\'>' . e($posTerminal->name) . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Stock</span> <strong class=\'text-neutral-900\'>' . e($pointOfSale->name) . '</strong>'"
     >
         @if ($departments->isEmpty())
-            <div class="flex gap-4 rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-amber-100/30 p-5">
+            <div class="app-alert-warning flex gap-4">
                 <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-200/60 text-amber-900">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />

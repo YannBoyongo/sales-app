@@ -25,7 +25,7 @@
                             'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold tabular-nums transition-all',
                             'bg-primary text-white shadow-md shadow-primary/25' => $active,
                             'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' => $done,
-                            'border-2 border-neutral-200 bg-white text-neutral-400' => ! $active && ! $done,
+                            'border-2 border-slate-200 bg-white text-slate-400' => ! $active && ! $done,
                         ])
                     >
                         @if ($done)
@@ -41,7 +41,7 @@
                             'hidden text-xs font-semibold uppercase tracking-wide sm:inline',
                             'text-primary' => $active,
                             'text-emerald-700' => $done,
-                            'text-neutral-400' => ! $active && ! $done,
+                            'text-slate-400' => ! $active && ! $done,
                         ])
                     >
                         {{ $meta['label'] }}
@@ -49,7 +49,7 @@
                 </div>
                 @if ($num !== $lastStepNum)
                     <div
-                        class="mx-2 hidden h-0.5 min-w-[2rem] flex-1 rounded-full sm:block {{ $done ? 'bg-emerald-200' : 'bg-neutral-200' }}"
+                        class="mx-2 hidden h-0.5 min-w-[2rem] flex-1 rounded-full sm:block {{ $done ? 'bg-emerald-200' : 'bg-slate-200' }}"
                         aria-hidden="true"
                     ></div>
                 @endif

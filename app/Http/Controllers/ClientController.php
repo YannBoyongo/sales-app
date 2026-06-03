@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\CashVoucher;
 use App\Models\Client;
+use App\Models\ClientCautionDeposit;
 use App\Models\Payment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,16 +85,24 @@ class ClientController extends Controller
         $totalCredit = '0';
         $totalPaid = '0';
         $balance = '0';
+        $cautionTotal = '0';
+        $cautionUsed = '0';
+        $cautionBalance = '0';
 
         if ($showFinanceDetail) {
             $client->load([
                 'creditSales' => fn ($q) => $q->latest()->with(['branch', 'product', 'sale']),
                 'payments' => fn ($q) => $q->latest()->with('user'),
+                'cautionDeposits' => fn ($q) => $q->latest('deposited_at')->with('user'),
+                'cautionUsages' => fn ($q) => $q->latest('used_at')->with(['user', 'sale.branch']),
             ]);
 
             $totalCredit = $client->totalCreditAmount();
             $totalPaid = $client->totalPaidAmount();
             $balance = $client->debtBalance();
+            $cautionTotal = $client->cautionTotal();
+            $cautionUsed = $client->cautionUsedAmount();
+            $cautionBalance = $client->cautionBalance();
         }
 
         return view('clients.show', compact(
@@ -101,6 +110,9 @@ class ClientController extends Controller
             'totalCredit',
             'totalPaid',
             'balance',
+            'cautionTotal',
+            'cautionUsed',
+            'cautionBalance',
             'showFinanceDetail',
         ));
     }
@@ -159,5 +171,76 @@ class ClientController extends Controller
         return redirect()
             ->route('clients.show', $client)
             ->with('success', 'Paiement enregistré. Un bon de caisse (entrée) a été créé — validez-le puis enregistrez-le en comptabilité depuis Bons de caisse.');
+    }
+
+    public function storeCautionDeposit(Request $request, Client $client): RedirectResponse
+    {
+        $ids = $this->branchFilterIds();
+        if ($ids !== null) {
+            $accessible = $client->creditSales()
+                ->whereIn('branch_id', $ids)
+                ->exists();
+            abort_unless($accessible, 403, 'Accès non autorisé pour ce client.');
+        }
+
+        $data = $request->validate([
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'note' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $amount = (float) $data['amount'];
+
+        DB::transaction(function () use ($request, $client, $amount, $data) {
+            $deposit = ClientCautionDeposit::create([
+                'client_id' => $client->id,
+                'user_id' => $request->user()->id,
+                'amount' => number_format($amount, 2, '.', ''),
+                'deposited_at' => now(),
+                'note' => $data['note'] ?? null,
+            ]);
+
+            $amountStr = number_format($amount, 2, '.', '');
+            $description = sprintf(
+                'Entrée caisse — dépôt caution — %s',
+                $client->name
+            );
+            if (filled($data['note'] ?? null)) {
+                $description .= ' — '.mb_substr((string) $data['note'], 0, 500);
+            }
+
+            CashVoucher::query()->create([
+                'voucher_no' => 'CV-CAUTION-'.$deposit->id,
+                'date' => optional($deposit->deposited_at)->toDateString() ?? now()->toDateString(),
+                'description' => mb_substr($description, 0, 2000),
+                'type' => 'entry',
+                'amount' => $amountStr,
+            ]);
+        });
+
+        return redirect()
+            ->route('clients.show', $client)
+            ->with('success', 'Dépôt de caution enregistré. Un bon de caisse (entrée) a été créé — validez-le puis enregistrez-le en comptabilité depuis Bons de caisse.');
+    }
+
+    public function destroyCautionDeposit(Client $client, ClientCautionDeposit $deposit): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        abort_unless((int) $deposit->client_id === (int) $client->id, 404);
+
+        $voucher = CashVoucher::query()
+            ->where('voucher_no', 'CV-CAUTION-'.$deposit->id)
+            ->first();
+
+        if ($voucher?->accounting_transaction_id) {
+            return back()->with('danger', 'Impossible de supprimer ce dépôt : le bon de caisse associé a déjà été comptabilisé.');
+        }
+
+        DB::transaction(function () use ($deposit, $voucher) {
+            $voucher?->delete();
+            $deposit->delete();
+        });
+
+        return back()->with('success', 'Dépôt de caution supprimé.');
     }
 }

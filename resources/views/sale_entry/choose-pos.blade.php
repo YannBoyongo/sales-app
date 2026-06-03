@@ -7,7 +7,7 @@
         description="Tous les emplacements auxquels vous avez accès. Les sessions déjà ouvertes sont indiquées par un badge animé."
     >
         @if ($terminals->isEmpty())
-            <div class="flex gap-4 rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-amber-100/30 p-5">
+            <div class="app-alert-warning flex gap-4">
                 <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-amber-200/60 text-amber-900">
                     <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -28,7 +28,7 @@
                     @endphp
                     <div>
                         @if ($branch)
-                            <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                            <h2 class="app-page-eyebrow mb-3">
                                 {{ $branch->name }}
                             </h2>
                         @endif
@@ -49,7 +49,7 @@
                                                 {{ $terminal->location?->name ?? $terminal->name }}
                                             </p>
                                             @if (isset($openIds[$terminal->id]))
-                                                <span class="motion-reduce:animate-none pos-open-badge-blink inline-flex items-center rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-emerald-800 ring-1 ring-emerald-500/30">
+                                                <span class="motion-reduce:animate-none pos-open-badge-blink app-badge-success uppercase tracking-wide">
                                                     Ouvert
                                                 </span>
                                             @endif

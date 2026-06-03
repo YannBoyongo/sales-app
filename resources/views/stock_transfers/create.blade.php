@@ -4,7 +4,7 @@
     <x-page-header title="Nouveau transfert de stock" />
 
     @if ($errors->has('stock'))
-        <div class="mb-4 rounded-md border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800">{{ $errors->first('stock') }}</div>
+        <div class="app-alert-warning" role="alert">{{ $errors->first('stock') }}</div>
     @endif
 
     @php
@@ -17,7 +17,7 @@
     <form
         action="{{ route('stock-transfers.store') }}"
         method="POST"
-        class="max-w-4xl space-y-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm"
+        class="app-panel app-panel-body max-w-4xl space-y-6"
         x-data="{
             transferScope: @js($scopeOld),
             isAdminPicker: @js($picksBranchForTransfer),
@@ -271,10 +271,10 @@
         <div class="flex flex-wrap gap-3">
             <button
                 type="submit"
-                class="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+                class="app-btn-primary disabled:cursor-not-allowed disabled:opacity-50"
                 x-bind:disabled="branchPickerIncomplete()"
             >Créer le transfert</button>
-            <a href="{{ route('stock-transfers.index') }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Annuler</a>
+            <a href="{{ route('stock-transfers.index') }}" class="app-btn-secondary">Annuler</a>
         </div>
     </form>
 </x-app-layout>

@@ -43,4 +43,9 @@ class PurchaseOrder extends Model
     {
         return $this->hasMany(PurchaseOrderReception::class);
     }
+
+    public function receptionBatches(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderReceptionBatch::class);
+    }
 }

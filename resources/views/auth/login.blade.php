@@ -6,14 +6,14 @@
             {{ mb_substr(config('app.name', 'A'), 0, 1) }}
         </div>
         <div class="min-w-0 pt-0.5">
-            <p class="text-[22px] font-semibold tracking-tight text-neutral-900">{{ config('app.name') }}</p>
-            <p class="mt-2 max-w-sm text-[18px] font-normal leading-relaxed text-neutral-500">
+            <p class="app-page-title !mt-0 !text-[22px]">{{ config('app.name') }}</p>
+            <p class="app-page-desc max-w-sm !text-base">
                 Pilotez ventes, stocks et sessions — une vision claire de votre activité.
             </p>
         </div>
     </div>
 
-    <h1 class="mb-8 text-[24px] font-medium text-neutral-800">
+    <h1 class="app-page-title mb-8 !text-[24px]">
         Système de gestion des stocks
     </h1>
 

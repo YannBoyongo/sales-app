@@ -31,6 +31,7 @@ class SaleController extends Controller
     {
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
+        $this->ensureUserCanViewSale($sale);
 
         $sale->load([
             'items.product.department',
@@ -65,7 +66,7 @@ class SaleController extends Controller
 
         $data = $request->validate([
             'sold_at' => ['required', 'date'],
-            'payment_type' => ['required', 'in:cash,credit'],
+            'payment_type' => ['required', 'in:cash,credit,caution'],
             'client_name' => [
                 Rule::requiredIf(fn () => $request->input('payment_type') === 'credit'),
                 'nullable', 'string', 'max:255',
@@ -254,37 +255,58 @@ class SaleController extends Controller
                 ->withErrors(['sale' => 'Cette vente n’a pas de remise en attente d’approbation.']);
         }
 
-        $subtotal = (string) $sale->subtotal_amount;
-        $paidAmount = (string) ($sale->amount_paid ?? '0.00');
-        if (bccomp($paidAmount, $subtotal, 2) === 1) {
-            $paidAmount = $subtotal;
-        }
-        $balance = bcsub($subtotal, $paidAmount, 2);
-        if (bccomp($balance, '0.00', 2) <= 0) {
-            $balance = '0.00';
-            $paymentStatus = Sale::PAYMENT_STATUS_FULLY_PAID;
-        } elseif (bccomp($paidAmount, '0.00', 2) === 1) {
-            $paymentStatus = Sale::PAYMENT_STATUS_PARTIALLY_PAID;
-        } else {
-            $paymentStatus = Sale::PAYMENT_STATUS_NOT_PAID;
-        }
+        DB::transaction(function () use ($request, $sale) {
+            $sale->load('items.product');
 
-        $sale->update([
-            'sale_status' => Sale::STATUS_CONFIRMED,
-            'discount_requested_amount' => null,
-            'discount_requested_by' => null,
-            'discount_requested_at' => null,
-            'discount_amount' => null,
-            'discount_approved_by' => null,
-            'discount_approved_at' => null,
-            'total_amount' => $subtotal,
-            'amount_paid' => $paidAmount,
-            'balance_amount' => $balance,
-            'payment_status' => $paymentStatus,
-        ]);
+            foreach ($sale->items as $item) {
+                $catalogUnit = number_format((float) $item->product->unit_price, 2, '.', '');
+                if (bccomp((string) $item->unit_price, $catalogUnit, 2) !== 0) {
+                    $item->update([
+                        'unit_price' => $catalogUnit,
+                        'line_total' => bcmul($catalogUnit, (string) $item->quantity, 2),
+                    ]);
+                }
+            }
 
-        $sale->syncLinePaymentTypesForBalance();
-        $sale->recordInitialPosPaymentIfNeeded($request->user());
+            $subtotal = '0.00';
+            foreach ($sale->items()->get() as $item) {
+                $subtotal = bcadd($subtotal, (string) $item->line_total, 2);
+            }
+
+            $paidAmount = (string) ($sale->amount_paid ?? '0.00');
+            if (bccomp($paidAmount, $subtotal, 2) === 1) {
+                $paidAmount = $subtotal;
+            }
+            $balance = bcsub($subtotal, $paidAmount, 2);
+            if (bccomp($balance, '0.00', 2) <= 0) {
+                $balance = '0.00';
+                $paymentStatus = Sale::PAYMENT_STATUS_FULLY_PAID;
+            } elseif (bccomp($paidAmount, '0.00', 2) === 1) {
+                $paymentStatus = Sale::PAYMENT_STATUS_PARTIALLY_PAID;
+            } else {
+                $paymentStatus = Sale::PAYMENT_STATUS_NOT_PAID;
+            }
+
+            $sale->update([
+                'sale_status' => Sale::STATUS_CONFIRMED,
+                'subtotal_amount' => $subtotal,
+                'discount_requested_amount' => null,
+                'discount_requested_by' => null,
+                'discount_requested_at' => null,
+                'discount_amount' => null,
+                'discount_approved_by' => null,
+                'discount_approved_at' => null,
+                'total_amount' => $subtotal,
+                'amount_paid' => $paidAmount,
+                'balance_amount' => $balance,
+                'payment_status' => $paymentStatus,
+            ]);
+
+            $sale->syncLinePaymentTypesForBalance();
+            if (! $sale->isPendingDiscount()) {
+                $sale->recordInitialPosPaymentIfNeeded($request->user());
+            }
+        });
 
         return redirect()
             ->route('sales.show', [$branch, $sale])
@@ -420,6 +442,7 @@ class SaleController extends Controller
     {
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
+        $this->ensureUserCanViewSale($sale);
 
         $sale->load(['items.product', 'items.location', 'client', 'user', 'branch']);
 
@@ -442,11 +465,22 @@ class SaleController extends Controller
     {
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
+        $this->ensureUserCanViewSale($sale);
         $sale->load(['items.product', 'client', 'user', 'branch']);
 
         [$setting, $logoDataUrl] = $this->resolvePrintBranding();
 
         return view('sales.print-small', compact('sale', 'setting', 'logoDataUrl'));
+    }
+
+    private function ensureUserCanViewSale(Sale $sale): void
+    {
+        $user = auth()->user();
+        if ($user?->isAdmin()) {
+            return;
+        }
+
+        abort_unless((int) $sale->user_id === (int) $user?->id, 403, 'Accès non autorisé pour cette vente.');
     }
 
     /**

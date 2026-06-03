@@ -7,9 +7,9 @@
         <div class="mb-4 rounded-md border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800">{{ $errors->first('branch') }}</div>
     @endif
 
-    <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+    <div class="app-table-shell">
         <table class="min-w-full divide-y divide-neutral-200 text-sm">
-            <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+            <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                 <tr>
                     <th class="px-4 py-3">Nom</th>
                     <th class="px-4 py-3">Emplacements</th>
@@ -25,7 +25,7 @@
                             <div class="inline-flex items-center justify-end gap-0.5">
                                 <a
                                     href="{{ route('branches.show', $branch) }}"
-                                    class="inline-flex rounded-md p-1.5 text-primary hover:bg-primary/10"
+                                    class="app-icon-btn"
                                     title="Voir la fiche"
                                 >
                                     <span class="sr-only">Voir</span>
@@ -36,7 +36,7 @@
                                 </a>
                                 <a
                                     href="{{ route('branches.edit', $branch) }}"
-                                    class="inline-flex rounded-md p-1.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                                    class="app-icon-btn"
                                     title="Modifier"
                                 >
                                     <span class="sr-only">Modifier</span>
@@ -49,7 +49,7 @@
                                     @method('DELETE')
                                     <button
                                         type="submit"
-                                        class="inline-flex rounded-md p-1.5 text-red-600 hover:bg-red-50 hover:text-red-800"
+                                        class="app-icon-btn-danger"
                                         title="Supprimer"
                                     >
                                         <span class="sr-only">Supprimer</span>

@@ -7,9 +7,9 @@
         <div class="mb-4 rounded-md border border-neutral-300 bg-neutral-50 px-4 py-3 text-sm text-neutral-800">{{ $errors->first('department') }}</div>
     @endif
 
-    <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+    <div class="app-table-shell">
         <table class="min-w-full divide-y divide-neutral-200 text-sm">
-            <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+            <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                 <tr>
                     <th class="px-4 py-3">Nom</th>
                     <th class="px-4 py-3">Produits</th>

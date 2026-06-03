@@ -6,11 +6,11 @@
         :with-card="false"
         title="Fermer la session"
         description="Vérifiez les totaux par département, puis confirmez pour clôturer la caisse sur ce terminal."
-        :context-line="'<span class=\'text-neutral-500\'>Terminal</span> <strong class=\'text-neutral-900\'>' . e($posTerminal->name) . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Ouverte le</span> <strong class=\'text-neutral-900\'>' . e($shift->opened_at->translatedFormat('d/m/Y H:i')) . '</strong>'"
+        :context-line="'<span class=\'text-neutral-500\'>Terminal</span> <strong class=\'text-neutral-900\'>' . e($posTerminal->name) . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Session du</span> <strong class=\'text-neutral-900\'>' . e($shift->effectiveSessionDate()->translatedFormat('d/m/Y')) . '</strong>'"
     >
         <div class="space-y-8">
             @if ($pendingDiscountCount > 0)
-                <div class="rounded-2xl border border-amber-200/80 bg-gradient-to-br from-amber-50 to-amber-100/20 p-5 shadow-sm">
+                <div class="app-alert-warning">
                     <div class="flex gap-3">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-200/70 text-amber-900">
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -29,19 +29,18 @@
             @endif
 
             @error('shift_close')
-                <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                <div class="app-alert-danger">
                     {{ $message }}
                 </div>
             @enderror
 
-            <div class="rounded-2xl border border-neutral-200/90 bg-white/90 p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm sm:p-8">
+            <div class="app-panel app-panel-body sm:p-8">
                 <h2 class="text-lg font-semibold text-neutral-900">Totaux par département</h2>
                 <p class="mt-1 text-sm text-neutral-500">Chaque vente est rattachée au département des articles saisis. Le <strong>total</strong> est l’argent réellement encaissé (acomptes dealer inclus), pas le montant facture si une partie reste au crédit.</p>
 
-                <div class="mt-6 overflow-hidden rounded-xl border border-neutral-100">
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                            <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                <div class="app-table-shell mt-6">
+                        <table class="min-w-full text-sm">
+                            <thead>
                                 <tr>
                                     <th class="px-4 py-3">Département</th>
                                     <th class="px-4 py-3 text-right whitespace-nowrap">Ventes</th>
@@ -92,7 +91,6 @@
                                 </tfoot>
                             @endif
                         </table>
-                    </div>
                 </div>
 
                 <form action="{{ route('pos-terminal.shifts.close', [$branch, $posTerminal]) }}" method="POST" class="mt-8 space-y-6 border-t border-neutral-100 pt-8">
@@ -116,7 +114,7 @@
                     <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                         <button
                             type="submit"
-                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                            class="app-btn-primary gap-2 !px-6 !py-3"
                         >
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
@@ -125,7 +123,7 @@
                         </button>
                         <a
                             href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
-                            class="inline-flex items-center justify-center rounded-xl border border-neutral-300 bg-white px-6 py-3 text-sm font-semibold text-neutral-800 shadow-sm transition hover:bg-neutral-50"
+                            class="app-btn-secondary !px-6 !py-3"
                         >
                             Annuler
                         </a>

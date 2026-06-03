@@ -7,9 +7,9 @@
         <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('terminal') }}</div>
     @endif
 
-    <div class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
+    <div class="app-table-shell">
         <table class="min-w-full divide-y divide-neutral-200 text-sm">
-            <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+            <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                 <tr>
                     <th class="px-4 py-3">Nom</th>
                     <th class="px-4 py-3">Emplacement</th>

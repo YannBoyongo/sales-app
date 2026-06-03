@@ -3,15 +3,15 @@
 
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-neutral-900">Clients</h1>
+            <h1 class="app-page-title">Clients</h1>
             @if (auth()->user()?->canViewClientsLedger())
-                <p class="mt-1 text-sm text-neutral-600">Liste des clients ayant des ventes à crédit et suivi de leur dette.</p>
+                <p class="app-page-desc">Liste des clients ayant des ventes à crédit et suivi de leur dette.</p>
             @else
-                <p class="mt-1 text-sm text-neutral-600">Liste des clients — vos droits permettent de créer ou modifier une fiche (nom et téléphone).</p>
+                <p class="app-page-desc">Liste des clients — vos droits permettent de créer ou modifier une fiche (nom et téléphone).</p>
             @endif
         </div>
         @if (auth()->user()?->canEditClientProfile())
-            <a href="{{ route('clients.create') }}" class="inline-flex items-center justify-center rounded-md border border-transparent bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
+            <a href="{{ route('clients.create') }}" class="app-btn-primary">
                 Nouveau client
             </a>
         @endif
@@ -21,10 +21,10 @@
         $showLedgerCols = auth()->user()?->canViewClientsLedger();
     @endphp
 
-    <section class="overflow-hidden rounded-lg border border-neutral-200 bg-white shadow-sm">
-        <div class="overflow-x-auto px-6 py-4">
+    <section class="app-table-shell">
+        <div class="px-6 py-4">
             <table class="min-w-full text-sm">
-                <thead class="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                     <tr>
                         <th class="py-3 pr-4">Client</th>
                         <th class="py-3 pr-4">Téléphone</th>

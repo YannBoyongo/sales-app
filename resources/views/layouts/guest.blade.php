@@ -7,22 +7,21 @@
 
         <title>{{ config('app.name', 'Laravel') }} — {{ __('Authentication') }}</title>
 
-        <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700&display=swap" rel="stylesheet" />
 
-        <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans text-neutral-900 antialiased bg-neutral-100">
-        <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0">
-            <div>
-                <a href="{{ route('login') }}" class="block text-center text-xl font-semibold tracking-tight text-primary">
-                    {{ config('app.name') }}
-                </a>
-            </div>
+    <body class="font-sans antialiased bg-slate-100">
+        <div class="flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:px-6">
+            <a href="{{ route('login') }}" class="mb-8 flex items-center gap-3">
+                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-lg font-bold text-white shadow-lg shadow-primary/30">
+                    {{ strtoupper(substr(config('app.name'), 0, 1)) }}
+                </span>
+                <span class="text-xl font-bold tracking-tight text-slate-900">{{ config('app.name') }}</span>
+            </a>
 
-            <div class="w-full sm:max-w-md mt-6 px-6 py-6 bg-white border border-neutral-200 shadow-sm overflow-hidden sm:rounded-lg">
+            <div class="app-panel w-full max-w-md app-panel-body">
                 {{ $slot }}
             </div>
         </div>

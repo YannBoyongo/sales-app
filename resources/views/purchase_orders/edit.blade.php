@@ -5,7 +5,7 @@
         max-width="max-w-4xl"
         eyebrow="Achats"
         title="Modifier le bon de commande"
-        :description="'Référence « ' . e($purchaseOrder->reference) . ' » — tant qu’aucune réception n’a commencé, vous pouvez ajuster les lignes.'"
+        :description="'Tant qu’aucune réception n’a commencé, vous pouvez ajuster la référence, l’emplacement et les lignes.'"
         :with-card="true"
     >
         <form
@@ -18,6 +18,13 @@
         >
             @csrf
             @method('PATCH')
+
+            <div>
+                <x-input-label for="reference" value="Référence" />
+                <x-text-input id="reference" name="reference" type="text" class="mt-1 block w-full font-mono" :value="old('reference', $purchaseOrder->reference)" required maxlength="100" autocomplete="off" />
+                <p class="mt-1 text-xs text-neutral-500">Référence unique du bon de commande.</p>
+                <x-input-error :messages="$errors->get('reference')" class="mt-2" />
+            </div>
 
             <div class="grid gap-4 md:grid-cols-2">
                 <div>
@@ -37,10 +44,10 @@
                 </div>
             </div>
 
-            <div class="rounded-xl border border-neutral-200 bg-neutral-50/50 p-4">
+            <div class="app-panel app-panel-body bg-slate-50/50">
                 <div class="mb-3 flex items-center justify-between">
                     <h2 class="text-sm font-semibold text-neutral-900">Produits</h2>
-                    <button type="button" class="rounded-lg border border-neutral-300 bg-white px-3 py-1 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50" @click="rows.push({ product_id: '', quantity_ordered: 1 })">Ajouter une ligne</button>
+                    <button type="button" class="app-btn-secondary !px-3 !py-1 text-xs" @click="rows.push({ product_id: '', quantity_ordered: 1 })">Ajouter une ligne</button>
                 </div>
 
                 <div class="space-y-3">
@@ -58,7 +65,7 @@
                                 <input :name="`products[${index}][quantity_ordered]`" x-model="row.quantity_ordered" type="number" min="1" class="block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary" required />
                             </div>
                             <div class="flex items-center justify-end">
-                                <button type="button" class="rounded-lg border border-red-200 bg-white px-3 py-1 text-xs font-semibold text-red-700 shadow-sm hover:bg-red-50" @click="rows.splice(index, 1)" x-show="rows.length > 1">Retirer</button>
+                                <button type="button" class="app-btn-danger !px-3 !py-1 text-xs" @click="rows.splice(index, 1)" x-show="rows.length > 1">Retirer</button>
                             </div>
                         </div>
                     </template>
@@ -68,8 +75,8 @@
             </div>
 
             <div class="flex flex-wrap gap-3 border-t border-neutral-100 pt-6">
-                <x-primary-button>Mettre à jour le PO</x-primary-button>
-                <a href="{{ route('purchase-orders.show', $purchaseOrder) }}" class="inline-flex items-center rounded-xl border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:bg-neutral-50">Annuler</a>
+                <x-primary-button>Mettre à jour le Bon de commande</x-primary-button>
+                <a href="{{ route('purchase-orders.show', $purchaseOrder) }}" class="app-btn-secondary">Annuler</a>
             </div>
         </form>
     </x-caisse-flow>

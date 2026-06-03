@@ -12,15 +12,15 @@
 
     <div class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-primary">Facturation</p>
-            <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900">Vente {{ $sale->reference }}</h1>
-            <p class="mt-2 text-sm text-neutral-600">
-                {{ $branch->name }} · {{ $sale->sold_at->translatedFormat('d/m/Y à H:i') }}
+            <p class="app-page-eyebrow">Facturation</p>
+            <h1 class="app-page-title">Vente {{ $sale->reference }}</h1>
+            <p class="app-page-desc">
+                {{ $branch->name }} · {{ $sale->effectiveSoldAt()->translatedFormat('d/m/Y') }}
             </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-            <a href="{{ route('sales.print-large', [$branch, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer facture A4</a>
-            <a href="{{ route('sales.print-small', [$branch, $sale]) }}" target="_blank" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50">Imprimer ticket POS</a>
+            <a href="{{ route('sales.print-large', [$branch, $sale]) }}" target="_blank" class="app-btn-secondary">Imprimer facture A4</a>
+            <a href="{{ route('sales.print-small', [$branch, $sale]) }}" target="_blank" class="app-btn-secondary">Imprimer ticket POS</a>
             @if (auth()->user()?->isAdmin())
                 <form
                     action="{{ route('sales.destroy', [$branch, $sale]) }}"
@@ -30,7 +30,7 @@
                 >
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="inline-flex items-center rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100">
+                    <button type="submit" class="app-btn-danger">
                         Supprimer la vente
                     </button>
                 </form>
@@ -40,18 +40,18 @@
     </div>
 
     @if (session('success'))
-        <div class="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">{{ session('success') }}</div>
+        <div class="app-alert-success" role="status">{{ session('success') }}</div>
     @endif
 
     @if ($errors->has('sale'))
-        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('sale') }}</div>
+        <div class="app-alert-danger" role="alert">{{ $errors->first('sale') }}</div>
     @endif
     @if ($errors->has('sale_payment'))
-        <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('sale_payment') }}</div>
+        <div class="app-alert-danger" role="alert">{{ $errors->first('sale_payment') }}</div>
     @endif
 
     @if ($sale->isPendingDiscount())
-        <div class="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+        <div class="app-alert-warning">
             <p class="font-semibold">Remise en attente d’approbation</p>
             <p class="mt-1">
                 Montant demandé : <span class="tabular-nums font-medium">{{ \App\Support\Money::usd($sale->discount_requested_amount ?? 0) }}</span>
@@ -62,7 +62,7 @@
                     @endif
                 @endif
             </p>
-            <p class="mt-2 text-xs text-amber-900/90">Le total enregistré reste le sous-total jusqu’à décision d’un administrateur.</p>
+            <p class="mt-2 text-xs opacity-90">Le total enregistré reste au prix catalogue jusqu’à décision d’un administrateur. Après approbation, les prix négociés sont confirmés.</p>
             @if (auth()->user()->canApproveSaleDiscounts())
                 <div class="mt-4 flex flex-wrap gap-2">
                     <form action="{{ route('sales.approve-discount', [$branch, $sale]) }}" method="POST" onsubmit="return confirm('Approuver cette remise ?');">
@@ -79,11 +79,11 @@
     @endif
 
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <section class="rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-8">
+        <section class="app-panel app-panel-body">
             <h2 class="text-lg font-semibold text-neutral-900">Produits vendus</h2>
-            <div class="mt-4 overflow-x-auto">
+            <div class="app-table-shell mt-4 -mx-4 sm:-mx-5 lg:-mx-6 border-0 shadow-none">
                 <table class="min-w-full text-sm">
-                    <thead class="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                    <thead>
                         <tr>
                             <th class="py-3 pr-4">Produit</th>
                             <th class="py-3 pr-4">Emplacement</th>
@@ -92,41 +92,41 @@
                             <th class="py-3 text-right">Montant</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-neutral-100">
+                    <tbody>
                         @foreach ($sale->items as $item)
                             <tr>
-                                <td class="py-3 pr-4 font-medium text-neutral-900">{{ $item->product->name }}</td>
-                                <td class="py-3 pr-4 text-neutral-600">{{ $item->location->name }}</td>
-                                <td class="py-3 pr-4 text-right tabular-nums">{{ $item->quantity }}</td>
-                                <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($item->unit_price) }}</td>
-                                <td class="py-3 text-right tabular-nums">{{ \App\Support\Money::usd($item->line_total) }}</td>
+                                <td class="font-medium text-neutral-900">{{ $item->product->name }}</td>
+                                <td>{{ $item->location->name }}</td>
+                                <td class="text-right tabular-nums">{{ $item->quantity }}</td>
+                                <td class="text-right tabular-nums">{{ \App\Support\Money::usd($item->unit_price) }}</td>
+                                <td class="text-right tabular-nums">{{ \App\Support\Money::usd($item->line_total) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
-                    <tfoot class="border-t border-neutral-200 bg-neutral-50/60">
+                    <tfoot class="border-t border-slate-200 bg-slate-50/60">
                         <tr>
-                            <th colspan="4" scope="row" class="py-3 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                            <th colspan="4" scope="row" class="text-left text-xs font-semibold uppercase tracking-wide">
                                 Montant à payer
                             </th>
-                            <td class="py-3 text-right tabular-nums font-semibold text-neutral-900">
+                            <td class="text-right tabular-nums font-semibold text-neutral-900">
                                 {{ \App\Support\Money::usd($sale->subtotal_amount ?? $sale->total_amount) }}
                             </td>
                         </tr>
                         @if (($sale->isPendingDiscount() && (float) ($sale->discount_requested_amount ?? 0) > 0) || ((float) ($sale->discount_amount ?? 0) > 0))
                             <tr>
-                                <th colspan="4" scope="row" class="py-2 pr-4 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                                <th colspan="4" scope="row" class="text-left text-xs font-semibold uppercase tracking-wide">
                                     Remise
                                 </th>
-                                <td class="py-2 text-right tabular-nums font-medium text-amber-800">
+                                <td class="text-right tabular-nums font-medium text-amber-800">
                                     − {{ \App\Support\Money::usd($sale->isPendingDiscount() ? ($sale->discount_requested_amount ?? 0) : ($sale->discount_amount ?? 0)) }}
                                 </td>
                             </tr>
                         @endif
                         <tr>
-                            <th colspan="4" scope="row" class="py-3 pr-4 text-left text-sm font-semibold text-neutral-800">
+                            <th colspan="4" scope="row" class="text-left text-sm font-semibold">
                                 Nouveau total
                             </th>
-                            <td class="py-3 text-right tabular-nums text-base font-bold text-primary">
+                            <td class="text-right tabular-nums text-base font-bold text-primary">
                                 {{ \App\Support\Money::usd($expectedAmount) }}
                             </td>
                         </tr>
@@ -135,37 +135,47 @@
             </div>
         </section>
 
-        <aside class="h-fit rounded-2xl border border-neutral-200 bg-gradient-to-b from-white to-neutral-50 p-6 shadow-sm">
+        <aside class="app-panel app-panel-body h-fit">
             <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">Résumé</h2>
             <div class="mt-4 space-y-3">
                 @if ($sale->posShift && $sale->posShift->posTerminal)
-                    <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                    <div class="app-stat-card !p-4 !shadow-none">
                         <p class="text-xs text-neutral-500">Session POS</p>
                         <p class="mt-1 text-sm font-medium text-neutral-900">{{ $sale->posShift->posTerminal->name }}</p>
                         <p class="mt-1 text-xs text-neutral-500">
-                            Ouverte {{ $sale->posShift->opened_at->translatedFormat('d/m/Y H:i') }}
+                            Session du {{ $sale->posShift->effectiveSessionDate()->translatedFormat('d/m/Y') }}
                             @if ($sale->posShift->closed_at)
                                 · fermée {{ $sale->posShift->closed_at->translatedFormat('d/m/Y H:i') }}
                             @endif
                         </p>
                     </div>
                 @endif
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                <div class="app-stat-card !p-4 !shadow-none">
                     <p class="text-xs text-neutral-500">Client</p>
                     <p class="mt-1 font-semibold text-neutral-900">{{ $sale->displayClientName() ?? '—' }}</p>
                     @if ($sale->displayClientPhone())
                         <p class="mt-1 text-sm text-neutral-600">{{ $sale->displayClientPhone() }}</p>
                     @endif
                 </div>
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-2 text-sm">
-                    <p class="text-xs text-neutral-500">Statut paiement</p>
+                <div class="app-stat-card !p-4 !shadow-none space-y-2 text-sm">
+                    <p class="text-xs text-neutral-500">Mode de paiement</p>
+                    <p>
+                        @if ($sale->payment_type === 'credit')
+                            <span class="app-badge-warning">Crédit</span>
+                        @elseif ($sale->payment_type === 'caution')
+                            <span class="app-badge-info">Caution</span>
+                        @else
+                            <span class="app-badge-success">Cash</span>
+                        @endif
+                    </p>
+                    <p class="text-xs text-neutral-500 pt-1">Statut paiement</p>
                     <p>
                         @if ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_NOT_PAID)
-                            <span class="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-800">Non payé</span>
+                            <span class="app-badge-danger">Non payé</span>
                         @elseif ($effectiveStatus === \App\Models\Sale::PAYMENT_STATUS_PARTIALLY_PAID)
-                            <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Partiellement payé</span>
+                            <span class="app-badge-warning">Partiellement payé</span>
                         @else
-                            <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Entièrement payé</span>
+                            <span class="app-badge-success">Entièrement payé</span>
                         @endif
                     </p>
                     <div class="border-t border-neutral-100 pt-2">
@@ -174,7 +184,7 @@
                         <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Reste à payer</span><span class="tabular-nums font-semibold {{ (float) $remainingAmount > 0 ? 'text-amber-800' : 'text-emerald-700' }}">{{ \App\Support\Money::usd($remainingAmount) }}</span></p>
                     </div>
                 </div>
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-3 text-sm">
+                <div class="app-stat-card !p-4 !shadow-none space-y-3 text-sm">
                     <p class="text-xs text-neutral-500">Confirmation de règlement</p>
                     @if ($sale->isPendingDiscount())
                         <p class="text-xs text-amber-800">Paiement indisponible pendant qu’une remise est en attente d’approbation.</p>
@@ -183,16 +193,13 @@
                     @else
                         <form action="{{ route('sales.confirm-paid', [$branch, $sale]) }}" method="POST" onsubmit="return confirm('Confirmer cette vente comme entièrement payée ?');">
                             @csrf
-                            <button
-                                type="submit"
-                                class="inline-flex w-full items-center justify-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white transition hover:opacity-95"
-                            >
+                            <button type="submit" class="app-btn-primary w-full justify-center">
                                 Confirmer cette vente comme payée
                             </button>
                         </form>
                     @endif
                 </div>
-                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3 space-y-2 text-sm">
+                <div class="app-stat-card !p-4 !shadow-none space-y-2 text-sm">
                     <p class="text-xs text-neutral-500">Détail facture</p>
                     <div class="flex justify-between gap-2">
                         <span class="text-neutral-600">Sous-total</span>

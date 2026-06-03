@@ -3,8 +3,8 @@
 
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-            <h1 class="text-2xl font-semibold text-neutral-900">Transfert #{{ $stockTransfer->id }}</h1>
-            <p class="mt-1 text-sm text-neutral-600">Date : {{ $stockTransfer->transferred_at->translatedFormat('d/m/Y') }} — par {{ $stockTransfer->user->name }}</p>
+            <h1 class="app-page-title">Transfert #{{ $stockTransfer->id }}</h1>
+            <p class="app-page-desc">Date : {{ $stockTransfer->transferred_at->translatedFormat('d/m/Y') }} — par {{ $stockTransfer->user->name }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:justify-end">
             @if ($canCancelTransfer)
@@ -19,7 +19,7 @@
                     @csrf
                     <button
                         type="submit"
-                        class="inline-flex items-center rounded-md border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 shadow-sm hover:bg-red-50"
+                        class="app-btn-danger"
                     >
                         Annuler le transfert
                     </button>
@@ -36,9 +36,8 @@
                     <button
                         type="submit"
                         @class([
-                            'inline-flex items-center rounded-md px-4 py-2 text-sm font-semibold shadow-sm',
-                            'bg-primary text-white hover:opacity-95' => ! $stockTransfer->items->isEmpty(),
-                            'cursor-not-allowed bg-neutral-200 text-neutral-500' => $stockTransfer->items->isEmpty(),
+                            'app-btn-primary' => ! $stockTransfer->items->isEmpty(),
+                            'app-btn-secondary cursor-not-allowed opacity-60' => $stockTransfer->items->isEmpty(),
                         ])
                         @disabled($stockTransfer->items->isEmpty())
                     >
@@ -46,31 +45,31 @@
                     </button>
                 </form>
             @endif
-            <a href="{{ route('stock-transfers.index') }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">← Liste des transferts</a>
+            <a href="{{ route('stock-transfers.index') }}" class="app-btn-secondary">← Liste des transferts</a>
         </div>
     </div>
 
     @if (session('success'))
-        <div class="mb-4 rounded-md border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-800">{{ session('success') }}</div>
+        <div class="app-alert-success" role="status">{{ session('success') }}</div>
     @endif
 
     @if ($errors->has('stock'))
-        <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('stock') }}</div>
+        <div class="app-alert-danger" role="alert">{{ $errors->first('stock') }}</div>
     @endif
 
     {{-- Section 1 : détails du transfert --}}
-    <div class="mb-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
+    <div class="app-panel app-panel-body mb-6">
         <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">Détails du transfert</h2>
         <dl class="mt-4 grid gap-4 sm:grid-cols-2">
             <div>
                 <dt class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Statut</dt>
                 <dd class="mt-1">
                     @if ($stockTransfer->isPending())
-                        <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_PENDING) }}</span>
+                        <span class="app-badge-warning">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_PENDING) }}</span>
                     @elseif ($stockTransfer->isCancelled())
-                        <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_CANCELLED) }}</span>
+                        <span class="app-badge-danger">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_CANCELLED) }}</span>
                     @else
-                        <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-900">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_CONFIRMED) }}</span>
+                        <span class="app-badge-success">{{ \App\Models\StockTransfer::statusLabel(\App\Models\StockTransfer::STATUS_CONFIRMED) }}</span>
                     @endif
                 </dd>
             </div>
@@ -99,7 +98,7 @@
     @if ($canManageTransfer && $stockTransfer->isPending())
         {{-- Section 2 : ajout de lignes --}}
         <div
-            class="mb-6 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm"
+            class="app-panel app-panel-body mb-6"
             x-data="{
                 products: @js($transferProducts),
                 searchQuery: '',
@@ -147,7 +146,7 @@
             </p>
 
             @if (count($transferProducts) === 0)
-                <p class="mt-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                <p class="app-alert-warning mt-4">
                     Aucun produit n’est disponible pour votre périmètre (ou le catalogue est vide).
                 </p>
             @else
@@ -202,7 +201,7 @@
                         </div>
                         <button
                             type="button"
-                            class="inline-flex w-full shrink-0 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 sm:ml-0 sm:w-auto sm:min-w-[11rem]"
+                            class="app-btn-primary w-full shrink-0 sm:ml-0 sm:w-auto sm:min-w-[11rem]"
                             @click="addLine()"
                         >
                             Ajouter au transfert
@@ -229,8 +228,8 @@
     @endif
 
     {{-- Section 3 : lignes du transfert --}}
-    <div class="rounded-lg border border-neutral-200 bg-white shadow-sm">
-        <div class="border-b border-neutral-200 px-4 py-3">
+    <div class="app-panel">
+        <div class="app-panel-header !py-3">
             <h2 class="text-sm font-semibold text-neutral-900">Articles à transférer</h2>
             <p class="mt-0.5 text-xs text-neutral-500">
                 @if ($stockTransfer->isCancelled())
@@ -247,9 +246,9 @@
                 Aucune ligne pour l’instant.@if ($canManageTransfer && $stockTransfer->isPending()) Utilisez la section ci-dessus pour ajouter des produits.@endif
             </p>
         @else
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                    <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+            <div class="app-table-shell border-0 shadow-none">
+                <table class="min-w-full text-sm">
+                    <thead>
                         <tr>
                             <th class="px-4 py-3">Produit</th>
                             <th class="px-4 py-3 text-right">Quantité</th>

@@ -6,15 +6,15 @@
             <x-slot name="header">
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary/90">Finances</p>
-                        <h1 class="mt-2 text-3xl font-semibold tracking-tight text-neutral-900 sm:text-4xl">Plan comptable</h1>
-                        <p class="mt-3 max-w-2xl text-base leading-relaxed text-neutral-600">
+                        <p class="app-page-eyebrow">Finances</p>
+                        <h1 class="app-page-title">Plan comptable</h1>
+                        <p class="app-page-desc max-w-2xl">
                             Gérez la liste des comptes comptables utilisés par votre organisation.
                         </p>
                     </div>
                     <button
                         type="button"
-                        class="inline-flex shrink-0 items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary/25 transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        class="app-btn-primary shrink-0"
                         @click="open = true"
                     >
                         Nouveau compte
@@ -22,9 +22,9 @@
                 </div>
             </x-slot>
 
-            <div class="overflow-hidden rounded-2xl border border-neutral-200/90 bg-white/90 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm">
+            <div class="app-table-shell">
                 <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                    <thead class="bg-neutral-50/90 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
+                    <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                         <tr>
                             <th class="px-4 py-3">Code</th>
                             <th class="px-4 py-3">Libellé</th>
@@ -62,7 +62,7 @@
                                         href="{{ route('chart-of-accounts.edit', $account) }}"
                                         title="Modifier"
                                         aria-label="Modifier {{ $account->account_code }}"
-                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                                        class="app-icon-btn"
                                     >
                                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.1 2.1 0 112.97 2.97L9.75 16.54 6 17.25l.71-3.75 10.152-10.013z" />

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Branch;
 use App\Models\Client;
+use App\Models\ClientCautionUsage;
 use App\Models\Department;
 use App\Models\PosShift;
 use App\Models\PosTerminal;
@@ -137,7 +138,12 @@ class SaleItemController extends Controller
 
         $productsCount = $products->count();
 
-        $clients = Client::query()->orderBy('name')->limit(200)->get(['id', 'name', 'phone']);
+        $clients = Client::query()
+            ->withSum('cautionDeposits as caution_total', 'amount')
+            ->withSum('cautionUsages as caution_used', 'amount')
+            ->orderBy('name')
+            ->limit(200)
+            ->get(['id', 'name', 'phone']);
 
         $saleLineRows = collect($this->normalizedSaleLineRowsFromOld())
             ->map(fn (array $r, int $i) => [...$r, '_key' => 'row-'.$i.'-'.substr(sha1((string) microtime(true).$i), 0, 8)])
@@ -187,6 +193,7 @@ class SaleItemController extends Controller
 
         $data = $request->validate([
             'customer_type' => ['required', Rule::in($allowedCustomerTypes)],
+            'payment_type' => ['required', Rule::in(['cash', 'credit', 'caution'])],
             'client_name' => ['nullable', 'string', 'max:255'],
             'client_phone' => ['nullable', 'string', 'max:50'],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
@@ -201,6 +208,7 @@ class SaleItemController extends Controller
                 'numeric',
                 'min:0',
             ],
+            'allow_line_discount' => ['sometimes', 'boolean'],
             'apply_sale_discount' => ['sometimes', 'boolean'],
             'sale_discount_amount' => [
                 Rule::requiredIf(function () use ($request) {
@@ -224,8 +232,16 @@ class SaleItemController extends Controller
                     ->lockForUpdate()
                     ->firstOrFail();
 
+                $sessionSoldAt = $openShift->effectiveSessionDate();
+
                 $customerType = $data['customer_type'];
-                $paymentType = 'cash';
+                $paymentType = (string) $data['payment_type'];
+                $allowedPaymentTypes = $customerType === 'dealer'
+                    ? ['cash', 'credit', 'caution']
+                    : ['cash'];
+                if (! in_array($paymentType, $allowedPaymentTypes, true)) {
+                    throw new RuntimeException('Type de paiement invalide pour ce type de client.');
+                }
 
                 $clientName = trim((string) ($data['client_name'] ?? ''));
                 $clientPhone = trim((string) ($data['client_phone'] ?? ''));
@@ -264,9 +280,15 @@ class SaleItemController extends Controller
                     'amount_paid' => 0,
                     'balance_amount' => 0,
                     'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
-                    'sold_at' => now(),
+                    'sold_at' => $sessionSoldAt,
                 ]);
 
+                $allowLineDiscount = $customerType === 'dealer'
+                    && $request->has('allow_line_discount')
+                    && filter_var($request->input('allow_line_discount'), FILTER_VALIDATE_BOOLEAN);
+                $isAdmin = $request->user()->isAdmin();
+
+                $catalogSubtotal = '0.00';
                 $saleTotal = '0.00';
                 foreach ($data['items'] as $row) {
                     $product = Product::query()
@@ -282,15 +304,19 @@ class SaleItemController extends Controller
                     $qty = (int) $row['quantity'];
                     Stock::modifyQuantity($product->id, $pointOfSale->id, -$qty);
 
-                    if ($customerType === 'dealer') {
+                    $catalogUnit = (string) $product->unit_price;
+                    if ($customerType === 'dealer' && $allowLineDiscount) {
                         $unit = number_format((float) ($row['unit_price'] ?? 0), 2, '.', '');
                         if (bccomp($unit, '0', 2) <= 0) {
                             throw new RuntimeException('Chaque ligne revendeur doit avoir un prix unitaire supérieur à zéro.');
                         }
                     } else {
-                        $unit = (string) $product->unit_price;
+                        $unit = $catalogUnit;
                     }
+
+                    $catalogLineTotal = bcmul($catalogUnit, (string) $qty, 2);
                     $lineTotal = bcmul($unit, (string) $qty, 2);
+                    $catalogSubtotal = bcadd($catalogSubtotal, $catalogLineTotal, 2);
                     $saleTotal = bcadd($saleTotal, $lineTotal, 2);
 
                     $saleItem = SaleItem::create([
@@ -321,9 +347,12 @@ class SaleItemController extends Controller
                 }
 
                 $subtotal = $saleTotal;
+                $lineDiscountAmount = bcsub($catalogSubtotal, $saleTotal, 2);
+                $hasLineDiscountPending = $allowLineDiscount
+                    && ! $isAdmin
+                    && bccomp($lineDiscountAmount, '0', 2) === 1;
                 $applyDiscount = $request->has('apply_sale_discount')
                     && filter_var($request->input('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN);
-                $isAdmin = $request->user()->isAdmin();
                 $dueTotal = $subtotal;
 
                 if ($applyDiscount) {
@@ -371,6 +400,23 @@ class SaleItemController extends Controller
                             'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
                         ]);
                     }
+                } elseif ($hasLineDiscountPending) {
+                    $pendingDiscountAfterSave = true;
+                    $dueTotal = $saleTotal;
+                    $sale->update([
+                        'subtotal_amount' => $catalogSubtotal,
+                        'sale_status' => Sale::STATUS_PENDING_DISCOUNT,
+                        'discount_requested_amount' => $lineDiscountAmount,
+                        'discount_requested_by' => $request->user()->id,
+                        'discount_requested_at' => now(),
+                        'discount_amount' => null,
+                        'discount_approved_by' => null,
+                        'discount_approved_at' => null,
+                        'total_amount' => $catalogSubtotal,
+                        'amount_paid' => $catalogSubtotal,
+                        'balance_amount' => '0.00',
+                        'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
+                    ]);
                 } else {
                     $dueTotal = $subtotal;
                     $sale->update([
@@ -390,20 +436,26 @@ class SaleItemController extends Controller
                 }
 
                 if ($customerType === 'dealer') {
-                    if (bccomp($amountPaid, $dueTotal, 2) === 1) {
-                        throw new RuntimeException('Le total payé ne peut pas dépasser le montant total.');
+                    if ($hasLineDiscountPending && $paymentType === 'caution') {
+                        throw new RuntimeException('Une vente avec remise en attente ne peut pas être réglée par caution avant approbation.');
                     }
 
-                    $computedBalance = bcsub($dueTotal, $amountPaid, 2);
-                    if (bccomp($computedBalance, '0.00', 2) === -1) {
-                        throw new RuntimeException('Le solde ne peut pas être négatif.');
-                    }
+                    if ($paymentType === 'credit') {
+                        if (bccomp($amountPaid, $dueTotal, 2) === 1) {
+                            throw new RuntimeException('Le total payé ne peut pas dépasser le montant total.');
+                        }
 
-                    // Solde impayé : dette client (lignes crédit) + paiement enregistré pour l’encaissement.
-                    if (bccomp($computedBalance, '0.00', 2) === 1) {
-                        $status = bccomp($amountPaid, '0.00', 2) === 1
-                            ? Sale::PAYMENT_STATUS_PARTIALLY_PAID
-                            : Sale::PAYMENT_STATUS_NOT_PAID;
+                        $computedBalance = bcsub($dueTotal, $amountPaid, 2);
+                        if (bccomp($computedBalance, '0.00', 2) === -1) {
+                            throw new RuntimeException('Le solde ne peut pas être négatif.');
+                        }
+
+                        $status = bccomp($computedBalance, '0.00', 2) === 1
+                            ? (bccomp($amountPaid, '0.00', 2) === 1
+                                ? Sale::PAYMENT_STATUS_PARTIALLY_PAID
+                                : Sale::PAYMENT_STATUS_NOT_PAID)
+                            : Sale::PAYMENT_STATUS_FULLY_PAID;
+
                         $sale->update([
                             'payment_type' => 'credit',
                             'amount_paid' => $amountPaid,
@@ -413,7 +465,41 @@ class SaleItemController extends Controller
                         SaleItem::query()
                             ->where('sale_id', $sale->id)
                             ->update(['payment_type' => 'credit', 'client_id' => $clientId]);
-                        $sale->recordInitialPosPaymentIfNeeded($request->user());
+                        if (bccomp($amountPaid, '0.00', 2) === 1 && ! $sale->isPendingDiscount()) {
+                            $sale->recordInitialPosPaymentIfNeeded($request->user());
+                        }
+                    } elseif ($paymentType === 'caution') {
+                        $totalCaution = number_format((float) DB::table('client_caution_deposits')
+                            ->where('client_id', $clientId)
+                            ->lockForUpdate()
+                            ->sum('amount'), 2, '.', '');
+                        $usedCaution = number_format((float) DB::table('client_caution_usages')
+                            ->where('client_id', $clientId)
+                            ->lockForUpdate()
+                            ->sum('amount'), 2, '.', '');
+                        $availableCaution = bcsub($totalCaution, $usedCaution, 2);
+                        if (bccomp($availableCaution, $dueTotal, 2) === -1) {
+                            throw new RuntimeException('Caution insuffisante pour couvrir cette vente.');
+                        }
+
+                        $sale->update([
+                            'payment_type' => 'caution',
+                            'amount_paid' => $dueTotal,
+                            'balance_amount' => '0.00',
+                            'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
+                        ]);
+                        SaleItem::query()
+                            ->where('sale_id', $sale->id)
+                            ->update(['payment_type' => 'caution', 'client_id' => $clientId]);
+
+                        ClientCautionUsage::create([
+                            'client_id' => $clientId,
+                            'sale_id' => $sale->id,
+                            'user_id' => $request->user()->id,
+                            'amount' => $dueTotal,
+                            'used_at' => now(),
+                            'note' => 'Utilisée sur vente '.$saleReference,
+                        ]);
                     } else {
                         $sale->update([
                             'payment_type' => 'cash',
@@ -423,8 +509,28 @@ class SaleItemController extends Controller
                         ]);
                         SaleItem::query()
                             ->where('sale_id', $sale->id)
-                            ->update(['payment_type' => 'cash']);
+                            ->update(['payment_type' => 'cash', 'client_id' => $clientId]);
                     }
+                } elseif ($paymentType === 'caution') {
+                    $sale->update([
+                        'payment_type' => 'caution',
+                        'amount_paid' => $dueTotal,
+                        'balance_amount' => '0.00',
+                        'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
+                    ]);
+                    SaleItem::query()
+                        ->where('sale_id', $sale->id)
+                        ->update(['payment_type' => 'caution', 'client_id' => $clientId]);
+                } else {
+                    $sale->update([
+                        'payment_type' => 'cash',
+                        'amount_paid' => $dueTotal,
+                        'balance_amount' => '0.00',
+                        'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
+                    ]);
+                    SaleItem::query()
+                        ->where('sale_id', $sale->id)
+                        ->update(['payment_type' => 'cash', 'client_id' => $clientId]);
                 }
             });
         } catch (RuntimeException $e) {

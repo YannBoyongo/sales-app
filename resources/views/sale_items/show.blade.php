@@ -51,6 +51,8 @@
                     <p class="mt-1">
                         @if ($saleItem->payment_type === 'credit')
                             <span class="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">Crédit</span>
+                        @elseif ($saleItem->payment_type === 'caution')
+                            <span class="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-800">Caution</span>
                         @else
                             <span class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Cash</span>
                         @endif

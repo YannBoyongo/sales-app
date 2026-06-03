@@ -8,14 +8,18 @@
         <title>Connexion — {{ config('app.name', 'Laravel') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700|figtree:400,500,600&display=swap" rel="stylesheet" />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased text-[20px] text-neutral-900">
-        <div class="min-h-screen flex flex-col lg:flex-row">
-            {{-- Panneau formulaire --}}
-            <div class="relative z-10 flex w-full flex-1 flex-col justify-center bg-white px-8 py-12 sm:px-12 lg:w-[46%] lg:max-w-none lg:flex-none lg:px-14 xl:px-20">
+    <body class="font-sans antialiased text-slate-900">
+        <div class="flex min-h-screen flex-col lg:flex-row">
+            <div class="relative z-10 flex w-full flex-1 flex-col justify-center bg-white px-6 py-12 sm:px-12 lg:w-[46%] lg:max-w-none lg:flex-none lg:px-14 xl:px-20">
+                <div class="mx-auto mb-8 lg:hidden">
+                    <span class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-xl font-bold text-white shadow-lg shadow-primary/30">
+                        {{ strtoupper(substr(config('app.name'), 0, 1)) }}
+                    </span>
+                </div>
                 <div class="mx-auto w-full max-w-md">
                     {{ $slot }}
                 </div>

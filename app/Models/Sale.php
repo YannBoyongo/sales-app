@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -117,6 +118,11 @@ class Sale extends Model
      */
     public function cashCollectedForShift(): string
     {
+        if ($this->payment_type === 'caution') {
+            // Caution is pre-collected money; do not count it at shift close.
+            return '0.00';
+        }
+
         $paid = (string) ($this->amount_paid ?? '0');
         if (bccomp($paid, '0', 2) === 1) {
             return $paid;
@@ -239,6 +245,18 @@ class Sale extends Model
         }
 
         return filled($this->client_phone) ? (string) $this->client_phone : null;
+    }
+
+    public function effectiveSoldAt(): Carbon
+    {
+        if ($this->pos_shift_id) {
+            $this->loadMissing('posShift');
+            if ($this->posShift) {
+                return $this->posShift->effectiveSessionDate();
+            }
+        }
+
+        return ($this->sold_at ?? now())->copy();
     }
 
     public function branch(): BelongsTo

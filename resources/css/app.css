@@ -61,6 +61,11 @@
         @apply overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-card;
     }
 
+    /* Panels with autocomplete / dropdowns inside (avoid clipping the list) */
+    .app-panel.app-panel--dropdown {
+        overflow: visible;
+    }
+
     .app-panel-body {
         @apply p-4 sm:p-5 lg:p-6;
     }

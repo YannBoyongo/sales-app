@@ -98,7 +98,7 @@
     @if ($canManageTransfer && $stockTransfer->isPending())
         {{-- Section 2 : ajout de lignes --}}
         <div
-            class="app-panel app-panel-body mb-6"
+            class="app-panel app-panel-body app-panel--dropdown mb-6"
             x-data="{
                 products: @js($transferProducts),
                 searchQuery: '',
@@ -174,7 +174,7 @@
                             <div
                                 x-show="pickerOpen && filteredProducts.length > 0 && products.length > 0"
                                 x-cloak
-                                class="absolute z-30 mt-1 max-h-60 w-full overflow-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg"
+                                class="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-neutral-200 bg-white py-1 shadow-lg ring-1 ring-black/5"
                             >
                                 <template x-for="p in filteredProducts" :key="'tp-' + p.id">
                                     <button

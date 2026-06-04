@@ -16,6 +16,7 @@ class PosShift extends Model
         'closed_by',
         'opened_at',
         'closed_at',
+        'closed_at_preserved',
     ];
 
     protected function casts(): array
@@ -24,6 +25,7 @@ class PosShift extends Model
             'session_date' => 'date',
             'opened_at' => 'datetime',
             'closed_at' => 'datetime',
+            'closed_at_preserved' => 'datetime',
         ];
     }
 
@@ -72,5 +74,23 @@ class PosShift extends Model
     public function isOpen(): bool
     {
         return $this->closed_at === null;
+    }
+
+    public function effectiveClosedAt(): Carbon
+    {
+        if ($this->closed_at !== null) {
+            return $this->closed_at->copy();
+        }
+
+        if ($this->closed_at_preserved !== null) {
+            return $this->closed_at_preserved->copy();
+        }
+
+        return $this->effectiveSessionDate()->copy()->endOfDay();
+    }
+
+    public function canBeReopened(): bool
+    {
+        return $this->closed_at !== null;
     }
 }

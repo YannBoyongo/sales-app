@@ -10,8 +10,12 @@
 
     <div
         @if ($showStockAdjustment)
-            x-data="stockAdjustmentModal({ currentQuantityUrl: @js(route('stocks.current-quantity')) })"
-            @keydown.escape.window="if (open) open = false"
+            x-data="stockIndexPage({
+                currentQuantityUrl: @js(route('stocks.current-quantity')),
+                adjustmentUrl: @js(route('stocks.adjustment')),
+                branchId: @js($selectedBranch?->id),
+            })"
+            @keydown.escape.window="onEscape()"
         @endif
     >
         <x-caisse-flow max-width="max-w-7xl" :with-card="false">
@@ -26,7 +30,7 @@
                                 <span class="mt-2 block text-neutral-600">Votre branche et les colonnes affichées correspondent à votre affectation : seuls les emplacements liés à vos terminaux POS assignés apparaissent (pas les autres emplacements de la branche).</span>
                             @endif
                             @if (auth()->user()->isAdmin())
-                                <span class="mt-2 block text-neutral-500">En tant qu’administrateur, vous pouvez corriger le stock physique via « Ajuster une quantité » (enregistré dans les mouvements de stock).</span>
+                                <span class="mt-2 block text-neutral-500">En tant qu’administrateur, double-cliquez une cellule pour modifier la quantité, ou utilisez « Ajuster une quantité » (enregistré dans les mouvements de stock).</span>
                             @endif
                         </p>
                     </div>
@@ -44,6 +48,15 @@
 
             @if ($errors->has('adjustment'))
                 <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('adjustment') }}</div>
+            @endif
+            @if ($showStockAdjustment)
+                <div
+                    x-show="cellError"
+                    x-cloak
+                    x-text="cellError"
+                    class="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900"
+                    role="alert"
+                ></div>
             @endif
 
             @if ($stockBranches->isNotEmpty() && $stockBranches->count() > 1)
@@ -112,8 +125,29 @@
                                                 $warn = $product->minimum_stock !== null && $qty < (int) $product->minimum_stock;
                                             }
                                         @endphp
-                                        <td class="px-3 py-3 text-right tabular-nums @if ($warn) bg-red-100 text-red-950 @endif">
-                                            <span @class(['font-semibold' => $warn])>{{ $qty }}</span>
+                                        <td
+                                            data-stock-cell="{{ $product->id }}-{{ $loc->id }}"
+                                            data-product-id="{{ $product->id }}"
+                                            data-location-id="{{ $loc->id }}"
+                                            class="px-3 py-3 text-right tabular-nums @if ($showStockAdjustment) cursor-cell @endif @if ($warn) bg-red-100 text-red-950 @endif"
+                                            @if ($showStockAdjustment)
+                                                @dblclick.prevent="startCellEdit($event)"
+                                                title="Double-cliquer pour modifier"
+                                            @endif
+                                        >
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                step="1"
+                                                class="hidden w-full min-w-[3.5rem] rounded border border-primary bg-white px-2 py-1 text-right text-sm tabular-nums shadow-sm focus:border-primary focus:ring-1 focus:ring-primary"
+                                                data-qty-input
+                                                @if ($showStockAdjustment)
+                                                    @keydown.enter.prevent="commitCellEdit($event)"
+                                                    @keydown.escape.prevent="cancelCellEdit($event)"
+                                                    @blur="commitCellEdit($event)"
+                                                @endif
+                                            >
+                                            <span data-qty-display @class(['font-semibold' => $warn])>{{ $qty }}</span>
                                         </td>
                                     @endforeach
                                     @php
@@ -121,7 +155,10 @@
                                             fn ($loc) => (int) (($matrix[$product->id][$loc->id] ?? null)?->quantity ?? 0)
                                         );
                                     @endphp
-                                    <td class="border-l border-neutral-200 bg-neutral-50/80 px-3 py-3 text-right tabular-nums font-semibold text-neutral-900">
+                                    <td
+                                        data-row-total
+                                        class="border-l border-neutral-200 bg-neutral-50/80 px-3 py-3 text-right tabular-nums font-semibold text-neutral-900"
+                                    >
                                         {{ $rowTotal }}
                                     </td>
                                 </tr>
@@ -236,7 +273,9 @@
                 </div>
 
                 <script>
-                    function stockAdjustmentModal(config) {
+                    function stockIndexPage(config) {
+                        const csrf = document.querySelector('meta[name="csrf-token"]')?.content ?? '';
+
                         return {
                             open: false,
                             productId: '',
@@ -245,7 +284,11 @@
                             currentQty: null,
                             loading: false,
                             submitting: false,
+                            editingCellKey: null,
+                            cellSaving: false,
+                            cellError: null,
                             openModal() {
+                                this.cancelActiveCellEdit();
                                 this.open = true;
                                 this.productId = '';
                                 this.locationId = '';
@@ -253,6 +296,159 @@
                                 this.currentQty = null;
                                 this.loading = false;
                                 this.submitting = false;
+                            },
+                            onEscape() {
+                                if (this.editingCellKey) {
+                                    this.cancelActiveCellEdit();
+                                    return;
+                                }
+                                if (this.open) {
+                                    this.open = false;
+                                }
+                            },
+                            cellKey(productId, locationId) {
+                                return `${productId}-${locationId}`;
+                            },
+                            startCellEdit(event) {
+                                const td = event.currentTarget;
+                                const productId = td.dataset.productId;
+                                const locationId = td.dataset.locationId;
+                                const key = this.cellKey(productId, locationId);
+
+                                this.cancelActiveCellEdit();
+                                this.cellError = null;
+                                this.editingCellKey = key;
+
+                                const display = td.querySelector('[data-qty-display]');
+                                const input = td.querySelector('[data-qty-input]');
+                                const qty = display?.textContent?.trim() ?? '0';
+
+                                input.value = qty;
+                                display.classList.add('hidden');
+                                input.classList.remove('hidden');
+                                input.disabled = false;
+                                input.focus();
+                                input.select();
+                            },
+                            cancelActiveCellEdit() {
+                                if (!this.editingCellKey) {
+                                    return;
+                                }
+                                const td = document.querySelector(`[data-stock-cell="${this.editingCellKey}"]`);
+                                if (td) {
+                                    this.finishCellEditUi(td, td.querySelector('[data-qty-display]')?.textContent?.trim() ?? '0');
+                                }
+                                this.editingCellKey = null;
+                                this.cellSaving = false;
+                            },
+                            cancelCellEdit(event) {
+                                const td = event.target.closest('[data-stock-cell]');
+                                if (!td) {
+                                    return;
+                                }
+                                const display = td.querySelector('[data-qty-display]');
+                                this.finishCellEditUi(td, display?.textContent?.trim() ?? '0');
+                                this.editingCellKey = null;
+                            },
+                            finishCellEditUi(td, qtyText) {
+                                const display = td.querySelector('[data-qty-display]');
+                                const input = td.querySelector('[data-qty-input]');
+                                display.textContent = qtyText;
+                                display.classList.remove('hidden');
+                                input.classList.add('hidden');
+                                input.disabled = false;
+                            },
+                            applyWarnStyle(td, belowMinimum) {
+                                const display = td.querySelector('[data-qty-display]');
+                                td.classList.toggle('bg-red-100', belowMinimum);
+                                td.classList.toggle('text-red-950', belowMinimum);
+                                display.classList.toggle('font-semibold', belowMinimum);
+                            },
+                            updateRowTotal(row) {
+                                const totalCell = row.querySelector('[data-row-total]');
+                                if (!totalCell) {
+                                    return;
+                                }
+                                let sum = 0;
+                                row.querySelectorAll('[data-stock-cell] [data-qty-display]').forEach((el) => {
+                                    sum += parseInt(el.textContent?.trim() || '0', 10);
+                                });
+                                totalCell.textContent = String(sum);
+                            },
+                            async commitCellEdit(event) {
+                                const td = event.target.closest('[data-stock-cell]');
+                                if (!td || this.cellSaving) {
+                                    return;
+                                }
+
+                                const productId = td.dataset.productId;
+                                const locationId = td.dataset.locationId;
+                                const key = this.cellKey(productId, locationId);
+                                if (this.editingCellKey !== key) {
+                                    return;
+                                }
+
+                                const input = td.querySelector('[data-qty-input]');
+                                const display = td.querySelector('[data-qty-display]');
+                                const previous = display?.textContent?.trim() ?? '0';
+                                const raw = input.value.trim();
+
+                                if (raw === '' || Number.isNaN(Number(raw)) || Number(raw) < 0) {
+                                    this.cellError = 'Quantité invalide.';
+                                    this.finishCellEditUi(td, previous);
+                                    this.editingCellKey = null;
+                                    return;
+                                }
+
+                                const newQty = parseInt(raw, 10);
+                                if (String(newQty) === previous) {
+                                    this.finishCellEditUi(td, previous);
+                                    this.editingCellKey = null;
+                                    return;
+                                }
+
+                                this.cellSaving = true;
+                                input.disabled = true;
+
+                                try {
+                                    const body = {
+                                        product_id: Number(productId),
+                                        location_id: Number(locationId),
+                                        quantity: newQty,
+                                        notes: 'Modification grille stocks',
+                                    };
+                                    if (config.branchId) {
+                                        body.branch = config.branchId;
+                                    }
+
+                                    const res = await fetch(config.adjustmentUrl, {
+                                        method: 'POST',
+                                        headers: {
+                                            Accept: 'application/json',
+                                            'Content-Type': 'application/json',
+                                            'X-CSRF-TOKEN': csrf,
+                                            'X-Requested-With': 'XMLHttpRequest',
+                                        },
+                                        credentials: 'same-origin',
+                                        body: JSON.stringify(body),
+                                    });
+
+                                    const data = await res.json().catch(() => ({}));
+                                    if (!res.ok) {
+                                        throw new Error(data.message || 'Enregistrement impossible.');
+                                    }
+
+                                    this.finishCellEditUi(td, String(data.quantity ?? newQty));
+                                    this.applyWarnStyle(td, Boolean(data.below_minimum));
+                                    this.updateRowTotal(td.closest('tr'));
+                                    this.cellError = null;
+                                } catch (err) {
+                                    this.cellError = err.message || 'Erreur lors de la mise à jour.';
+                                    this.finishCellEditUi(td, previous);
+                                } finally {
+                                    this.cellSaving = false;
+                                    this.editingCellKey = null;
+                                }
                             },
                             async refreshCurrent() {
                                 if (!this.productId || !this.locationId) {

@@ -183,11 +183,15 @@ class PosShiftController extends Controller
             );
         }
 
+        $canReopen = auth()->user()?->isAdmin()
+            && $this->closedShiftCanBeReopened($shift);
+
         return view('pos_terminals.closed_shift_show', compact(
             'shift',
             'branch',
             'summaries',
             'grandTotal',
+            'canReopen',
         ));
     }
 
@@ -265,7 +269,7 @@ class PosShiftController extends Controller
             'voucher_no' => $voucherNo,
             'pos_shift_id' => $shift->id,
             'department_id' => $selected['department']?->id,
-            'date' => optional($shift->closed_at)->toDateString() ?? now()->toDateString(),
+            'date' => $shift->effectiveClosedAt()->toDateString(),
             'description' => sprintf(
                 'Entrée caisse issue de la clôture session #%d - %s (%s)',
                 $shift->id,
@@ -307,6 +311,70 @@ class PosShiftController extends Controller
         return redirect()
             ->route('pos-terminal.shifts.closed', $request->only(['registration', 'date_from', 'date_to']))
             ->with('success', 'Session sans vente supprimée.');
+    }
+
+    public function reopenClosed(Request $request, PosShift $shift): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403);
+        abort_if($shift->closed_at === null, 404);
+
+        $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
+        abort_unless(in_array((int) $shift->pos_terminal_id, $allowedTerminalIds, true), 403, 'Session non autorisée.');
+
+        if (! $this->closedShiftCanBeReopened($shift)) {
+            return redirect()
+                ->route('pos-terminal.shifts.closed.show', $shift)
+                ->with('warning', 'Impossible de rouvrir : cette session est déjà enregistrée en comptabilité ou possède des bons de caisse.');
+        }
+
+        $shift->loadMissing('posTerminal.branch');
+        $branch = $shift->posTerminal?->branch;
+        $terminal = $shift->posTerminal;
+        abort_unless($branch !== null && $terminal !== null, 404);
+
+        $sessionDateLabel = $shift->effectiveSessionDate()->translatedFormat('d/m/Y');
+        $blockedByOpenShift = false;
+
+        DB::transaction(function () use ($shift, $terminal, &$blockedByOpenShift): void {
+            $lockedShift = PosShift::query()->whereKey($shift->id)->lockForUpdate()->firstOrFail();
+            abort_if($lockedShift->closed_at === null, 404);
+
+            $otherOpen = PosShift::query()
+                ->where('pos_terminal_id', $terminal->id)
+                ->whereNull('closed_at')
+                ->whereKeyNot($lockedShift->id)
+                ->exists();
+
+            if ($otherOpen) {
+                $blockedByOpenShift = true;
+
+                return;
+            }
+
+            $preservedClosedAt = $lockedShift->closed_at_preserved ?? $lockedShift->closed_at;
+
+            Sale::query()
+                ->where('pos_shift_id', $lockedShift->id)
+                ->update(['cash_at_shift_close' => null]);
+
+            $lockedShift->update([
+                'closed_at' => null,
+                'closed_by' => null,
+                'closed_at_preserved' => $preservedClosedAt,
+            ]);
+
+            $lockedShift->alignSalesSoldAtToSessionDate();
+        });
+
+        if ($blockedByOpenShift) {
+            return redirect()
+                ->route('pos-terminal.shifts.closed.show', $shift)
+                ->with('warning', 'Impossible de rouvrir : une autre session est déjà ouverte sur ce terminal.');
+        }
+
+        return redirect()
+            ->route('pos-terminal.workspace', [$branch, $terminal])
+            ->with('success', 'Session rouverte. Les ventes ajoutées seront datées du '.$sessionDateLabel.'.');
     }
 
     public function open(Request $request, Branch $branch, PosTerminal $posTerminal): RedirectResponse
@@ -427,6 +495,9 @@ class PosShiftController extends Controller
         }
 
         DB::transaction(function () use ($shift, $user): void {
+            $shift->refresh();
+            $shift->alignSalesSoldAtToSessionDate();
+
             $salesToClose = Sale::query()
                 ->where('pos_shift_id', $shift->id)
                 ->where('sale_status', '!=', Sale::STATUS_PENDING_DISCOUNT)
@@ -439,8 +510,12 @@ class PosShiftController extends Controller
                 ]);
             }
 
+            $preservedClosedAt = $shift->closed_at_preserved;
+            $closedAt = $preservedClosedAt ?? now();
+
             $shift->update([
-                'closed_at' => now(),
+                'closed_at' => $closedAt,
+                'closed_at_preserved' => $preservedClosedAt ?? $closedAt,
                 'closed_by' => $user->id,
             ]);
         });
@@ -554,6 +629,11 @@ class PosShiftController extends Controller
                     ->orWhere('pos_shift_id', $shift->id);
             })
             ->exists();
+    }
+
+    private function closedShiftCanBeReopened(PosShift $shift): bool
+    {
+        return ! $this->closedShiftHasFinanceLinks($shift);
     }
 
     /** Bon de caisse créé depuis la clôture pour cette ligne département (référence par défaut ou pivot sur le shift). */

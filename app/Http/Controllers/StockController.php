@@ -97,7 +97,7 @@ class StockController extends Controller
         return response()->json(['quantity' => $qty]);
     }
 
-    public function applyAdjustment(Request $request): RedirectResponse
+    public function applyAdjustment(Request $request): RedirectResponse|JsonResponse
     {
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
@@ -106,14 +106,13 @@ class StockController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $adjusted = false;
+        $productId = (int) $data['product_id'];
+        $locationId = (int) $data['location_id'];
+        $newQty = (int) $data['quantity'];
+        $wantsJson = $request->expectsJson();
 
         try {
-            DB::transaction(function () use ($request, $data, &$adjusted) {
-                $productId = (int) $data['product_id'];
-                $locationId = (int) $data['location_id'];
-                $newQty = (int) $data['quantity'];
-
+            $result = DB::transaction(function () use ($request, $data, $productId, $locationId, $newQty) {
                 $stock = Stock::query()
                     ->where('product_id', $productId)
                     ->where('location_id', $locationId)
@@ -124,7 +123,17 @@ class StockController extends Controller
                 $delta = $newQty - $oldQty;
 
                 if ($delta === 0) {
-                    return;
+                    $stock = $stock ?? Stock::query()
+                        ->with(['product:id,minimum_stock'])
+                        ->where('product_id', $productId)
+                        ->where('location_id', $locationId)
+                        ->first();
+
+                    return [
+                        'adjusted' => false,
+                        'quantity' => $oldQty,
+                        'below_minimum' => $this->stockCellBelowMinimum($stock, $productId),
+                    ];
                 }
 
                 Stock::modifyQuantity($productId, $locationId, $delta);
@@ -143,15 +152,33 @@ class StockController extends Controller
                     'notes' => 'Ajustement inventaire : '.$oldQty.' → '.$newQty.$noteSuffix,
                 ]);
 
-                $adjusted = true;
+                $stock = Stock::query()
+                    ->with(['product:id,minimum_stock'])
+                    ->where('product_id', $productId)
+                    ->where('location_id', $locationId)
+                    ->first();
+
+                return [
+                    'adjusted' => true,
+                    'quantity' => $newQty,
+                    'below_minimum' => $this->stockCellBelowMinimum($stock, $productId),
+                ];
             });
         } catch (RuntimeException $e) {
+            if ($wantsJson) {
+                return response()->json(['message' => $e->getMessage()], 422);
+            }
+
             return redirect()
                 ->route('stocks.index', $this->stockIndexBranchRedirectParams($request))
                 ->withErrors(['adjustment' => $e->getMessage()]);
         }
 
-        if (! $adjusted) {
+        if ($wantsJson) {
+            return response()->json($result);
+        }
+
+        if (! $result['adjusted']) {
             return redirect()
                 ->route('stocks.index', $this->stockIndexBranchRedirectParams($request))
                 ->with('warning', 'Aucun changement : la quantité saisie est déjà celle en base.');
@@ -160,6 +187,17 @@ class StockController extends Controller
         return redirect()
             ->route('stocks.index', $this->stockIndexBranchRedirectParams($request))
             ->with('success', 'Stock mis à jour et mouvement d’ajustement enregistré.');
+    }
+
+    private function stockCellBelowMinimum(?Stock $stock, int $productId): bool
+    {
+        if ($stock !== null) {
+            return $stock->isBelowMinimum();
+        }
+
+        $productMin = Product::query()->whereKey($productId)->value('minimum_stock');
+
+        return $productMin !== null && 0 < (int) $productMin;
     }
 
     public function edit(Request $request, Stock $stock): View

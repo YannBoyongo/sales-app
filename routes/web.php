@@ -154,6 +154,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('clients/{client}/caution-deposits/{deposit}', [ClientController::class, 'destroyCautionDeposit'])
             ->name('clients.caution-deposits.destroy')
             ->whereNumber(['client', 'deposit']);
+        Route::post('caisse/shifts/closed/{shift}/reopen', [PosShiftController::class, 'reopenClosed'])->name('pos-terminal.shifts.closed.reopen')->whereNumber('shift');
     });
 
     Route::middleware('clients_module')->group(function () {

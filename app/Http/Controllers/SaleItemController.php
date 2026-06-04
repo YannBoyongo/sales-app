@@ -342,6 +342,7 @@ class SaleItemController extends Controller
                         'to_location_id' => null,
                         'user_id' => $request->user()->id,
                         'sale_item_id' => $saleItem->id,
+                        'occurred_on' => $sessionSoldAt->toDateString(),
                         'notes' => 'Vente '.$saleReference.' — '.$branch->name,
                     ]);
                 }

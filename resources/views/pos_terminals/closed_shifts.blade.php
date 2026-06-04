@@ -62,7 +62,7 @@
                         <tr class="hover:bg-neutral-50/80">
                             <td class="px-4 py-3 text-neutral-700">
                                 <p class="font-medium text-neutral-900">{{ $shift->effectiveSessionDate()->format('d/m/Y') }}</p>
-                                <p class="text-xs text-neutral-500">Fermée le {{ optional($shift->closed_at)->format('d/m/Y H:i') ?? '—' }}</p>
+                                <p class="text-xs text-neutral-500">Fermée le {{ $shift->effectiveClosedAt()->format('d/m/Y H:i') }}</p>
                             </td>
                             <td class="px-4 py-3">
                                 <p class="font-medium text-neutral-900">{{ $shift->posTerminal?->name ?? '—' }}</p>

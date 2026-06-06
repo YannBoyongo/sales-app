@@ -14,6 +14,9 @@
             @if (! empty($stocksIndexQuery['branch'] ?? null))
                 <input type="hidden" name="branch" value="{{ $stocksIndexQuery['branch'] }}" />
             @endif
+            @if (! empty($stocksIndexQuery['department_id'] ?? null))
+                <input type="hidden" name="department_id" value="{{ $stocksIndexQuery['department_id'] }}" />
+            @endif
             <div>
                 <x-input-label for="minimum_stock" value="Seuil minimum (alerte si quantité inférieure)" />
                 <x-text-input id="minimum_stock" name="minimum_stock" type="number" min="0" class="mt-1 block w-full" :value="old('minimum_stock', $stock->minimum_stock)" placeholder="Laisser vide pour désactiver" />

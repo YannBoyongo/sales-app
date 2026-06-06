@@ -59,26 +59,49 @@
                 ></div>
             @endif
 
-            @if ($stockBranches->isNotEmpty() && $stockBranches->count() > 1)
-                <form method="get" action="{{ route('stocks.index') }}" class="mb-6 flex flex-wrap items-end gap-3">
-                    <div class="min-w-[12rem]">
-                        <label for="stock-branch-filter" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Branche</label>
+            @if ($stockBranches->isNotEmpty())
+                <form method="get" action="{{ route('stocks.index') }}" class="app-filter-bar mb-6">
+                    @if ($stockBranches->count() > 1)
+                        <div class="min-w-[12rem]">
+                            <label for="stock-branch-filter" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Branche</label>
+                            <select
+                                id="stock-branch-filter"
+                                name="branch"
+                                class="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                            >
+                                @foreach ($stockBranches as $b)
+                                    <option value="{{ $b->id }}" @selected($selectedBranch?->id === $b->id)>{{ $b->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    @elseif ($selectedBranch)
+                        <input type="hidden" name="branch" value="{{ $selectedBranch->id }}">
+                    @endif
+                    <div class="w-full sm:w-56">
+                        <label for="stock-department-filter" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Département</label>
                         <select
-                            id="stock-branch-filter"
-                            name="branch"
-                            class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary"
-                            onchange="this.form.submit()"
+                            id="stock-department-filter"
+                            name="department_id"
+                            class="mt-1 block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                         >
-                            @foreach ($stockBranches as $b)
-                                <option value="{{ $b->id }}" @selected($selectedBranch?->id === $b->id)>{{ $b->name }}</option>
+                            <option value="">Tous</option>
+                            @foreach ($departments as $dept)
+                                <option value="{{ $dept->id }}" @selected((string) old('department_id', $filters['department_id'] ?? '') === (string) $dept->id)>
+                                    {{ $dept->name }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="submit" class="app-btn-primary">Filtrer</button>
+                        <a
+                            href="{{ route('stocks.index', $selectedBranch ? ['branch' => $selectedBranch->id] : []) }}"
+                            class="app-btn-secondary"
+                        >
+                            Réinitialiser
+                        </a>
+                    </div>
                 </form>
-            @elseif ($selectedBranch)
-                <p class="mb-6 text-sm text-neutral-600">
-                    Branche : <span class="font-semibold text-neutral-900">{{ $selectedBranch->name }}</span>
-                </p>
             @endif
 
             @if ($stockBranches->isEmpty())
@@ -195,6 +218,9 @@
                             @csrf
                             @if ($selectedBranch)
                                 <input type="hidden" name="branch" value="{{ $selectedBranch->id }}" />
+                            @endif
+                            @if (! empty($filters['department_id'] ?? null))
+                                <input type="hidden" name="department_id" value="{{ $filters['department_id'] }}" />
                             @endif
                             <div>
                                 <label for="adj_product_id" class="block text-xs font-semibold text-neutral-700">Produit</label>

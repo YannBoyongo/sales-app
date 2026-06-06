@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Models\Department;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\Stock;
@@ -20,6 +21,10 @@ class StockController extends Controller
 
     public function index(Request $request): View
     {
+        $filters = $request->validate([
+            'department_id' => ['nullable', 'integer', 'exists:departments,id'],
+        ]);
+
         $stockBranches = $this->stockBranchesForMatrix();
         $branchParam = $request->query('branch');
         $branchId = ($branchParam !== null && $branchParam !== '') ? (int) $branchParam : null;
@@ -33,14 +38,32 @@ class StockController extends Controller
         }
         $locationIds = $locations->pluck('id')->all();
 
+        $departmentIdQuery = Product::query()->select('products.department_id')->distinct();
+        if ($selectedBranch !== null) {
+            $this->applyProductScopeForBranch($departmentIdQuery, $selectedBranch);
+        } else {
+            $this->applyProductBranchScope($departmentIdQuery);
+        }
+        $departments = Department::query()
+            ->whereIn('id', $departmentIdQuery->whereNotNull('department_id'))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         $productQuery = Product::query()
-            ->select(['id', 'name', 'sku', 'minimum_stock'])
+            ->select(['id', 'name', 'sku', 'minimum_stock', 'department_id'])
             ->orderBy('name');
 
         if ($selectedBranch !== null) {
             $this->applyProductScopeForBranch($productQuery, $selectedBranch);
         } else {
             $this->applyProductBranchScope($productQuery);
+        }
+
+        if (! empty($filters['department_id'])) {
+            $departmentId = (int) $filters['department_id'];
+            if ($departments->contains('id', $departmentId)) {
+                $productQuery->where('department_id', $departmentId);
+            }
         }
 
         $products = $productQuery->paginate(30)->withQueryString();
@@ -79,6 +102,8 @@ class StockController extends Controller
             'adjustmentProducts',
             'stockBranches',
             'selectedBranch',
+            'departments',
+            'filters',
         ));
     }
 
@@ -170,7 +195,7 @@ class StockController extends Controller
             }
 
             return redirect()
-                ->route('stocks.index', $this->stockIndexBranchRedirectParams($request))
+                ->route('stocks.index', $this->stockIndexRedirectParams($request))
                 ->withErrors(['adjustment' => $e->getMessage()]);
         }
 
@@ -180,12 +205,12 @@ class StockController extends Controller
 
         if (! $result['adjusted']) {
             return redirect()
-                ->route('stocks.index', $this->stockIndexBranchRedirectParams($request))
+                ->route('stocks.index', $this->stockIndexRedirectParams($request))
                 ->with('warning', 'Aucun changement : la quantité saisie est déjà celle en base.');
         }
 
         return redirect()
-            ->route('stocks.index', $this->stockIndexBranchRedirectParams($request))
+            ->route('stocks.index', $this->stockIndexRedirectParams($request))
             ->with('success', 'Stock mis à jour et mouvement d’ajustement enregistré.');
     }
 
@@ -207,7 +232,7 @@ class StockController extends Controller
         $stock->load(['product', 'location.branch']);
         $this->ensureUserCanAccessLocation($stock->location);
 
-        $stocksIndexQuery = $request->only('branch');
+        $stocksIndexQuery = $request->only(['branch', 'department_id']);
 
         return view('stocks.edit', compact('stock', 'stocksIndexQuery'));
     }
@@ -232,19 +257,25 @@ class StockController extends Controller
         ]);
 
         return redirect()
-            ->route('stocks.index', $this->stockIndexBranchRedirectParams($request))
+            ->route('stocks.index', $this->stockIndexRedirectParams($request))
             ->with('success', 'Seuil d’alerte enregistré.');
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function stockIndexBranchRedirectParams(Request $request): array
+    private function stockIndexRedirectParams(Request $request): array
     {
-        if (! $request->filled('branch')) {
-            return [];
+        $params = [];
+
+        if ($request->filled('branch')) {
+            $params['branch'] = $request->input('branch');
         }
 
-        return ['branch' => $request->input('branch')];
+        if ($request->filled('department_id')) {
+            $params['department_id'] = $request->input('department_id');
+        }
+
+        return $params;
     }
 }

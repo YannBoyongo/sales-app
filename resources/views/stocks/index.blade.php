@@ -90,31 +90,31 @@
                     Aucun emplacement dans votre périmètre pour la branche sélectionnée.
                 </div>
             @else
-                <div class="app-table-shell overflow-x-auto">
-                    <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                <div class="stocks-matrix-scroll">
+                    <table class="stocks-matrix-table text-sm">
                         <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                             <tr>
-                                <th scope="col" class="sticky left-0 z-20 min-w-[12rem] border-r border-neutral-200 bg-neutral-50/90 px-4 py-3 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.08)]">Produit</th>
-                                @foreach ($locations as $loc)
-                                    <th scope="col" class="min-w-[6.5rem] whitespace-nowrap px-3 py-3 text-right" title="{{ $loc->branch->name }} — {{ $loc->name }}">
-                                        <span class="block max-w-[8rem] truncate">{{ $loc->name }}</span>
-                                        @if ($stockBranches->count() > 1)
-                                            <span class="block max-w-[8rem] truncate font-normal normal-case text-neutral-400">{{ $loc->branch->name }}</span>
-                                        @endif
-                                    </th>
-                                @endforeach
-                                <th scope="col" class="min-w-[5rem] whitespace-nowrap border-l border-neutral-200 bg-neutral-100/90 px-3 py-3 text-right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-neutral-100">
-                            @forelse ($products as $product)
-                                <tr class="group hover:bg-neutral-50/80">
-                                    <th scope="row" class="sticky left-0 z-10 border-r border-neutral-200 bg-white px-4 py-3 text-left font-medium text-neutral-900 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.06)] group-hover:bg-neutral-50/80">
-                                        <span class="block">{{ $product->name }}</span>
-                                        @if ($product->sku)
-                                            <span class="mt-0.5 block text-xs font-normal text-neutral-500">{{ $product->sku }}</span>
-                                        @endif
-                                    </th>
+                                <th scope="col" class="stocks-matrix-corner min-w-[12rem] border-r border-neutral-200 px-4 py-3">Produit</th>
+                                    @foreach ($locations as $loc)
+                                        <th scope="col" class="min-w-[6.5rem] whitespace-nowrap px-3 py-3 text-right" title="{{ $loc->branch->name }} — {{ $loc->name }}">
+                                            <span class="block max-w-[8rem] truncate">{{ $loc->name }}</span>
+                                            @if ($stockBranches->count() > 1)
+                                                <span class="block max-w-[8rem] truncate font-normal normal-case text-neutral-300">{{ $loc->branch->name }}</span>
+                                            @endif
+                                        </th>
+                                    @endforeach
+                                    <th scope="col" class="stocks-matrix-total min-w-[5rem] whitespace-nowrap border-l border-neutral-200 px-3 py-3 text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-neutral-100">
+                                @forelse ($products as $product)
+                                    <tr class="group hover:bg-neutral-50/80">
+                                        <th scope="row" class="stocks-matrix-product-col border-r border-neutral-200 px-4 py-3 text-left font-medium text-neutral-900">
+                                            <span class="block">{{ $product->name }}</span>
+                                            @if ($product->sku)
+                                                <span class="mt-0.5 block text-xs font-normal text-neutral-500">{{ $product->sku }}</span>
+                                            @endif
+                                        </th>
                                     @foreach ($locations as $loc)
                                         @php
                                             $stock = $matrix[$product->id][$loc->id] ?? null;

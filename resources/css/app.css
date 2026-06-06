@@ -268,3 +268,62 @@
         clip-path: polygon(22% 0, 100% 0, 100% 100%, 0 100%);
     }
 }
+
+/* Stocks matrix — frozen header row (vertical scroll) + product column (horizontal scroll) */
+.stocks-matrix-scroll {
+    max-height: min(75vh, calc(100dvh - 13rem));
+    overflow: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 0.75rem;
+    border: 1px solid rgb(226 232 240 / 0.8);
+    background-color: #fff;
+    box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 4px 16px -2px rgb(15 23 42 / 0.08);
+}
+
+.stocks-matrix-table {
+    width: max-content;
+    min-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+.stocks-matrix-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background-color: #003d7a;
+    color: #fff;
+    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.15);
+}
+
+.stocks-matrix-table thead th.stocks-matrix-corner {
+    left: 0;
+    z-index: 40;
+    background-color: #f8fafc;
+    color: #0f172a;
+    box-shadow:
+        1px 0 0 rgba(15, 23, 42, 0.08),
+        0 1px 0 rgba(15, 23, 42, 0.12);
+}
+
+.stocks-matrix-table thead th.stocks-matrix-total {
+    background-color: #f5f5f5;
+    color: #0f172a;
+}
+
+.stocks-matrix-table tbody th.stocks-matrix-product-col {
+    position: sticky;
+    left: 0;
+    z-index: 10;
+    background-color: #fff;
+    box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08);
+}
+
+.stocks-matrix-table tbody tr:nth-child(even) th.stocks-matrix-product-col {
+    background-color: #f8fafc;
+}
+
+.stocks-matrix-table tbody tr:hover th.stocks-matrix-product-col {
+    background-color: #e6f0fa;
+}

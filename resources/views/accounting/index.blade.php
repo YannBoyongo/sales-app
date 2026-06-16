@@ -110,8 +110,8 @@
                         <th class="py-3 pr-4">Date</th>
                         <th class="py-3 pr-4">Compte</th>
                         <th class="py-3 pr-4">Référence / Description</th>
-                        <th class="py-3 pr-4 text-right">Debit</th>
-                        <th class="py-3 pr-4 text-right">Credit</th>
+                        <th class="py-3 pr-4 text-right">Crédit</th>
+                        <th class="py-3 pr-4 text-right">Débit</th>
                         <th class="py-3 text-right">Solde</th>
                     </tr>
                 </thead>

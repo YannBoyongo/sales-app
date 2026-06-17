@@ -121,8 +121,8 @@
                             <td class="py-3 pr-4 whitespace-nowrap text-neutral-700">{{ \Illuminate\Support\Carbon::parse($row->transaction_date)->translatedFormat('d/m/Y') }}</td>
                             <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs text-neutral-700">{{ $row->account_code ?: '—' }}</td>
                             <td class="py-3 pr-4 text-neutral-900">{{ $row->reference }}</td>
-                            <td class="py-3 pr-4 text-right tabular-nums text-red-700">{{ (float) $row->credit_amount > 0 ? \App\Support\Money::usd($row->credit_amount) : '—' }}</td>
-                            <td class="py-3 pr-4 text-right tabular-nums text-emerald-700">{{ (float) $row->debit_amount > 0 ? \App\Support\Money::usd($row->debit_amount) : '—' }}</td>
+                            <td class="py-3 pr-4 text-right tabular-nums text-emerald-700">{{ (float) $row->credit_amount > 0 ? \App\Support\Money::usd($row->credit_amount) : '—' }}</td>
+                            <td class="py-3 pr-4 text-right tabular-nums text-red-700">{{ (float) $row->debit_amount > 0 ? \App\Support\Money::usd($row->debit_amount) : '—' }}</td>
                             <td class="py-3 text-right tabular-nums font-semibold text-primary">{{ \App\Support\Money::usd($row->running_balance) }}</td>
                         </tr>
                     @empty

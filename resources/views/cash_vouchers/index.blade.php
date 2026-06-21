@@ -153,6 +153,21 @@
                                             <a href="{{ route('cash-vouchers.accounting.create', $voucher) }}" class="inline-flex items-center rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15">
                                                 Imputer
                                             </a>
+                                        @elseif ($voucher->accounting_transaction_id)
+                                            <form
+                                                action="{{ route('cash-vouchers.unaccount', $voucher) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Annuler la comptabilisation de ce bon ? L’écriture comptable sera supprimée et le bon repassera en attente.');"
+                                                class="inline"
+                                            >
+                                                @csrf
+                                                <button
+                                                    type="submit"
+                                                    class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
+                                                >
+                                                    Décomptabiliser
+                                                </button>
+                                            </form>
                                         @else
                                             <span class="text-xs text-neutral-500">—</span>
                                         @endif

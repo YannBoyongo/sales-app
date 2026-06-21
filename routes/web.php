@@ -154,6 +154,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('clients/{client}/caution-deposits/{deposit}', [ClientController::class, 'destroyCautionDeposit'])
             ->name('clients.caution-deposits.destroy')
             ->whereNumber(['client', 'deposit']);
+        Route::delete('clients/{client}/payments/{payment}', [ClientController::class, 'destroyPayment'])
+            ->name('clients.payments.destroy')
+            ->whereNumber(['client', 'payment']);
         Route::post('caisse/shifts/closed/{shift}/reopen', [PosShiftController::class, 'reopenClosed'])->name('pos-terminal.shifts.closed.reopen')->whereNumber('shift');
     });
 
@@ -180,6 +183,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('bons-de-caisse', [CashVoucherController::class, 'store'])->name('cash-vouchers.store');
         Route::get('bons-de-caisse/{cashVoucher}/comptabiliser', [CashVoucherController::class, 'createAccountingEntry'])->name('cash-vouchers.accounting.create');
         Route::post('bons-de-caisse/{cashVoucher}/comptabiliser', [CashVoucherController::class, 'storeAccountingEntry'])->name('cash-vouchers.accounting.store');
+        Route::post('bons-de-caisse/{cashVoucher}/decomptabiliser', [CashVoucherController::class, 'unaccount'])->name('cash-vouchers.unaccount');
     });
 
     Route::middleware('accounting')->group(function () {

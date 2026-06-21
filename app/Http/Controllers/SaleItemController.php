@@ -203,7 +203,8 @@ class SaleItemController extends Controller
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'items.*.unit_price' => [
-                Rule::requiredIf(fn () => $request->input('customer_type') === 'dealer'),
+                Rule::requiredIf(fn () => $request->has('allow_line_discount')
+                    && filter_var($request->input('allow_line_discount'), FILTER_VALIDATE_BOOLEAN)),
                 'nullable',
                 'numeric',
                 'min:0',
@@ -283,8 +284,7 @@ class SaleItemController extends Controller
                     'sold_at' => $sessionSoldAt,
                 ]);
 
-                $allowLineDiscount = $customerType === 'dealer'
-                    && $request->has('allow_line_discount')
+                $allowLineDiscount = $request->has('allow_line_discount')
                     && filter_var($request->input('allow_line_discount'), FILTER_VALIDATE_BOOLEAN);
                 $isAdmin = $request->user()->isAdmin();
 
@@ -305,10 +305,10 @@ class SaleItemController extends Controller
                     Stock::modifyQuantity($product->id, $pointOfSale->id, -$qty);
 
                     $catalogUnit = (string) $product->unit_price;
-                    if ($customerType === 'dealer' && $allowLineDiscount) {
+                    if ($allowLineDiscount) {
                         $unit = number_format((float) ($row['unit_price'] ?? 0), 2, '.', '');
                         if (bccomp($unit, '0', 2) <= 0) {
-                            throw new RuntimeException('Chaque ligne revendeur doit avoir un prix unitaire supérieur à zéro.');
+                            throw new RuntimeException('Chaque ligne doit avoir un prix unitaire supérieur à zéro.');
                         }
                     } else {
                         $unit = $catalogUnit;

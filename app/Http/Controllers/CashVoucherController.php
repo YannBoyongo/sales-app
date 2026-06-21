@@ -168,6 +168,33 @@ class CashVoucherController extends Controller
             ->with('success', 'Bon de caisse enregistré en comptabilité.');
     }
 
+    public function unaccount(Request $request, CashVoucher $cashVoucher): RedirectResponse
+    {
+        abort_unless($request->user()?->canAccessAccounting(), 403, 'Action non autorisée.');
+
+        if ($cashVoucher->accounting_transaction_id === null) {
+            return redirect()
+                ->route('cash-vouchers.index')
+                ->with('warning', 'Ce bon de caisse n’est pas comptabilisé.');
+        }
+
+        DB::transaction(function () use ($cashVoucher): void {
+            $transactionId = $cashVoucher->accounting_transaction_id;
+
+            $cashVoucher->update([
+                'accounting_transaction_id' => null,
+                'approved_at' => null,
+                'approved_by' => null,
+            ]);
+
+            AccountingTransaction::query()->whereKey($transactionId)->delete();
+        });
+
+        return redirect()
+            ->route('cash-vouchers.index')
+            ->with('success', 'Comptabilisation annulée. Le bon est de nouveau en attente.');
+    }
+
     public function destroy(Request $request, CashVoucher $cashVoucher): RedirectResponse
     {
         abort_unless($request->user()?->isAdmin(), 403, 'Action non autorisée.');

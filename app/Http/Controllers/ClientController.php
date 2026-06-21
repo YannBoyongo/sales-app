@@ -7,6 +7,7 @@ use App\Models\CashVoucher;
 use App\Models\Client;
 use App\Models\ClientCautionDeposit;
 use App\Models\Payment;
+use App\Models\Sale;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -242,5 +243,87 @@ class ClientController extends Controller
         });
 
         return back()->with('success', 'Dépôt de caution supprimé.');
+    }
+
+    public function destroyPayment(Client $client, Payment $payment): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        abort_unless((int) $payment->client_id === (int) $client->id, 404);
+
+        $voucher = CashVoucher::query()
+            ->where('voucher_no', 'CV-DETTE-'.$payment->id)
+            ->first();
+
+        if ($voucher?->accounting_transaction_id) {
+            return back()->with('danger', 'Impossible de supprimer ce paiement : le bon de caisse associé a déjà été comptabilisé.');
+        }
+
+        DB::transaction(function () use ($client, $payment, $voucher) {
+            $this->reverseSalePaymentIfApplicable($payment, $client, $voucher);
+            $voucher?->delete();
+            $payment->delete();
+        });
+
+        return back()->with('success', 'Paiement supprimé.');
+    }
+
+    private function reverseSalePaymentIfApplicable(Payment $payment, Client $client, ?CashVoucher $voucher): void
+    {
+        $reference = $this->saleReferenceFromPayment($payment, $voucher);
+        if ($reference === null) {
+            return;
+        }
+
+        $sale = Sale::query()
+            ->where('client_id', $client->id)
+            ->where('reference', $reference)
+            ->lockForUpdate()
+            ->first();
+
+        if ($sale === null) {
+            return;
+        }
+
+        $amount = number_format((float) $payment->amount, 2, '.', '');
+        $newAmountPaid = bcsub($sale->paidAmountValue(), $amount, 2);
+        if (bccomp($newAmountPaid, '0', 2) === -1) {
+            $newAmountPaid = '0.00';
+        }
+
+        $expected = $sale->expectedPayableAmount();
+        $newBalance = bcsub($expected, $newAmountPaid, 2);
+
+        if (bccomp($newBalance, '0.00', 2) <= 0) {
+            $newBalance = '0.00';
+            $status = Sale::PAYMENT_STATUS_FULLY_PAID;
+        } elseif (bccomp($newAmountPaid, '0.00', 2) === 1) {
+            $status = Sale::PAYMENT_STATUS_PARTIALLY_PAID;
+        } else {
+            $status = Sale::PAYMENT_STATUS_NOT_PAID;
+        }
+
+        $sale->update([
+            'amount_paid' => $newAmountPaid,
+            'balance_amount' => $newBalance,
+            'payment_status' => $status,
+        ]);
+
+        $sale->syncLinePaymentTypesForBalance();
+    }
+
+    private function saleReferenceFromPayment(Payment $payment, ?CashVoucher $voucher): ?string
+    {
+        $note = (string) ($payment->note ?? '');
+        if (preg_match('/Paiement (?:sur|à la) vente (\S+)/u', $note, $matches)) {
+            return $matches[1];
+        }
+
+        $description = (string) ($voucher?->description ?? '');
+        if (preg_match('/\(vente (\S+)\)/u', $description, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
     }
 }

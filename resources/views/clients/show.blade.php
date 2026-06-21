@@ -297,7 +297,10 @@
                             <th class="py-3 pr-4">Date</th>
                             <th class="py-3 pr-4">Enregistré par</th>
                             <th class="py-3 pr-4">Note</th>
-                            <th class="py-3 text-right">Montant</th>
+                            <th class="py-3 pr-4 text-right">Montant</th>
+                            @if (auth()->user()?->isAdmin())
+                                <th class="py-3 text-right">Action</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-neutral-100">
@@ -306,11 +309,33 @@
                                 <td class="py-3 pr-4 text-neutral-600">{{ $payment->paid_at->translatedFormat('d/m/Y H:i') }}</td>
                                 <td class="py-3 pr-4 text-neutral-700">{{ $payment->user?->name ?? '—' }}</td>
                                 <td class="py-3 pr-4 text-neutral-700">{{ $payment->note ?? '—' }}</td>
-                                <td class="py-3 text-right tabular-nums">{{ \App\Support\Money::usd($payment->amount) }}</td>
+                                <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($payment->amount) }}</td>
+                                @if (auth()->user()?->isAdmin())
+                                    <td class="py-3 text-right">
+                                        <form
+                                            action="{{ route('clients.payments.destroy', [$client, $payment]) }}"
+                                            method="POST"
+                                            onsubmit="return confirm('Supprimer ce paiement ? Le bon de caisse associé sera aussi retiré s’il n’a pas été comptabilisé.');"
+                                        >
+                                            @csrf
+                                            @method('DELETE')
+                                            <button
+                                                type="submit"
+                                                title="Supprimer"
+                                                aria-label="Supprimer"
+                                                class="app-icon-btn-danger"
+                                            >
+                                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7.5h12m-9.75 0V6a1.5 1.5 0 011.5-1.5h4.5a1.5 1.5 0 011.5 1.5v1.5m-8.25 0v10.5A1.5 1.5 0 009 19.5h6a1.5 1.5 0 001.5-1.5V7.5M10.5 10.5v6m3-6v6" />
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="py-8 text-center text-neutral-500">Aucun paiement enregistré.</td>
+                                <td colspan="{{ auth()->user()?->isAdmin() ? 5 : 4 }}" class="py-8 text-center text-neutral-500">Aucun paiement enregistré.</td>
                             </tr>
                         @endforelse
                     </tbody>

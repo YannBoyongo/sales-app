@@ -58,7 +58,7 @@
                 paymentType: @js(old('payment_type', $saleEffectiveCustomerType === 'dealer' ? 'credit' : 'cash')),
                 allowLineDiscount: @js(filter_var(old('allow_line_discount'), FILTER_VALIDATE_BOOLEAN)),
             })"
-            x-effect="syncPaymentTypeByCustomer(); syncDealerDiscountMode()"
+            x-effect="syncPaymentTypeByCustomer()"
             @submit="guardSubmit($event)"
         >
             @csrf
@@ -163,7 +163,7 @@
                             <h2 class="text-base font-semibold text-neutral-900">Articles</h2>
                             <p class="mt-0.5 text-sm text-neutral-600">
                                 Recherchez, ajoutez au panier
-                                <span x-show="customerType === 'dealer'" x-cloak>— cochez <strong>Remise</strong> dans le récapitulatif pour ajuster le prix unitaire</span>.
+                                <span>— cochez <strong>Remise</strong> dans le récapitulatif pour ajuster le prix unitaire</span>.
                             </p>
                         </div>
                     </div>
@@ -244,7 +244,7 @@
                                     Panier
                                     <span class="ml-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs tabular-nums text-neutral-600" x-text="rows.length"></span>
                                 </h3>
-                                <span x-show="customerType === 'dealer' && allowLineDiscount && rows.length" x-cloak class="text-xs text-amber-800">Prix négociables</span>
+                                <span x-show="allowLineDiscount && rows.length" x-cloak class="text-xs text-amber-800">Prix négociables</span>
                             </div>
 
                             <div x-show="rows.length === 0" class="mt-3 rounded-xl border border-dashed border-neutral-200 px-4 py-10 text-center text-sm text-neutral-500">
@@ -271,7 +271,7 @@
                                                     class="mt-1 block w-full rounded-lg border-neutral-200 text-sm tabular-nums focus:border-primary focus:ring-primary"
                                                 />
                                             </div>
-                                            <div x-show="customerType === 'dealer' && allowLineDiscount" x-cloak class="col-span-2 sm:col-span-1">
+                                            <div x-show="allowLineDiscount" x-cloak class="col-span-2 sm:col-span-1">
                                                 <label class="text-xs font-semibold text-neutral-600">Prix unit. (USD)</label>
                                                 <div class="mt-1 flex gap-1">
                                                     <input
@@ -291,7 +291,7 @@
                                                     Rétablir <span x-text="formatUsd(row.catalog_unit_price)"></span>
                                                 </button>
                                             </div>
-                                            <div x-show="customerType === 'walkin' || (customerType === 'dealer' && !allowLineDiscount)" x-cloak>
+                                            <div x-show="!allowLineDiscount" x-cloak>
                                                 <label class="text-xs font-semibold text-neutral-600">Prix unit.</label>
                                                 <p class="mt-2 text-sm tabular-nums text-neutral-800" x-text="formatUsd(catalogUnitPrice(row))"></p>
                                             </div>
@@ -309,7 +309,7 @@
                                     <input type="hidden" :name="`items[${index}][department_id]`" :value="row.department_id" />
                                     <input type="hidden" :name="`items[${index}][product_id]`" :value="row.product_id" />
                                     <input type="hidden" :name="`items[${index}][quantity]`" :value="row.quantity" />
-                                    <template x-if="customerType === 'dealer'">
+                                    <template x-if="allowLineDiscount">
                                         <input type="hidden" :name="`items[${index}][unit_price]`" :value="rowUnitPrice(row)" />
                                     </template>
                                 </div>
@@ -361,7 +361,7 @@
                                             </td>
                                             <td class="px-2 py-2 text-right">
                                                 <input
-                                                    x-show="customerType === 'dealer' && allowLineDiscount"
+                                                    x-show="allowLineDiscount"
                                                     type="number"
                                                     step="0.01"
                                                     min="0"
@@ -369,7 +369,7 @@
                                                     class="ml-auto block w-24 rounded-md border-amber-200 bg-amber-50/50 py-1 text-right text-sm tabular-nums focus:border-primary focus:ring-primary"
                                                 />
                                                 <span
-                                                    x-show="customerType !== 'dealer' || !allowLineDiscount"
+                                                    x-show="!allowLineDiscount"
                                                     class="tabular-nums text-neutral-700"
                                                     x-text="formatUsd(rowUnitPrice(row))"
                                                 ></span>
@@ -393,7 +393,7 @@
                         </div>
                     </dl>
 
-                    <div x-show="customerType === 'dealer'" x-cloak class="border-t border-neutral-100 pt-3">
+                    <div class="border-t border-neutral-100 pt-3">
                         <label class="flex cursor-pointer items-start gap-2">
                             <input
                                 type="checkbox"
@@ -533,7 +533,7 @@
                 init() {
                     this.rows.forEach((row) => this.ensureRowPricing(row));
                     this.syncPaymentTypeByCustomer();
-                    if (this.customerType === 'dealer' && !this.allowLineDiscount) {
+                    if (!this.allowLineDiscount) {
                         this.resetAllRowPricesToCatalog();
                     }
                 },
@@ -615,17 +615,11 @@
                 },
 
                 rowUnitPrice(row) {
-                    if (this.customerType === 'dealer' && this.allowLineDiscount) {
+                    if (this.allowLineDiscount) {
                         const v = Number(row.unit_price);
                         return Number.isFinite(v) && v >= 0 ? v : this.catalogUnitPrice(row);
                     }
                     return this.catalogUnitPrice(row);
-                },
-
-                syncDealerDiscountMode() {
-                    if (this.customerType !== 'dealer') {
-                        this.allowLineDiscount = false;
-                    }
                 },
 
                 resetAllRowPricesToCatalog() {

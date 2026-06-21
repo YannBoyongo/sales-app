@@ -8,6 +8,7 @@ use App\Models\ChartOfAccount;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CashVoucherController extends Controller
@@ -64,6 +65,41 @@ class CashVoucherController extends Controller
         return redirect()
             ->route('cash-vouchers.index')
             ->with('success', 'Bon de caisse approuvé.');
+    }
+
+    public function update(Request $request, CashVoucher $cashVoucher): RedirectResponse
+    {
+        abort_unless($request->user()?->isAdmin(), 403, 'Action non autorisée.');
+
+        if ($cashVoucher->approved_at !== null) {
+            return redirect()
+                ->route('cash-vouchers.index')
+                ->with('warning', 'Seuls les bons en attente peuvent être modifiés.');
+        }
+
+        if ($cashVoucher->accounting_transaction_id !== null) {
+            return redirect()
+                ->route('cash-vouchers.index')
+                ->with('warning', 'Impossible de modifier un bon comptabilisé.');
+        }
+
+        $data = $request->validate([
+            'voucher_no' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('cash_vouchers', 'voucher_no')->ignore($cashVoucher->id),
+            ],
+            'edit_voucher_id' => ['nullable', 'integer'],
+        ]);
+
+        $cashVoucher->update([
+            'voucher_no' => $data['voucher_no'],
+        ]);
+
+        return redirect()
+            ->route('cash-vouchers.index')
+            ->with('success', 'Numéro du bon mis à jour.');
     }
 
     public function store(Request $request): RedirectResponse

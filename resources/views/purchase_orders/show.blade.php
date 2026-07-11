@@ -8,7 +8,7 @@
                     <p class="app-page-eyebrow">Bon de commande</p>
                     <h1 class="app-page-title">{{ $purchaseOrder->reference }}</h1>
                     <p class="app-page-desc max-w-3xl">
-                        <span class="font-medium text-neutral-800">Emplacement</span> {{ $purchaseOrder->location->name }}
+                        <span class="font-medium text-neutral-800">Emplacement</span> {{ $purchaseOrder->location?->name ?? '—' }}
                         <span class="text-neutral-300">·</span>
                         <span class="font-medium text-neutral-800">Fournisseur</span> {{ $purchaseOrder->supplier ?: '—' }}
                         <span class="text-neutral-300">·</span>
@@ -175,7 +175,7 @@
                             <tr class="hover:bg-neutral-50/50">
                                 <td class="px-4 py-3 whitespace-nowrap text-neutral-600">{{ $reception->received_at->translatedFormat('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-3 font-medium text-neutral-900">{{ $reception->product->name }}</td>
-                                <td class="px-4 py-3 text-neutral-700">{{ $reception->location->name }}</td>
+                                <td class="px-4 py-3 text-neutral-700">{{ $reception->location?->name ?? '—' }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $reception->quantity }}</td>
                                 <td class="px-4 py-3 text-neutral-700">{{ $reception->receiver?->name ?? '—' }}</td>
                                 <td class="px-4 py-3">

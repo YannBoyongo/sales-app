@@ -38,7 +38,7 @@
                     @forelse ($purchaseOrders as $po)
                         <tr class="transition-colors hover:bg-neutral-50/80">
                             <td class="px-4 py-3 font-medium text-neutral-900">{{ $po->reference }}</td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $po->location->name }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $po->location?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-neutral-700">{{ $po->supplier ?: '—' }}</td>
                             <td class="px-4 py-3">
                                 @if ($po->status === 'received')

@@ -1,6 +1,12 @@
 <x-app-layout>
     <x-slot name="header">Bons de caisse</x-slot>
 
+    @php
+        $voucherTableColspan = 5
+            + (auth()->user()?->isAdmin() ? 1 : 0)
+            + (auth()->user()?->canAccessAccounting() ? 1 : 0);
+    @endphp
+
     <div
         x-data="{
             open: {{ ($errors->any() && ! old('edit_voucher_id')) ? 'true' : 'false' }},
@@ -8,6 +14,87 @@
             editVoucherId: @js(old('edit_voucher_id')),
             editVoucherNo: @js(old('voucher_no', '')),
             editAction: @js(old('edit_voucher_id') ? route('cash-vouchers.update', old('edit_voucher_id')) : ''),
+            pendingCount: {{ $pendingVouchers->count() }},
+            totalEntries: {{ $totalEntries }},
+            totalExits: {{ $totalExits }},
+            balance: {{ $balance }},
+            tableColspan: @js($voucherTableColspan),
+            flashMessage: null,
+            flashType: 'success',
+            approvingId: null,
+            moneyFormatter: new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+            formatMoney(value) {
+                return this.moneyFormatter.format(Number(value) || 0);
+            },
+            showFlash(message, type = 'success') {
+                this.flashMessage = message;
+                this.flashType = type;
+                clearTimeout(this._flashTimer);
+                this._flashTimer = setTimeout(() => { this.flashMessage = null; }, 4000);
+            },
+            ensurePendingEmptyState(tbody) {
+                if (! tbody.querySelector('tr[data-voucher-id]')) {
+                    tbody.innerHTML = `<tr data-empty><td colspan='${this.tableColspan}' class='px-4 py-8 text-center text-neutral-500'>Aucun bon en attente.</td></tr>`;
+                }
+            },
+            ensureApprovedHasRow(tbody, rowHtml) {
+                const emptyRow = tbody.querySelector('tr[data-empty]');
+                if (emptyRow) {
+                    emptyRow.remove();
+                }
+                tbody.insertAdjacentHTML('afterbegin', rowHtml);
+            },
+            async approveVoucher(url, event) {
+                if (! confirm('Approuver ce bon de caisse ?')) {
+                    return;
+                }
+
+                const row = event.currentTarget.closest('tr');
+                const voucherId = row?.dataset?.voucherId;
+                if (! row || ! voucherId) {
+                    return;
+                }
+
+                this.approvingId = voucherId;
+                event.currentTarget.disabled = true;
+
+                try {
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                    });
+
+                    const data = await res.json().catch(() => ({}));
+                    if (! res.ok) {
+                        throw new Error(data.message || 'Approbation impossible.');
+                    }
+
+                    row.remove();
+                    this.pendingCount = Math.max(0, this.pendingCount - 1);
+                    this.ensurePendingEmptyState(document.getElementById('pending-vouchers-body'));
+                    this.ensureApprovedHasRow(document.getElementById('approved-vouchers-body'), data.row_html);
+
+                    if (data.voucher?.type === 'entry') {
+                        this.totalEntries += Number(data.voucher.amount) || 0;
+                    } else if (data.voucher?.type === 'exit') {
+                        this.totalExits += Number(data.voucher.amount) || 0;
+                    }
+                    this.balance = this.totalEntries - this.totalExits;
+
+                    this.showFlash(data.message || 'Bon de caisse approuvé.');
+                } catch (err) {
+                    event.currentTarget.disabled = false;
+                    this.showFlash(err.message || 'Erreur lors de l’approbation.', 'danger');
+                } finally {
+                    this.approvingId = null;
+                }
+            },
         }"
         @keydown.escape.window="open = false; editOpen = false"
     >
@@ -31,22 +118,32 @@
                 </div>
             </x-slot>
 
+            <div
+                x-show="flashMessage"
+                x-cloak
+                x-transition
+                class="rounded-xl border px-4 py-3 text-sm"
+                :class="flashType === 'danger' ? 'border-red-200 bg-red-50 text-red-900' : 'border-emerald-200 bg-emerald-50 text-emerald-900'"
+                role="status"
+                x-text="flashMessage"
+            ></div>
+
             <div class="grid gap-3 sm:grid-cols-3">
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                     <p class="text-xs font-semibold uppercase tracking-wide text-emerald-700">Total entrées</p>
-                    <p class="mt-1 text-lg font-semibold tabular-nums text-emerald-900">{{ number_format($totalEntries, 2, ',', ' ') }}</p>
+                    <p class="mt-1 text-lg font-semibold tabular-nums text-emerald-900" x-text="formatMoney(totalEntries)"></p>
                 </div>
                 <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
                     <p class="text-xs font-semibold uppercase tracking-wide text-red-700">Total sorties</p>
-                    <p class="mt-1 text-lg font-semibold tabular-nums text-red-900">{{ number_format($totalExits, 2, ',', ' ') }}</p>
+                    <p class="mt-1 text-lg font-semibold tabular-nums text-red-900" x-text="formatMoney(totalExits)"></p>
                 </div>
                 <div class="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
                     <p class="text-xs font-semibold uppercase tracking-wide text-primary">Solde (Entrées - Sorties)</p>
-                    <p class="mt-1 text-lg font-semibold tabular-nums text-neutral-900">{{ number_format($balance, 2, ',', ' ') }}</p>
+                    <p class="mt-1 text-lg font-semibold tabular-nums text-neutral-900" x-text="formatMoney(balance)"></p>
                 </div>
             </div>
             <p class="text-xs text-neutral-500">
-                Totaux et solde : <strong class="font-medium text-neutral-700">bons approuvés uniquement</strong> (avec les filtres date et type ci-dessous). La liste inclut tous les statuts.
+                Totaux et solde : <strong class="font-medium text-neutral-700">bons approuvés uniquement</strong> (avec les filtres date et type ci-dessous). Les bons en attente sont listés en premier.
             </p>
 
             <form method="GET" action="{{ route('cash-vouchers.index') }}" class="app-filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -72,135 +169,46 @@
                 </div>
             </form>
 
-            <div class="app-table-shell">
-                <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                    <thead class="text-left text-xs font-semibold uppercase tracking-wide">
-                        <tr>
-                            <th class="px-4 py-3">N° bon</th>
-                            <th class="px-4 py-3">Date</th>
-                            <th class="px-4 py-3">Description</th>
-                            <th class="px-4 py-3">Type</th>
-                            <th class="px-4 py-3 text-right">Montant</th>
-                            @if (auth()->user()?->isAdmin())
-                                <th class="px-4 py-3 text-right">Action</th>
-                            @endif
-                            @if (auth()->user()?->canAccessAccounting())
-                                <th class="px-4 py-3 text-right">Comptabilité</th>
-                            @endif
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-neutral-100">
-                        @forelse ($cashVouchers as $voucher)
-                            <tr class="transition-colors hover:bg-neutral-50/80">
-                                <td class="px-4 py-3">
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <span class="font-semibold text-neutral-900">{{ $voucher->voucher_no }}</span>
-                                        @if ($voucher->accounting_transaction_id)
-                                            <span class="inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800">Comptabilisé</span>
-                                        @elseif ($voucher->approved_at)
-                                            <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">Approuvé</span>
-                                        @else
-                                            <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">En attente</span>
-                                        @endif
-                                    </div>
-                                </td>
-                                <td class="px-4 py-3 text-neutral-700">{{ $voucher->date?->format('d/m/Y') }}</td>
-                                <td class="px-4 py-3 text-neutral-700">{{ $voucher->description }}</td>
-                                <td class="px-4 py-3">
-                                    @if ($voucher->type === 'entry')
-                                        <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Entrée</span>
-                                    @else
-                                        <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">Sortie</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-right font-medium tabular-nums text-neutral-900">{{ number_format((float) $voucher->amount, 2, ',', ' ') }}</td>
-                                @if (auth()->user()?->isAdmin())
-                                    <td class="px-4 py-3 text-right">
-                                        <div class="inline-flex items-center justify-end gap-1">
-                                            @if (! $voucher->approved_at)
-                                                <button
-                                                    type="button"
-                                                    title="Modifier le n° bon"
-                                                    aria-label="Modifier le n° bon"
-                                                    class="app-icon-btn"
-                                                    @click="editVoucherId = {{ $voucher->id }}; editVoucherNo = @js($voucher->voucher_no); editAction = @js(route('cash-vouchers.update', $voucher)); editOpen = true"
-                                                >
-                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 3.487a2.1 2.1 0 112.97 2.97L9.75 16.54 6 17.25l.71-3.75 10.152-10.013z" />
-                                                    </svg>
-                                                </button>
-                                                <form action="{{ route('cash-vouchers.approve', $voucher) }}" method="POST" onsubmit="return confirm('Approuver ce bon de caisse ?');" class="inline">
-                                                    @csrf
-                                                    <button
-                                                        type="submit"
-                                                        title="Approuver"
-                                                        aria-label="Approuver"
-                                                        class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                                                    >
-                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                                        </svg>
-                                                    </button>
-                                                </form>
-                                            @endif
-                                            @if (! $voucher->accounting_transaction_id)
-                                                <form action="{{ route('cash-vouchers.destroy', $voucher) }}" method="POST" onsubmit="return confirm('Supprimer définitivement ce bon de caisse ?');" class="inline">
-                                                    @csrf
-                                                    @method('DELETE')
-                                                    <button
-                                                        type="submit"
-                                                        title="Supprimer"
-                                                        aria-label="Supprimer"
-                                                        class="app-icon-btn-danger"
-                                                    >
-                                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
-                                                </form>
-                                            @else
-                                                <span class="inline-flex h-8 w-8 items-center justify-center text-xs text-neutral-400" title="Bon comptabilisé — suppression impossible">—</span>
-                                            @endif
-                                        </div>
-                                    </td>
-                                @endif
-                                @if (auth()->user()?->canAccessAccounting())
-                                    <td class="px-4 py-3 text-right">
-                                        @if ($voucher->approved_at && ! $voucher->accounting_transaction_id)
-                                            <a href="{{ route('cash-vouchers.accounting.create', $voucher) }}" class="inline-flex items-center rounded-lg border border-primary/25 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15">
-                                                Imputer
-                                            </a>
-                                        @elseif ($voucher->accounting_transaction_id)
-                                            <form
-                                                action="{{ route('cash-vouchers.unaccount', $voucher) }}"
-                                                method="POST"
-                                                onsubmit="return confirm('Annuler la comptabilisation de ce bon ? L’écriture comptable sera supprimée et le bon repassera en attente.');"
-                                                class="inline"
-                                            >
-                                                @csrf
-                                                <button
-                                                    type="submit"
-                                                    class="inline-flex items-center rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100"
-                                                >
-                                                    Décomptabiliser
-                                                </button>
-                                            </form>
-                                        @else
-                                            <span class="text-xs text-neutral-500">—</span>
-                                        @endif
-                                    </td>
-                                @endif
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="{{ auth()->user()?->isAdmin() ? (auth()->user()?->canAccessAccounting() ? 7 : 6) : (auth()->user()?->canAccessAccounting() ? 6 : 5) }}" class="px-4 py-10 text-center text-neutral-500">Aucun bon de caisse.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+            <section class="space-y-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <h2 class="text-sm font-semibold text-neutral-900">En attente</h2>
+                    <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-800" x-text="pendingCount"></span>
+                </div>
+                <div class="app-table-shell border-amber-200/80 ring-1 ring-amber-100">
+                    <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                        @include('cash_vouchers.partials.table-head')
+                        <tbody id="pending-vouchers-body" class="divide-y divide-neutral-100">
+                            @forelse ($pendingVouchers as $voucher)
+                                @include('cash_vouchers.partials.row', ['voucher' => $voucher])
+                            @empty
+                                <tr data-empty>
+                                    <td colspan="{{ $voucherTableColspan }}" class="px-4 py-8 text-center text-neutral-500">Aucun bon en attente.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </section>
 
-            <div class="mt-4">{{ $cashVouchers->links() }}</div>
+            <section class="mt-8 space-y-3">
+                <h2 class="text-sm font-semibold text-neutral-900">Approuvés</h2>
+                <div class="app-table-shell">
+                    <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                        @include('cash_vouchers.partials.table-head')
+                        <tbody id="approved-vouchers-body" class="divide-y divide-neutral-100">
+                            @forelse ($approvedVouchers as $voucher)
+                                @include('cash_vouchers.partials.row', ['voucher' => $voucher])
+                            @empty
+                                <tr data-empty>
+                                    <td colspan="{{ $voucherTableColspan }}" class="px-4 py-10 text-center text-neutral-500">Aucun bon approuvé.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="mt-4">{{ $approvedVouchers->links() }}</div>
+            </section>
         </x-caisse-flow>
 
         <div

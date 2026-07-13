@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AccountingTransaction;
 use App\Models\CashVoucher;
 use App\Models\ChartOfAccount;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -32,14 +33,20 @@ class CashVoucherController extends Controller
             ->selectRaw("COALESCE(SUM(CASE WHEN type = 'exit' THEN amount ELSE 0 END), 0) as total_exits")
             ->first();
 
-        $cashVouchers = $baseQuery
-            ->orderByDesc('date')
+        $pendingVouchers = (clone $baseQuery)
+            ->whereNull('approved_at')
+            ->orderByDesc('id')
+            ->get();
+
+        $approvedVouchers = (clone $baseQuery)
+            ->whereNotNull('approved_at')
             ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
         return view('cash_vouchers.index', [
-            'cashVouchers' => $cashVouchers,
+            'pendingVouchers' => $pendingVouchers,
+            'approvedVouchers' => $approvedVouchers,
             'filters' => $filters,
             'totalEntries' => (float) ($totals?->total_entries ?? 0),
             'totalExits' => (float) ($totals?->total_exits ?? 0),
@@ -47,11 +54,17 @@ class CashVoucherController extends Controller
         ]);
     }
 
-    public function approve(Request $request, CashVoucher $cashVoucher): RedirectResponse
+    public function approve(Request $request, CashVoucher $cashVoucher): RedirectResponse|JsonResponse
     {
         abort_unless($request->user()?->isAdmin(), 403, 'Action non autorisée.');
 
         if ($cashVoucher->approved_at !== null) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Ce bon de caisse est déjà approuvé.',
+                ], 422);
+            }
+
             return redirect()
                 ->route('cash-vouchers.index')
                 ->with('warning', 'Ce bon de caisse est déjà approuvé.');
@@ -61,6 +74,22 @@ class CashVoucherController extends Controller
             'approved_at' => now(),
             'approved_by' => $request->user()->id,
         ]);
+
+        $cashVoucher->refresh();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => 'Bon de caisse approuvé.',
+                'voucher' => [
+                    'id' => $cashVoucher->id,
+                    'type' => $cashVoucher->type,
+                    'amount' => (float) $cashVoucher->amount,
+                ],
+                'row_html' => view('cash_vouchers.partials.row', [
+                    'voucher' => $cashVoucher,
+                ])->render(),
+            ]);
+        }
 
         return redirect()
             ->route('cash-vouchers.index')

@@ -25,8 +25,17 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    @if (auth()->user()->isAdmin() && ! $purchaseOrder->reception_started)
+                    @if (auth()->user()->isAdmin() && $purchaseOrder->status === 'open' && ! $purchaseOrder->reception_started)
                         <a href="{{ route('purchase-orders.edit', $purchaseOrder) }}" class="app-btn-secondary">Modifier PO</a>
+                        <form
+                            action="{{ route('purchase-orders.destroy', $purchaseOrder) }}"
+                            method="POST"
+                            onsubmit="return confirm('Supprimer définitivement ce bon de commande ?');"
+                        >
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="app-btn-danger">Supprimer</button>
+                        </form>
                     @endif
                     <a href="{{ route('purchase-orders.index') }}" class="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-white/80 hover:text-primary">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>

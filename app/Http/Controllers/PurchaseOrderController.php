@@ -138,6 +138,25 @@ class PurchaseOrderController extends Controller
         return redirect()->route('purchase-orders.show', $purchaseOrder)->with('success', 'Bon de commande mis à jour.');
     }
 
+    public function destroy(PurchaseOrder $purchaseOrder): RedirectResponse
+    {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        $this->ensureUserCanAccessLocation($purchaseOrder->location);
+
+        if ($purchaseOrder->status !== 'open' || $purchaseOrder->reception_started) {
+            return redirect()
+                ->route('purchase-orders.show', $purchaseOrder)
+                ->with('danger', 'Seuls les bons de commande ouverts (sans réception) peuvent être supprimés.');
+        }
+
+        $purchaseOrder->delete();
+
+        return redirect()
+            ->route('purchase-orders.index')
+            ->with('success', 'Bon de commande supprimé.');
+    }
+
     public function show(PurchaseOrder $purchaseOrder): View
     {
         $purchaseOrder->load([

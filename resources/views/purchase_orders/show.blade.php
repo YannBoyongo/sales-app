@@ -215,6 +215,18 @@
                                                     Annuler
                                                 </button>
                                             </form>
+                                        @elseif ($batchStatus === \App\Models\PurchaseOrderReceptionBatch::STATUS_REJECTED)
+                                            <form
+                                                action="{{ route('purchase-orders.receptions.destroy', [$purchaseOrder, $reception]) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Supprimer définitivement cette réception refusée ?');"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="app-btn-danger !px-3 !py-1.5 text-xs">
+                                                    Supprimer
+                                                </button>
+                                            </form>
                                         @else
                                             <span class="text-xs text-neutral-400">—</span>
                                         @endif

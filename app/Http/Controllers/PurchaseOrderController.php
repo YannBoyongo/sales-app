@@ -368,7 +368,7 @@ class PurchaseOrderController extends Controller
 
         $this->ensureUserCanAccessLocation($purchaseOrder->location);
 
-        DB::transaction(function () use ($request, $batch) {
+        DB::transaction(function () use ($request, $purchaseOrder, $batch) {
             $batch = PurchaseOrderReceptionBatch::query()
                 ->whereKey($batch->id)
                 ->lockForUpdate()
@@ -383,9 +383,40 @@ class PurchaseOrderController extends Controller
                 'approved_by' => $request->user()->id,
                 'approved_at' => now(),
             ]);
+
+            $this->syncPurchaseOrderStatus($purchaseOrder);
         });
 
         return back()->with('success', 'Réception refusée.');
+    }
+
+    public function destroyRejectedReception(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderReception $reception): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless((int) $reception->purchase_order_id === (int) $purchaseOrder->id, 404);
+
+        $this->ensureUserCanAccessLocation($purchaseOrder->location);
+
+        DB::transaction(function () use ($purchaseOrder, $reception) {
+            $reception = PurchaseOrderReception::query()
+                ->whereKey($reception->id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $reception->load('batch');
+            abort_unless($reception->batch?->isRejected(), 422, 'Seule une réception refusée peut être supprimée.');
+
+            $batch = $reception->batch;
+            $reception->delete();
+
+            if ($batch->receptions()->count() === 0) {
+                $batch->delete();
+            }
+
+            $this->syncPurchaseOrderStatus($purchaseOrder);
+        });
+
+        return back()->with('success', 'Réception refusée supprimée.');
     }
 
     public function reverseReception(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderReception $reception): RedirectResponse
@@ -463,12 +494,16 @@ class PurchaseOrderController extends Controller
         $purchaseOrder->load('items');
         $hasRemaining = $purchaseOrder->items->contains(fn ($item) => $item->quantity_received < $item->quantity_ordered);
         $receivedTotal = $purchaseOrder->items->sum('quantity_received');
+        $hasPendingReception = PurchaseOrderReceptionBatch::query()
+            ->where('purchase_order_id', $purchaseOrder->id)
+            ->where('status', PurchaseOrderReceptionBatch::STATUS_PENDING)
+            ->exists();
 
         $purchaseOrder->update([
             'status' => $hasRemaining
                 ? ($receivedTotal > 0 ? 'partial' : 'open')
                 : 'received',
-            'reception_started' => $receivedTotal > 0,
+            'reception_started' => $receivedTotal > 0 || $hasPendingReception,
         ]);
     }
 

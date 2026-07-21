@@ -140,6 +140,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'destroy'])->whereNumber('purchase_order')->name('purchase-orders.destroy');
         Route::post('purchase-orders/{purchase_order}/reception-batches/{batch}/approve', [PurchaseOrderController::class, 'approveReceptionBatch'])->whereNumber(['purchase_order', 'batch'])->name('purchase-orders.reception-batches.approve');
         Route::post('purchase-orders/{purchase_order}/reception-batches/{batch}/reject', [PurchaseOrderController::class, 'rejectReceptionBatch'])->whereNumber(['purchase_order', 'batch'])->name('purchase-orders.reception-batches.reject');
+        Route::delete('purchase-orders/{purchase_order}/receptions/{reception}', [PurchaseOrderController::class, 'destroyRejectedReception'])->whereNumber(['purchase_order', 'reception'])->name('purchase-orders.receptions.destroy');
         Route::post('purchase-orders/{purchase_order}/receptions/{reception}/reverse', [PurchaseOrderController::class, 'reverseReception'])->whereNumber(['purchase_order', 'reception'])->name('purchase-orders.receptions.reverse');
         Route::get('parametre', [SettingController::class, 'edit'])->name('parametre.edit');
         Route::patch('parametre', [SettingController::class, 'update'])->name('parametre.update');

@@ -16,6 +16,7 @@ use App\Http\Controllers\PosTerminalWorkspaceController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseOrderController;
+use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleEntryController;
 use App\Http\Controllers\SaleItemController;
@@ -76,6 +77,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('stock-transfers.confirm')
             ->whereNumber('stock_transfer');
     });
+    Route::get('requisitions', [RequisitionController::class, 'index'])->name('requisitions.index');
+    Route::get('requisitions/create', [RequisitionController::class, 'create'])->name('requisitions.create');
+    Route::post('requisitions', [RequisitionController::class, 'store'])->name('requisitions.store');
+    Route::get('requisitions/{requisition}', [RequisitionController::class, 'show'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.show');
+    Route::post('requisitions/{requisition}/items', [RequisitionController::class, 'syncItems'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.items.sync');
+    Route::get('requisitions/{requisition}/edit', [RequisitionController::class, 'edit'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.edit');
+    Route::patch('requisitions/{requisition}', [RequisitionController::class, 'update'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.update');
+    Route::delete('requisitions/{requisition}', [RequisitionController::class, 'destroy'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.destroy');
     Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
     Route::get('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'show'])->whereNumber('purchase_order')->name('purchase-orders.show');
     Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive'])->whereNumber('purchase_order')->name('purchase-orders.receive');

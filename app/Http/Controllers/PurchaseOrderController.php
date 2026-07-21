@@ -388,16 +388,87 @@ class PurchaseOrderController extends Controller
         return back()->with('success', 'Réception refusée.');
     }
 
+    public function reverseReception(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderReception $reception): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless((int) $reception->purchase_order_id === (int) $purchaseOrder->id, 404);
+
+        $purchaseOrder->load('location');
+        $this->ensureUserCanAccessLocation($purchaseOrder->location);
+
+        try {
+            DB::transaction(function () use ($request, $purchaseOrder, $reception) {
+                $reception = PurchaseOrderReception::query()
+                    ->whereKey($reception->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                $reception->load('batch');
+                if (! $reception->batch?->isApproved()) {
+                    throw new RuntimeException('Seule une réception approuvée peut être annulée.');
+                }
+
+                $item = PurchaseOrderItem::query()
+                    ->whereKey($reception->purchase_order_item_id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if (! $item || (int) $item->purchase_order_id !== (int) $purchaseOrder->id) {
+                    throw new RuntimeException('Ligne de bon de commande introuvable.');
+                }
+
+                if ((int) $item->quantity_received < (int) $reception->quantity) {
+                    throw new RuntimeException('La quantité reçue du bon est insuffisante pour annuler cette réception.');
+                }
+
+                Stock::modifyQuantity(
+                    (int) $reception->product_id,
+                    (int) $reception->location_id,
+                    -((int) $reception->quantity)
+                );
+
+                StockMovement::query()
+                    ->where('type', 'entry')
+                    ->where('product_id', $reception->product_id)
+                    ->where('quantity', $reception->quantity)
+                    ->where('to_location_id', $reception->location_id)
+                    ->where('notes', 'Réception PO '.$purchaseOrder->reference)
+                    ->latest('id')
+                    ->limit(1)
+                    ->delete();
+
+                $item->update([
+                    'quantity_received' => (int) $item->quantity_received - (int) $reception->quantity,
+                ]);
+
+                $batch = $reception->batch;
+
+                $reception->delete();
+
+                if ($batch && $batch->receptions()->count() === 0) {
+                    $batch->delete();
+                }
+
+                $this->syncPurchaseOrderStatus($purchaseOrder);
+            });
+        } catch (RuntimeException $e) {
+            return back()->with('danger', $e->getMessage());
+        }
+
+        return back()->with('success', 'Réception annulée et stock corrigé.');
+    }
+
     private function syncPurchaseOrderStatus(PurchaseOrder $purchaseOrder): void
     {
         $purchaseOrder->load('items');
         $hasRemaining = $purchaseOrder->items->contains(fn ($item) => $item->quantity_received < $item->quantity_ordered);
+        $receivedTotal = $purchaseOrder->items->sum('quantity_received');
 
         $purchaseOrder->update([
             'status' => $hasRemaining
-                ? ($purchaseOrder->items->sum('quantity_received') > 0 ? 'partial' : 'open')
+                ? ($receivedTotal > 0 ? 'partial' : 'open')
                 : 'received',
-            'reception_started' => true,
+            'reception_started' => $receivedTotal > 0,
         ]);
     }
 

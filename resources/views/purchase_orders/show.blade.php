@@ -174,6 +174,9 @@
                             <th class="px-4 py-3 text-right">Qté</th>
                             <th class="px-4 py-3">Soumis par</th>
                             <th class="px-4 py-3">Statut</th>
+                            @if (auth()->user()?->isAdmin())
+                                <th class="px-4 py-3 text-right">Action</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-neutral-100">
@@ -199,10 +202,28 @@
                                         @endif
                                     @endif
                                 </td>
+                                @if (auth()->user()?->isAdmin())
+                                    <td class="px-4 py-3 text-right">
+                                        @if ($batchStatus === \App\Models\PurchaseOrderReceptionBatch::STATUS_APPROVED)
+                                            <form
+                                                action="{{ route('purchase-orders.receptions.reverse', [$purchaseOrder, $reception]) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Annuler cette réception ? La quantité sera retirée du stock et du bon de commande.');"
+                                            >
+                                                @csrf
+                                                <button type="submit" class="app-btn-danger !px-3 !py-1.5 text-xs">
+                                                    Annuler
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="text-xs text-neutral-400">—</span>
+                                        @endif
+                                    </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-neutral-500">Aucune réception enregistrée.</td>
+                                <td colspan="{{ auth()->user()?->isAdmin() ? 7 : 6 }}" class="px-4 py-8 text-center text-neutral-500">Aucune réception enregistrée.</td>
                             </tr>
                         @endforelse
                     </tbody>

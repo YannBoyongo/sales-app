@@ -88,6 +88,165 @@
                 </div>
             @endif
 
+            @if ($isAdmin && $monthlySalesTrend)
+                <section class="app-panel overflow-hidden">
+                    <div class="app-panel-header">
+                        <div>
+                            <h2 class="font-semibold text-neutral-900">Ventes mensuelles</h2>
+                            <p class="mt-0.5 text-xs text-neutral-500">
+                                {{ $monthlySalesTrend['month_label'] }} — {{ $monthlySalesTrend['total_count'] }} vente{{ $monthlySalesTrend['total_count'] > 1 ? 's' : '' }}
+                                · {{ \App\Support\Money::usd($monthlySalesTrend['total_amount']) }} (toutes branches)
+                            </p>
+                        </div>
+                        <form method="GET" action="{{ route('dashboard') }}" class="flex flex-wrap items-end gap-2">
+                            <div>
+                                <label for="sales_month" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Mois</label>
+                                <select id="sales_month" name="sales_month" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                                    @foreach ($salesMonthOptions as $monthNumber => $monthLabel)
+                                        <option value="{{ $monthNumber }}" @selected((int) $selectedSalesMonth === (int) $monthNumber)>{{ $monthLabel }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="sales_year" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Année</label>
+                                <select id="sales_year" name="sales_year" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                                    @foreach ($salesYearOptions as $year)
+                                        <option value="{{ $year }}" @selected((int) $selectedSalesYear === (int) $year)>{{ $year }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="app-panel-body space-y-4">
+                        <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-neutral-600">
+                            <div class="flex items-start gap-2">
+                                <span class="mt-2 h-0.5 w-5 shrink-0 rounded-full bg-[#005EB8]" aria-hidden="true"></span>
+                                <div>
+                                    <p class="font-semibold text-neutral-800">Montant ($)</p>
+                                    <p class="text-neutral-500">Total des ventes du jour — échelle à gauche</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="mt-2 h-0.5 w-5 shrink-0 border-t-2 border-dashed border-slate-500" aria-hidden="true"></span>
+                                <div>
+                                    <p class="font-semibold text-neutral-800">Nombre de ventes</p>
+                                    <p class="text-neutral-500">Quantité de tickets du jour — échelle à droite</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="mt-1.5 inline-flex h-4 w-5 shrink-0 items-center justify-center rounded bg-white text-[10px] font-semibold text-neutral-500 ring-1 ring-slate-200" aria-hidden="true">1–31</span>
+                                <div>
+                                    <p class="font-semibold text-neutral-800">Jours du mois</p>
+                                    <p class="text-neutral-500">Axe horizontal : chaque point = un jour de {{ $monthlySalesTrend['month_label'] }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="relative h-72 w-full">
+                            <canvas
+                                id="monthly-sales-trend-chart"
+                                aria-label="Graphique des ventes mensuelles"
+                                role="img"
+                            ></canvas>
+                        </div>
+                    </div>
+                </section>
+                @push('scripts')
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const canvas = document.getElementById('monthly-sales-trend-chart');
+                            if (!canvas || typeof Chart === 'undefined') {
+                                return;
+                            }
+
+                            const trend = @json($monthlySalesTrend);
+                            const money = new Intl.NumberFormat('en-US', {
+                                style: 'currency',
+                                currency: 'USD',
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 0,
+                            });
+
+                            new Chart(canvas, {
+                                type: 'line',
+                                data: {
+                                    labels: trend.labels,
+                                    datasets: [
+                                        {
+                                            label: 'Montant ($)',
+                                            data: trend.amounts,
+                                            borderColor: '#005EB8',
+                                            backgroundColor: 'rgba(0, 94, 184, 0.12)',
+                                            fill: true,
+                                            tension: 0.35,
+                                            pointRadius: 2,
+                                            pointHoverRadius: 5,
+                                            yAxisID: 'y',
+                                        },
+                                        {
+                                            label: 'Nombre de ventes',
+                                            data: trend.counts,
+                                            borderColor: '#64748b',
+                                            backgroundColor: 'transparent',
+                                            borderDash: [5, 4],
+                                            tension: 0.35,
+                                            pointRadius: 1.5,
+                                            pointHoverRadius: 4,
+                                            yAxisID: 'y1',
+                                        },
+                                    ],
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    interaction: { mode: 'index', intersect: false },
+                                    plugins: {
+                                        legend: { display: false },
+                                        tooltip: {
+                                            callbacks: {
+                                                title(items) {
+                                                    const day = items[0]?.label ?? '';
+                                                    return 'Jour ' + day + ' — ' + (trend.month_label || '');
+                                                },
+                                                label(context) {
+                                                    const value = context.parsed.y;
+                                                    if (context.dataset.yAxisID === 'y') {
+                                                        return ' Montant : ' + money.format(value);
+                                                    }
+                                                    return ' Ventes : ' + value;
+                                                },
+                                            },
+                                        },
+                                    },
+                                    scales: {
+                                        x: {
+                                            grid: { display: false },
+                                            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+                                        },
+                                        y: {
+                                            position: 'left',
+                                            beginAtZero: true,
+                                            grid: { color: 'rgba(148, 163, 184, 0.25)' },
+                                            ticks: {
+                                                callback(value) {
+                                                    return money.format(value);
+                                                },
+                                            },
+                                        },
+                                        y1: {
+                                            position: 'right',
+                                            beginAtZero: true,
+                                            grid: { drawOnChartArea: false },
+                                            ticks: { precision: 0 },
+                                        },
+                                    },
+                                },
+                            });
+                        });
+                    </script>
+                @endpush
+            @endif
+
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <div class="app-stat-card">
                     <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Ventes (7 jours)</p>
@@ -193,14 +352,18 @@
                                 <div class="min-w-0">
                                     <p class="truncate font-mono font-medium text-neutral-900">{{ $sale->reference }}</p>
                                     @if ($seesAllBranches)
-                                        <p class="text-xs text-neutral-500">{{ $sale->branch->name }}</p>
+                                        <p class="text-xs text-neutral-500">{{ $sale->branch?->name ?? 'Branche introuvable' }}</p>
                                     @endif
-                                    <p class="text-xs text-neutral-500">{{ $sale->sold_at->translatedFormat('d M Y, H:i') }}</p>
+                                    <p class="text-xs text-neutral-500">{{ $sale->sold_at?->translatedFormat('d M Y, H:i') ?? '—' }}</p>
                                     @if ($sale->user)
                                         <p class="text-xs text-neutral-500">Par {{ $sale->user->name }}</p>
                                     @endif
                                 </div>
-                                <a href="{{ route('sales.show', [$sale->branch, $sale]) }}" class="app-btn-primary shrink-0 !px-3 !py-1.5 !text-xs">Ouvrir</a>
+                                @if ($sale->branch)
+                                    <a href="{{ route('sales.show', [$sale->branch, $sale]) }}" class="app-btn-primary shrink-0 !px-3 !py-1.5 !text-xs">Ouvrir</a>
+                                @else
+                                    <span class="shrink-0 text-xs text-neutral-400">—</span>
+                                @endif
                             </li>
                         @empty
                             <li class="px-5 py-8 text-center text-sm text-neutral-500">Aucune vente récente.</li>
@@ -221,22 +384,24 @@
                     <ul class="divide-y divide-neutral-100">
                         @forelse ($lowStocks as $stock)
                             @php
-                                $seuil = $stock->minimum_stock ?? $stock->product->minimum_stock;
+                                $product = $stock->product;
+                                $location = $stock->location;
+                                $seuil = $stock->minimum_stock ?? $product?->minimum_stock;
                             @endphp
                             <li class="border-l-4 border-red-500 bg-red-50/40 px-5 py-3">
-                                <p class="font-medium text-neutral-900">{{ $stock->product->name }}</p>
+                                <p class="font-medium text-neutral-900">{{ $product?->name ?? 'Produit introuvable' }}</p>
                                 <p class="text-sm text-neutral-600">
-                                    {{ $stock->location->name }}
+                                    {{ $location?->name ?? 'Emplacement introuvable' }}
                                     @if ($seesAllBranches)
-                                        <span class="text-neutral-400">({{ $stock->location->branch->name }})</span>
+                                        <span class="text-neutral-400">({{ $location?->branch?->name ?? 'Branche introuvable' }})</span>
                                     @endif
                                 </p>
                                 <p class="mt-1 text-xs text-red-900/90">
                                     Qté actuelle : <span class="font-semibold tabular-nums">{{ $stock->quantity }}</span>
-                                    — Seuil : <span class="font-semibold tabular-nums">{{ $seuil }}</span>
-                                    @if ($stock->minimum_stock !== null && $stock->product->minimum_stock !== null && (int) $stock->minimum_stock !== (int) $stock->product->minimum_stock)
+                                    — Seuil : <span class="font-semibold tabular-nums">{{ $seuil ?? '—' }}</span>
+                                    @if ($stock->minimum_stock !== null && $product?->minimum_stock !== null && (int) $stock->minimum_stock !== (int) $product->minimum_stock)
                                         <span class="text-neutral-500">(empl.)</span>
-                                    @elseif ($stock->minimum_stock === null && $stock->product->minimum_stock !== null)
+                                    @elseif ($stock->minimum_stock === null && $product?->minimum_stock !== null)
                                         <span class="text-neutral-500">(seuil produit)</span>
                                     @endif
                                 </p>

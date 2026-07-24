@@ -9,13 +9,14 @@ use App\Models\Product;
 use App\Models\PurchaseOrderReceptionBatch;
 use App\Models\Sale;
 use App\Models\Stock;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     use RespectsUserBranch;
 
-    public function __invoke(): View
+    public function __invoke(Request $request): View
     {
         $user = auth()->user();
         $user?->loadMissing('branch');
@@ -56,6 +57,8 @@ class DashboardController extends Controller
         $lowStocksQuery = Stock::query()
             ->with(['product.department', 'location.branch'])
             ->join('products', 'products.id', '=', 'stocks.product_id')
+            ->whereHas('location')
+            ->whereHas('product')
             ->whereRaw('COALESCE(stocks.minimum_stock, products.minimum_stock) IS NOT NULL')
             ->whereRaw('stocks.quantity < COALESCE(stocks.minimum_stock, products.minimum_stock)')
             ->select('stocks.*')
@@ -101,6 +104,96 @@ class DashboardController extends Controller
             $accountingCaisse = bcsub((string) ($ledger->total_debit ?? '0'), (string) ($ledger->total_credit ?? '0'), 2);
         }
 
+        $monthlySalesTrend = null;
+        $salesYearOptions = [];
+        $salesMonthOptions = [
+            1 => 'Janvier',
+            2 => 'Février',
+            3 => 'Mars',
+            4 => 'Avril',
+            5 => 'Mai',
+            6 => 'Juin',
+            7 => 'Juillet',
+            8 => 'Août',
+            9 => 'Septembre',
+            10 => 'Octobre',
+            11 => 'Novembre',
+            12 => 'Décembre',
+        ];
+        $selectedSalesYear = (int) now()->year;
+        $selectedSalesMonth = (int) now()->month;
+
+        if ($isAdmin) {
+            $yearBounds = Sale::query()
+                ->selectRaw('MIN(YEAR(sold_at)) as min_year, MAX(YEAR(sold_at)) as max_year')
+                ->first();
+
+            $minYear = (int) ($yearBounds->min_year ?? now()->year);
+            $maxYear = max((int) ($yearBounds->max_year ?? now()->year), (int) now()->year);
+            if ($minYear < 2000) {
+                $minYear = (int) now()->year;
+            }
+
+            $salesYearOptions = range($maxYear, $minYear);
+
+            $filters = $request->validate([
+                'sales_year' => ['nullable', 'integer', 'min:2000', 'max:2100'],
+                'sales_month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            ]);
+
+            $selectedSalesYear = (int) ($filters['sales_year'] ?? now()->year);
+            $selectedSalesMonth = (int) ($filters['sales_month'] ?? now()->month);
+
+            if (! in_array($selectedSalesYear, $salesYearOptions, true)) {
+                $selectedSalesYear = (int) now()->year;
+                if (! in_array($selectedSalesYear, $salesYearOptions, true)) {
+                    $salesYearOptions[] = $selectedSalesYear;
+                    rsort($salesYearOptions);
+                }
+            }
+
+            $monthStart = now()->copy()->setDate($selectedSalesYear, $selectedSalesMonth, 1)->startOfDay();
+            $monthEnd = $monthStart->copy()->endOfMonth();
+            $daysInMonth = (int) $monthStart->daysInMonth;
+
+            $dailyRows = Sale::query()
+                ->whereBetween('sold_at', [$monthStart, $monthEnd])
+                ->selectRaw('DATE(sold_at) as sale_date, COUNT(*) as sale_count, COALESCE(SUM(total_amount), 0) as total_amount')
+                ->groupByRaw('DATE(sold_at)')
+                ->orderBy('sale_date')
+                ->get()
+                ->keyBy(fn ($row) => (string) $row->sale_date);
+
+            $labels = [];
+            $amounts = [];
+            $counts = [];
+            $monthTotalAmount = 0.0;
+            $monthTotalCount = 0;
+
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $date = $monthStart->copy()->day($day);
+                $key = $date->toDateString();
+                $row = $dailyRows->get($key);
+                $amount = round((float) ($row->total_amount ?? 0), 2);
+                $count = (int) ($row->sale_count ?? 0);
+
+                $labels[] = (string) $day;
+                $amounts[] = $amount;
+                $counts[] = $count;
+                $monthTotalAmount += $amount;
+                $monthTotalCount += $count;
+            }
+
+            $monthlySalesTrend = [
+                'labels' => $labels,
+                'amounts' => $amounts,
+                'counts' => $counts,
+                'month_label' => $salesMonthOptions[$selectedSalesMonth].' '.$selectedSalesYear,
+                'total_amount' => round($monthTotalAmount, 2),
+                'total_count' => $monthTotalCount,
+            ];
+        }
+
         return view('dashboard', compact(
             'recentSales',
             'weekSalesCount',
@@ -120,6 +213,11 @@ class DashboardController extends Controller
             'todayCreditTotal',
             'productsCount',
             'accountingCaisse',
+            'monthlySalesTrend',
+            'salesYearOptions',
+            'salesMonthOptions',
+            'selectedSalesYear',
+            'selectedSalesMonth',
         ));
     }
 }

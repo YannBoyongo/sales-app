@@ -89,77 +89,125 @@
             @endif
 
             @if ($isAdmin && $monthlySalesTrend)
-                <section class="app-panel overflow-hidden">
-                    <div class="app-panel-header">
-                        <div>
-                            <h2 class="font-semibold text-neutral-900">Ventes mensuelles</h2>
-                            <p class="mt-0.5 text-xs text-neutral-500">
-                                {{ $monthlySalesTrend['month_label'] }} — {{ $monthlySalesTrend['total_count'] }} vente{{ $monthlySalesTrend['total_count'] > 1 ? 's' : '' }}
-                                · {{ \App\Support\Money::usd($monthlySalesTrend['total_amount']) }} (toutes branches)
-                            </p>
-                        </div>
-                        <form method="GET" action="{{ route('dashboard') }}" class="flex flex-wrap items-end gap-2">
+                <div class="space-y-6">
+                    <div class="app-panel overflow-hidden">
+                        <div class="app-panel-header">
                             <div>
-                                <label for="sales_month" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Mois</label>
-                                <select id="sales_month" name="sales_month" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
-                                    @foreach ($salesMonthOptions as $monthNumber => $monthLabel)
-                                        <option value="{{ $monthNumber }}" @selected((int) $selectedSalesMonth === (int) $monthNumber)>{{ $monthLabel }}</option>
-                                    @endforeach
-                                </select>
+                                <h2 class="font-semibold text-neutral-900">Analyse des ventes</h2>
+                                <p class="mt-0.5 text-xs text-neutral-500">
+                                    {{ $monthlySalesTrend['month_label'] }} — {{ $monthlySalesTrend['total_count'] }} vente{{ $monthlySalesTrend['total_count'] > 1 ? 's' : '' }}
+                                    · {{ \App\Support\Money::usd($monthlySalesTrend['total_amount']) }} (toutes branches)
+                                </p>
                             </div>
-                            <div>
-                                <label for="sales_year" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Année</label>
-                                <select id="sales_year" name="sales_year" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
-                                    @foreach ($salesYearOptions as $year)
-                                        <option value="{{ $year }}" @selected((int) $selectedSalesYear === (int) $year)>{{ $year }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
-                        </form>
-                    </div>
-                    <div class="app-panel-body space-y-4">
-                        <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-neutral-600">
-                            <div class="flex items-start gap-2">
-                                <span class="mt-2 h-0.5 w-5 shrink-0 rounded-full bg-[#005EB8]" aria-hidden="true"></span>
+                            <form method="GET" action="{{ route('dashboard') }}" class="flex flex-wrap items-end gap-2">
                                 <div>
-                                    <p class="font-semibold text-neutral-800">Montant ($)</p>
-                                    <p class="text-neutral-500">Total des ventes du jour — échelle à gauche</p>
+                                    <label for="sales_month" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Mois</label>
+                                    <select id="sales_month" name="sales_month" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                                        @foreach ($salesMonthOptions as $monthNumber => $monthLabel)
+                                            <option value="{{ $monthNumber }}" @selected((int) $selectedSalesMonth === (int) $monthNumber)>{{ $monthLabel }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
-                            </div>
-                            <div class="flex items-start gap-2">
-                                <span class="mt-2 h-0.5 w-5 shrink-0 border-t-2 border-dashed border-slate-500" aria-hidden="true"></span>
                                 <div>
-                                    <p class="font-semibold text-neutral-800">Nombre de ventes</p>
-                                    <p class="text-neutral-500">Quantité de tickets du jour — échelle à droite</p>
+                                    <label for="sales_year" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Année</label>
+                                    <select id="sales_year" name="sales_year" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                                        @foreach ($salesYearOptions as $year)
+                                            <option value="{{ $year }}" @selected((int) $selectedSalesYear === (int) $year)>{{ $year }}</option>
+                                        @endforeach
+                                    </select>
                                 </div>
-                            </div>
-                            <div class="flex items-start gap-2">
-                                <span class="mt-1.5 inline-flex h-4 w-5 shrink-0 items-center justify-center rounded bg-white text-[10px] font-semibold text-neutral-500 ring-1 ring-slate-200" aria-hidden="true">1–31</span>
-                                <div>
-                                    <p class="font-semibold text-neutral-800">Jours du mois</p>
-                                    <p class="text-neutral-500">Axe horizontal : chaque point = un jour de {{ $monthlySalesTrend['month_label'] }}</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="relative h-72 w-full">
-                            <canvas
-                                id="monthly-sales-trend-chart"
-                                aria-label="Graphique des ventes mensuelles"
-                                role="img"
-                            ></canvas>
+                            </form>
                         </div>
                     </div>
-                </section>
+
+                    <div class="grid gap-6 xl:grid-cols-2">
+                        <section class="app-panel overflow-hidden">
+                            <div class="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
+                                <h3 class="font-semibold text-neutral-900">Ventes quotidiennes</h3>
+                                <p class="mt-0.5 text-xs text-neutral-500">Évolution jour par jour sur le mois sélectionné</p>
+                            </div>
+                            <div class="app-panel-body space-y-4">
+                                <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-neutral-600">
+                                    <div class="flex items-start gap-2">
+                                        <span class="mt-2 h-0.5 w-5 shrink-0 rounded-full bg-[#005EB8]" aria-hidden="true"></span>
+                                        <div>
+                                            <p class="font-semibold text-neutral-800">Montant ($)</p>
+                                            <p class="text-neutral-500">Total des ventes du jour — échelle à gauche</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <span class="mt-2 h-0.5 w-5 shrink-0 border-t-2 border-dashed border-slate-500" aria-hidden="true"></span>
+                                        <div>
+                                            <p class="font-semibold text-neutral-800">Nombre de ventes</p>
+                                            <p class="text-neutral-500">Quantité de tickets du jour — échelle à droite</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <span class="mt-1.5 inline-flex h-4 w-5 shrink-0 items-center justify-center rounded bg-white text-[10px] font-semibold text-neutral-500 ring-1 ring-slate-200" aria-hidden="true">1–31</span>
+                                        <div>
+                                            <p class="font-semibold text-neutral-800">Jours du mois</p>
+                                            <p class="text-neutral-500">Axe horizontal : chaque point = un jour de {{ $monthlySalesTrend['month_label'] }}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="relative h-72 w-full">
+                                    <canvas
+                                        id="monthly-sales-trend-chart"
+                                        aria-label="Graphique des ventes quotidiennes du mois"
+                                        role="img"
+                                    ></canvas>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="app-panel overflow-hidden">
+                            <div class="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
+                                <h3 class="font-semibold text-neutral-900">Ventes par branche</h3>
+                                <p class="mt-0.5 text-xs text-neutral-500">Répartition des ventes du mois sélectionné</p>
+                            </div>
+                            <div class="app-panel-body space-y-4">
+                                <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-neutral-600">
+                                    <div class="flex items-start gap-2">
+                                        <span class="mt-1.5 h-3 w-3 shrink-0 rounded-full bg-[#005EB8]" aria-hidden="true"></span>
+                                        <div>
+                                            <p class="font-semibold text-neutral-800">Parts du camembert</p>
+                                            <p class="text-neutral-500">Chaque part = une branche, proportionnelle au montant des ventes</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <span class="mt-1.5 inline-flex h-4 w-5 shrink-0 items-center justify-center rounded bg-white text-[10px] font-semibold text-neutral-500 ring-1 ring-slate-200" aria-hidden="true">%</span>
+                                        <div>
+                                            <p class="font-semibold text-neutral-800">Pourcentage</p>
+                                            <p class="text-neutral-500">Part du montant total du mois ({{ $monthlySalesTrend['month_label'] }})</p>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-start gap-2">
+                                        <span class="mt-1.5 inline-flex h-4 w-5 shrink-0 items-center justify-center rounded bg-white text-[10px] font-semibold text-neutral-500 ring-1 ring-slate-200" aria-hidden="true">i</span>
+                                        <div>
+                                            <p class="font-semibold text-neutral-800">Info-bulle</p>
+                                            <p class="text-neutral-500">Survolez une part pour voir le montant, le % et le nombre de ventes</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="relative mx-auto h-72 w-full max-w-md">
+                                    <canvas
+                                        id="branch-sales-chart"
+                                        aria-label="Graphique camembert des ventes par branche"
+                                        role="img"
+                                    ></canvas>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </div>
                 @push('scripts')
                     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
                     <script>
                         document.addEventListener('DOMContentLoaded', function () {
-                            const canvas = document.getElementById('monthly-sales-trend-chart');
-                            if (!canvas || typeof Chart === 'undefined') {
+                            if (typeof Chart === 'undefined') {
                                 return;
                             }
 
-                            const trend = @json($monthlySalesTrend);
                             const money = new Intl.NumberFormat('en-US', {
                                 style: 'currency',
                                 currency: 'USD',
@@ -167,81 +215,165 @@
                                 maximumFractionDigits: 0,
                             });
 
-                            new Chart(canvas, {
-                                type: 'line',
-                                data: {
-                                    labels: trend.labels,
-                                    datasets: [
-                                        {
-                                            label: 'Montant ($)',
-                                            data: trend.amounts,
-                                            borderColor: '#005EB8',
-                                            backgroundColor: 'rgba(0, 94, 184, 0.12)',
-                                            fill: true,
-                                            tension: 0.35,
-                                            pointRadius: 2,
-                                            pointHoverRadius: 5,
-                                            yAxisID: 'y',
-                                        },
-                                        {
-                                            label: 'Nombre de ventes',
-                                            data: trend.counts,
-                                            borderColor: '#64748b',
-                                            backgroundColor: 'transparent',
-                                            borderDash: [5, 4],
-                                            tension: 0.35,
-                                            pointRadius: 1.5,
-                                            pointHoverRadius: 4,
-                                            yAxisID: 'y1',
-                                        },
-                                    ],
-                                },
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    interaction: { mode: 'index', intersect: false },
-                                    plugins: {
-                                        legend: { display: false },
-                                        tooltip: {
-                                            callbacks: {
-                                                title(items) {
-                                                    const day = items[0]?.label ?? '';
-                                                    return 'Jour ' + day + ' — ' + (trend.month_label || '');
+                            const trendCanvas = document.getElementById('monthly-sales-trend-chart');
+                            if (trendCanvas) {
+                                const trend = @json($monthlySalesTrend);
+                                new Chart(trendCanvas, {
+                                    type: 'line',
+                                    data: {
+                                        labels: trend.labels,
+                                        datasets: [
+                                            {
+                                                label: 'Montant ($)',
+                                                data: trend.amounts,
+                                                borderColor: '#005EB8',
+                                                backgroundColor: 'rgba(0, 94, 184, 0.12)',
+                                                fill: true,
+                                                tension: 0.35,
+                                                pointRadius: 2,
+                                                pointHoverRadius: 5,
+                                                yAxisID: 'y',
+                                            },
+                                            {
+                                                label: 'Nombre de ventes',
+                                                data: trend.counts,
+                                                borderColor: '#64748b',
+                                                backgroundColor: 'transparent',
+                                                borderDash: [5, 4],
+                                                tension: 0.35,
+                                                pointRadius: 1.5,
+                                                pointHoverRadius: 4,
+                                                yAxisID: 'y1',
+                                            },
+                                        ],
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        interaction: { mode: 'index', intersect: false },
+                                        plugins: {
+                                            legend: { display: false },
+                                            tooltip: {
+                                                callbacks: {
+                                                    title(items) {
+                                                        const day = items[0]?.label ?? '';
+                                                        return 'Jour ' + day + ' — ' + (trend.month_label || '');
+                                                    },
+                                                    label(context) {
+                                                        const value = context.parsed.y;
+                                                        if (context.dataset.yAxisID === 'y') {
+                                                            return ' Montant : ' + money.format(value);
+                                                        }
+                                                        return ' Ventes : ' + value;
+                                                    },
                                                 },
-                                                label(context) {
-                                                    const value = context.parsed.y;
-                                                    if (context.dataset.yAxisID === 'y') {
-                                                        return ' Montant : ' + money.format(value);
-                                                    }
-                                                    return ' Ventes : ' + value;
+                                            },
+                                        },
+                                        scales: {
+                                            x: {
+                                                grid: { display: false },
+                                                ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 16 },
+                                            },
+                                            y: {
+                                                position: 'left',
+                                                beginAtZero: true,
+                                                grid: { color: 'rgba(148, 163, 184, 0.25)' },
+                                                ticks: {
+                                                    callback(value) {
+                                                        return money.format(value);
+                                                    },
+                                                },
+                                            },
+                                            y1: {
+                                                position: 'right',
+                                                beginAtZero: true,
+                                                grid: { drawOnChartArea: false },
+                                                ticks: { precision: 0 },
+                                            },
+                                        },
+                                    },
+                                });
+                            }
+
+                            const branchCanvas = document.getElementById('branch-sales-chart');
+                            if (branchCanvas) {
+                                const branchChart = @json($branchSalesChart);
+                                const palette = [
+                                    '#005EB8', '#0ea5e9', '#0369a1', '#64748b', '#94a3b8',
+                                    '#1d4ed8', '#0284c7', '#475569', '#334155', '#38bdf8',
+                                ];
+                                const entries = (branchChart.labels || []).map((label, index) => ({
+                                    label,
+                                    amount: Number(branchChart.amounts?.[index] ?? 0),
+                                    count: Number(branchChart.counts?.[index] ?? 0),
+                                })).filter((entry) => entry.amount > 0);
+
+                                if (entries.length === 0) {
+                                    entries.push({
+                                        label: 'Aucune vente',
+                                        amount: 1,
+                                        count: 0,
+                                        empty: true,
+                                    });
+                                }
+
+                                const totalAmount = entries.reduce((sum, entry) => sum + (entry.empty ? 0 : entry.amount), 0);
+
+                                new Chart(branchCanvas, {
+                                    type: 'pie',
+                                    data: {
+                                        labels: entries.map((entry) => entry.label),
+                                        datasets: [
+                                            {
+                                                label: 'Montant ($)',
+                                                data: entries.map((entry) => entry.amount),
+                                                backgroundColor: entries.map((entry, index) =>
+                                                    entry.empty ? 'rgba(148, 163, 184, 0.35)' : palette[index % palette.length]
+                                                ),
+                                                borderColor: '#ffffff',
+                                                borderWidth: 2,
+                                            },
+                                        ],
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        maintainAspectRatio: false,
+                                        plugins: {
+                                            legend: {
+                                                position: 'bottom',
+                                                labels: {
+                                                    boxWidth: 12,
+                                                    usePointStyle: true,
+                                                    padding: 14,
+                                                },
+                                            },
+                                            tooltip: {
+                                                callbacks: {
+                                                    title(items) {
+                                                        const branch = items[0]?.label ?? '';
+                                                        return branch + ' — ' + (branchChart.month_label || '');
+                                                    },
+                                                    label(context) {
+                                                        const entry = entries[context.dataIndex];
+                                                        if (entry?.empty) {
+                                                            return ' Aucune vente sur cette période';
+                                                        }
+                                                        const amount = Number(context.parsed || 0);
+                                                        const percent = totalAmount > 0
+                                                            ? ((amount / totalAmount) * 100).toFixed(1)
+                                                            : '0.0';
+                                                        return [
+                                                            ' Montant : ' + money.format(amount),
+                                                            ' Part : ' + percent + '%',
+                                                            ' Ventes : ' + (entry?.count ?? 0),
+                                                        ];
+                                                    },
                                                 },
                                             },
                                         },
                                     },
-                                    scales: {
-                                        x: {
-                                            grid: { display: false },
-                                            ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 16 },
-                                        },
-                                        y: {
-                                            position: 'left',
-                                            beginAtZero: true,
-                                            grid: { color: 'rgba(148, 163, 184, 0.25)' },
-                                            ticks: {
-                                                callback(value) {
-                                                    return money.format(value);
-                                                },
-                                            },
-                                        },
-                                        y1: {
-                                            position: 'right',
-                                            beginAtZero: true,
-                                            grid: { drawOnChartArea: false },
-                                            ticks: { precision: 0 },
-                                        },
-                                    },
-                                },
-                            });
+                                });
+                            }
                         });
                     </script>
                 @endpush

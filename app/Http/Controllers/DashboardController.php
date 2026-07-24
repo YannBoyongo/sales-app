@@ -105,6 +105,7 @@ class DashboardController extends Controller
         }
 
         $monthlySalesTrend = null;
+        $branchSalesChart = null;
         $salesYearOptions = [];
         $salesMonthOptions = [
             1 => 'Janvier',
@@ -192,6 +193,48 @@ class DashboardController extends Controller
                 'total_amount' => round($monthTotalAmount, 2),
                 'total_count' => $monthTotalCount,
             ];
+
+            $branchSalesRows = Sale::query()
+                ->whereBetween('sold_at', [$monthStart, $monthEnd])
+                ->selectRaw('branch_id, COUNT(*) as sale_count, COALESCE(SUM(total_amount), 0) as total_amount')
+                ->groupBy('branch_id')
+                ->get()
+                ->keyBy(fn ($row) => (int) $row->branch_id);
+
+            $branches = Branch::query()->orderBy('name')->get(['id', 'name']);
+            $branchLabels = [];
+            $branchAmounts = [];
+            $branchCounts = [];
+            $knownBranchIds = [];
+
+            foreach ($branches as $branch) {
+                $knownBranchIds[] = (int) $branch->id;
+                $row = $branchSalesRows->get((int) $branch->id);
+                $branchLabels[] = $branch->name;
+                $branchAmounts[] = round((float) ($row->total_amount ?? 0), 2);
+                $branchCounts[] = (int) ($row->sale_count ?? 0);
+            }
+
+            $orphanAmount = 0.0;
+            $orphanCount = 0;
+            foreach ($branchSalesRows as $branchId => $row) {
+                if (! in_array((int) $branchId, $knownBranchIds, true)) {
+                    $orphanAmount += (float) ($row->total_amount ?? 0);
+                    $orphanCount += (int) ($row->sale_count ?? 0);
+                }
+            }
+            if ($orphanCount > 0 || $orphanAmount > 0) {
+                $branchLabels[] = 'Branche introuvable';
+                $branchAmounts[] = round($orphanAmount, 2);
+                $branchCounts[] = $orphanCount;
+            }
+
+            $branchSalesChart = [
+                'labels' => $branchLabels,
+                'amounts' => $branchAmounts,
+                'counts' => $branchCounts,
+                'month_label' => $salesMonthOptions[$selectedSalesMonth].' '.$selectedSalesYear,
+            ];
         }
 
         return view('dashboard', compact(
@@ -214,6 +257,7 @@ class DashboardController extends Controller
             'productsCount',
             'accountingCaisse',
             'monthlySalesTrend',
+            'branchSalesChart',
             'salesYearOptions',
             'salesMonthOptions',
             'selectedSalesYear',

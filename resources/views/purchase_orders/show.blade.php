@@ -108,56 +108,87 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('purchase-orders.receive', $purchaseOrder) }}">
+            <form id="po-receive-form" method="POST" action="{{ route('purchase-orders.receive', $purchaseOrder) }}" class="hidden">
                 @csrf
-                <div class="app-table-shell">
-                    <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                        <thead class="text-left text-xs font-semibold uppercase tracking-wide">
-                            <tr>
-                                <th class="px-4 py-3">Produit</th>
-                                <th class="px-4 py-3 text-right">Commandé</th>
-                                <th class="px-4 py-3 text-right">Reçu</th>
-                                <th class="px-4 py-3 text-right">En attente</th>
-                                <th class="px-4 py-3 text-right">Restant</th>
-                                <th class="px-4 py-3 text-right">Réceptionner maintenant</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-neutral-100">
-                            @foreach ($purchaseOrder->items as $item)
-                                @php
-                                    $pending = (int) ($pendingReceiveByItem[$item->id] ?? 0);
-                                    $remaining = max(0, $item->quantity_ordered - $item->quantity_received - $pending);
-                                @endphp
-                                <tr class="hover:bg-neutral-50/50">
-                                    <td class="px-4 py-3 font-medium text-neutral-900">{{ $item->product->name }}</td>
-                                    <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_ordered }}</td>
-                                    <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_received }}</td>
-                                    <td class="px-4 py-3 text-right tabular-nums @if($pending > 0) text-amber-700 font-medium @endif">{{ $pending }}</td>
-                                    <td class="px-4 py-3 text-right tabular-nums">{{ $remaining }}</td>
-                                    <td class="px-4 py-3 text-right">
-                                        <input
-                                            type="number"
-                                            name="receive[{{ $item->id }}]"
-                                            min="0"
-                                            max="{{ $remaining }}"
-                                            value="0"
-                                            class="w-28 rounded-lg border-neutral-300 text-right text-sm shadow-sm focus:border-primary focus:ring-primary"
-                                            @disabled($remaining === 0)
-                                        />
-                                    </td>
-                                </tr>
-                            @endforeach
-                            <tr>
-                                <td colspan="6" class="px-4 py-4 text-right">
-                                    <button type="submit" class="app-btn-primary">
-                                        Soumettre pour approbation
-                                    </button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </form>
+            <div class="app-table-shell">
+                <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                    <thead class="text-left text-xs font-semibold uppercase tracking-wide">
+                        <tr>
+                            <th class="px-4 py-3">Produit</th>
+                            <th class="px-4 py-3 text-right">Commandé</th>
+                            <th class="px-4 py-3 text-right">Reçu</th>
+                            <th class="px-4 py-3 text-right">En attente</th>
+                            <th class="px-4 py-3 text-right">Restant</th>
+                            <th class="px-4 py-3 text-right">Réceptionner maintenant</th>
+                            @if (auth()->user()?->isAdmin())
+                                <th class="px-4 py-3 text-right">Action</th>
+                            @endif
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-neutral-100">
+                        @foreach ($purchaseOrder->items as $item)
+                            @php
+                                $pending = (int) ($pendingReceiveByItem[$item->id] ?? 0);
+                                $remaining = max(0, $item->quantity_ordered - $item->quantity_received - $pending);
+                                $canDeleteItem = (int) $item->quantity_received === 0;
+                            @endphp
+                            <tr class="hover:bg-neutral-50/50">
+                                <td class="px-4 py-3 font-medium text-neutral-900">{{ $item->product->name }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_ordered }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_received }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums @if($pending > 0) text-amber-700 font-medium @endif">{{ $pending }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums">{{ $remaining }}</td>
+                                <td class="px-4 py-3 text-right">
+                                    <input
+                                        form="po-receive-form"
+                                        type="number"
+                                        name="receive[{{ $item->id }}]"
+                                        min="0"
+                                        max="{{ $remaining }}"
+                                        value="0"
+                                        class="w-28 rounded-lg border-neutral-300 text-right text-sm shadow-sm focus:border-primary focus:ring-primary"
+                                        @disabled($remaining === 0)
+                                    />
+                                </td>
+                                @if (auth()->user()?->isAdmin())
+                                    <td class="px-4 py-3 text-right">
+                                        @if ($canDeleteItem)
+                                            <form
+                                                action="{{ route('purchase-orders.items.destroy', [$purchaseOrder, $item]) }}"
+                                                method="POST"
+                                                onsubmit="return confirm('Retirer cet article du bon de commande ?');"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+                                                <button
+                                                    type="submit"
+                                                    title="Supprimer"
+                                                    aria-label="Supprimer"
+                                                    class="app-icon-btn-danger"
+                                                >
+                                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 7.5h12m-9.75 0V6a1.5 1.5 0 011.5-1.5h4.5a1.5 1.5 0 011.5 1.5v1.5m-8.25 0v10.5A1.5 1.5 0 009 19.5h6a1.5 1.5 0 001.5-1.5V7.5M10.5 10.5v6m3-6v6" />
+                                                    </svg>
+                                                </button>
+                                            </form>
+                                        @else
+                                            <span class="text-xs text-neutral-400">—</span>
+                                        @endif
+                                    </td>
+                                @endif
+                            </tr>
+                        @endforeach
+                        <tr>
+                            <td colspan="{{ auth()->user()?->isAdmin() ? 7 : 6 }}" class="px-4 py-4 text-right">
+                                <button form="po-receive-form" type="submit" class="app-btn-primary">
+                                    Soumettre pour approbation
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         @endif
 
         <section class="app-panel mt-8">

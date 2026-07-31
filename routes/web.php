@@ -138,6 +138,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('purchase-orders/{purchase_order}/edit', [PurchaseOrderController::class, 'edit'])->whereNumber('purchase_order')->name('purchase-orders.edit');
         Route::patch('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'update'])->whereNumber('purchase_order')->name('purchase-orders.update');
         Route::delete('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'destroy'])->whereNumber('purchase_order')->name('purchase-orders.destroy');
+        Route::delete('purchase-orders/{purchase_order}/items/{item}', [PurchaseOrderController::class, 'destroyItem'])->whereNumber(['purchase_order', 'item'])->name('purchase-orders.items.destroy');
         Route::post('purchase-orders/{purchase_order}/reception-batches/{batch}/approve', [PurchaseOrderController::class, 'approveReceptionBatch'])->whereNumber(['purchase_order', 'batch'])->name('purchase-orders.reception-batches.approve');
         Route::post('purchase-orders/{purchase_order}/reception-batches/{batch}/reject', [PurchaseOrderController::class, 'rejectReceptionBatch'])->whereNumber(['purchase_order', 'batch'])->name('purchase-orders.reception-batches.reject');
         Route::delete('purchase-orders/{purchase_order}/receptions/{reception}', [PurchaseOrderController::class, 'destroyRejectedReception'])->whereNumber(['purchase_order', 'reception'])->name('purchase-orders.receptions.destroy');

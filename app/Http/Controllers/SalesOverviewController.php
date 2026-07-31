@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\PosTerminal;
 use App\Models\Sale;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -13,7 +14,7 @@ class SalesOverviewController extends Controller
 {
     use RespectsUserBranch;
 
-    public function __invoke(Request $request): View
+    public function __invoke(Request $request): View|JsonResponse
     {
         $user = $request->user();
         $canApproveDiscounts = (bool) ($user?->canApproveSaleDiscounts());
@@ -68,9 +69,36 @@ class SalesOverviewController extends Controller
             ->paginate(25)
             ->withQueryString();
 
+        if ($request->boolean('infinite')) {
+            $nextPageUrl = null;
+            if ($sales->hasMorePages()) {
+                $nextPageUrl = $sales->nextPageUrl();
+                $nextPageUrl .= (str_contains($nextPageUrl, '?') ? '&' : '?').'infinite=1';
+            }
+
+            return response()->json([
+                'html' => view('sales.partials.overview-rows', [
+                    'sales' => $sales,
+                    'filters' => $filters,
+                    'showsMultipleBranches' => $showsMultipleBranches,
+                ])->render(),
+                'next_page_url' => $nextPageUrl,
+                'from' => $sales->firstItem(),
+                'to' => $sales->lastItem(),
+                'total' => $sales->total(),
+                'has_more' => $sales->hasMorePages(),
+            ]);
+        }
+
         $pendingDiscountQuery = Sale::query()->where('sale_status', Sale::STATUS_PENDING_DISCOUNT);
         $this->applyBranchFilter($pendingDiscountQuery, 'branch_id');
         $pendingDiscountCount = $pendingDiscountQuery->count();
+
+        $infiniteNextPageUrl = null;
+        if ($sales->hasMorePages()) {
+            $infiniteNextPageUrl = $sales->nextPageUrl();
+            $infiniteNextPageUrl .= (str_contains($infiniteNextPageUrl, '?') ? '&' : '?').'infinite=1';
+        }
 
         return view('sales.overview', compact(
             'sales',
@@ -79,6 +107,7 @@ class SalesOverviewController extends Controller
             'showsMultipleBranches',
             'canApproveDiscounts',
             'pendingDiscountCount',
+            'infiniteNextPageUrl',
         ));
     }
 

@@ -12,6 +12,7 @@ use App\Models\StockTransfer;
 use App\Models\StockTransferItem;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class StockTransferController extends Controller
 {
     use RespectsUserBranch;
 
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         abort_unless(auth()->user()?->canViewStockTransfers(), 403);
 
@@ -39,7 +40,11 @@ class StockTransferController extends Controller
                 StockTransfer::SCOPE_INTERNAL,
                 StockTransfer::SCOPE_EXTERNAL,
             ])],
+            'from_location_id' => ['nullable', 'integer', 'exists:locations,id'],
+            'to_location_id' => ['nullable', 'integer', 'exists:locations,id'],
         ]);
+
+        $locationFilterOptions = $this->locationOptionsForTransferFilters();
 
         $query = StockTransfer::query()
             ->with([
@@ -55,6 +60,8 @@ class StockTransferController extends Controller
             ->when($filters['date_to'] ?? null, fn (Builder $q, $value) => $q->whereDate('transferred_at', '<=', $value))
             ->when($filters['status'] ?? null, fn (Builder $q, $value) => $q->where('status', $value))
             ->when($filters['transfer_scope'] ?? null, fn (Builder $q, $value) => $q->where('transfer_scope', $value))
+            ->when($filters['from_location_id'] ?? null, fn (Builder $q, $value) => $q->where('from_location_id', (int) $value))
+            ->when($filters['to_location_id'] ?? null, fn (Builder $q, $value) => $q->where('to_location_id', (int) $value))
             ->orderByDesc('transferred_at')
             ->orderByDesc('id');
 
@@ -62,7 +69,38 @@ class StockTransferController extends Controller
 
         $transfers = $query->paginate(20)->withQueryString();
 
-        return view('stock_transfers.index', compact('transfers', 'filters'));
+        if ($request->boolean('infinite')) {
+            $nextPageUrl = null;
+            if ($transfers->hasMorePages()) {
+                $nextPageUrl = $transfers->nextPageUrl();
+                $nextPageUrl .= (str_contains($nextPageUrl, '?') ? '&' : '?').'infinite=1';
+            }
+
+            return response()->json([
+                'html' => view('stock_transfers.partials.index-rows', [
+                    'transfers' => $transfers,
+                    'filters' => $filters,
+                ])->render(),
+                'next_page_url' => $nextPageUrl,
+                'from' => $transfers->firstItem(),
+                'to' => $transfers->lastItem(),
+                'total' => $transfers->total(),
+                'has_more' => $transfers->hasMorePages(),
+            ]);
+        }
+
+        $infiniteNextPageUrl = null;
+        if ($transfers->hasMorePages()) {
+            $infiniteNextPageUrl = $transfers->nextPageUrl();
+            $infiniteNextPageUrl .= (str_contains($infiniteNextPageUrl, '?') ? '&' : '?').'infinite=1';
+        }
+
+        return view('stock_transfers.index', compact(
+            'transfers',
+            'filters',
+            'infiniteNextPageUrl',
+            'locationFilterOptions',
+        ));
     }
 
     public function create(): View
@@ -616,6 +654,114 @@ class StockTransferController extends Controller
             : 'Transfert annulé.';
 
         return back()->with('success', $message);
+    }
+
+    /**
+     * Location lists for index filters, keyed by transfer type.
+     *
+     * @return array{
+     *     internal: array{from: list<array{id: int, name: string, branch_id: int, branch_name: string}>, to: list<array{id: int, name: string, branch_id: int, branch_name: string}>},
+     *     external: array{from: list<array{id: int, name: string, branch_id: int, branch_name: string}>, to: list<array{id: int, name: string, branch_id: int, branch_name: string}>},
+     *     all: array{from: list<array{id: int, name: string, branch_id: int, branch_name: string}>, to: list<array{id: int, name: string, branch_id: int, branch_name: string}>}
+     * }
+     */
+    private function locationOptionsForTransferFilters(): array
+    {
+        $warehouseKinds = [Location::KIND_MAIN, Location::KIND_STORAGE];
+        $user = auth()->user();
+
+        $scopeLocationQuery = function (Builder $query) use ($user): void {
+            $managed = $this->managedLocationIdsForUser();
+            if ($managed !== null) {
+                if ($managed === []) {
+                    $query->whereRaw('1 = 0');
+
+                    return;
+                }
+                $query->whereIn($query->getModel()->getTable().'.id', $managed);
+
+                return;
+            }
+
+            $this->applyBranchFilter($query, 'branch_id');
+        };
+
+        $internalFromQuery = Location::query()
+            ->with('branch:id,name')
+            ->whereIn('kind', $warehouseKinds)
+            ->orderBy('name');
+        $scopeLocationQuery($internalFromQuery);
+        $internalFrom = $this->mapLocationOptions($internalFromQuery->get());
+
+        $internalToQuery = Location::query()
+            ->with('branch:id,name')
+            ->orderBy('name');
+        if ($user?->isStockManager()) {
+            $branchIds = $this->branchIdsForStockManagerInternalDestinations();
+            if ($branchIds === []) {
+                $internalToQuery->whereRaw('1 = 0');
+            } else {
+                $internalToQuery->whereIn($internalToQuery->getModel()->getTable().'.branch_id', $branchIds);
+            }
+        } else {
+            $scopeLocationQuery($internalToQuery);
+        }
+        $internalTo = $this->mapLocationOptions($internalToQuery->get());
+
+        $externalFromQuery = Location::query()
+            ->with('branch:id,name')
+            ->whereIn('kind', $warehouseKinds)
+            ->orderBy('name');
+        $scopeLocationQuery($externalFromQuery);
+        $externalFrom = $this->mapLocationOptions($externalFromQuery->get());
+
+        $externalToQuery = Location::query()
+            ->with('branch:id,name')
+            ->whereIn('kind', $warehouseKinds)
+            ->orderBy('name');
+
+        $branchIds = $this->branchFilterIds();
+        if ($user?->canBypassBranchScope()) {
+            // All warehouses available.
+        } elseif ($user?->isStockManager()) {
+            // Magasinier may appear on either side of an external transfer.
+        } elseif ($branchIds === null) {
+            // All warehouses.
+        } elseif ($branchIds === []) {
+            $externalToQuery->whereRaw('1 = 0');
+        } else {
+            $externalToQuery->whereNotIn('branch_id', $branchIds);
+        }
+        $externalTo = $this->mapLocationOptions($externalToQuery->get());
+
+        $mergeById = function (array ...$lists): array {
+            $byId = [];
+            foreach ($lists as $list) {
+                foreach ($list as $row) {
+                    $byId[(int) $row['id']] = $row;
+                }
+            }
+
+            return collect($byId)
+                ->sortBy(fn ($row) => ($row['branch_name'] ?? '').' '.($row['name'] ?? ''))
+                ->values()
+                ->all();
+        };
+
+        return [
+            'internal' => [
+                'from' => $internalFrom,
+                'to' => $internalTo,
+            ],
+            'external' => [
+                'from' => $externalFrom,
+                'to' => $externalTo,
+            ],
+            'all' => [
+                'from' => $mergeById($internalFrom, $externalFrom),
+                'to' => $mergeById($internalTo, $externalTo),
+            ],
+        ];
     }
 
     private function applyStockTransferBranchFilter(Builder $query): void

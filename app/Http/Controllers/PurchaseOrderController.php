@@ -157,6 +157,40 @@ class PurchaseOrderController extends Controller
             ->with('success', 'Bon de commande supprimé.');
     }
 
+    public function destroyItem(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderItem $item): RedirectResponse
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless((int) $item->purchase_order_id === (int) $purchaseOrder->id, 404);
+
+        $purchaseOrder->load('location');
+        $this->ensureUserCanAccessLocation($purchaseOrder->location);
+
+        if ((int) $item->quantity_received > 0) {
+            return back()->with('danger', 'Impossible de supprimer un article déjà réceptionné.');
+        }
+
+        try {
+            DB::transaction(function () use ($purchaseOrder, $item) {
+                $item = PurchaseOrderItem::query()
+                    ->whereKey($item->id)
+                    ->lockForUpdate()
+                    ->firstOrFail();
+
+                if ((int) $item->quantity_received > 0) {
+                    throw new RuntimeException('Impossible de supprimer un article déjà réceptionné.');
+                }
+
+                $item->delete();
+
+                $this->syncPurchaseOrderStatus($purchaseOrder->fresh());
+            });
+        } catch (RuntimeException $e) {
+            return back()->with('danger', $e->getMessage());
+        }
+
+        return back()->with('success', 'Article retiré du bon de commande.');
+    }
+
     public function show(PurchaseOrder $purchaseOrder): View
     {
         $purchaseOrder->load([

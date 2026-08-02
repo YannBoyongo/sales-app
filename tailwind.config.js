@@ -24,11 +24,12 @@ export default {
                 primary: brand,
                 brand,
                 sidebar: {
-                    DEFAULT: '#FFFFFF',
-                    hover: '#F1F5F9',
-                    active: '#E6F0FA',
-                    border: '#E2E8F0',
-                    muted: '#64748B',
+                    DEFAULT: '#005EB8',
+                    hover: 'rgba(255, 255, 255, 0.12)',
+                    active: 'rgba(255, 255, 255, 0.18)',
+                    border: 'rgba(255, 255, 255, 0.15)',
+                    muted: 'rgba(255, 255, 255, 0.7)',
+                    text: '#FFFFFF',
                 },
                 surface: {
                     DEFAULT: '#FFFFFF',

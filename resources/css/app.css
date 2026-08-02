@@ -185,16 +185,53 @@
 
     /* ── Sidebar nav ── */
     .app-nav-link {
-        @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-600 transition
-            hover:bg-sidebar-hover hover:text-primary;
+        @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-white transition
+            hover:bg-sidebar-hover hover:text-white;
     }
 
     .app-nav-link-active {
-        @apply bg-sidebar-active font-semibold text-primary;
+        @apply bg-sidebar-active font-bold text-white;
     }
 
     .app-nav-section {
         @apply px-3 pb-1 pt-5 text-[10px] font-bold uppercase tracking-[0.15em] text-sidebar-muted;
+    }
+
+    @media (min-width: 1024px) {
+        aside.app-sidebar--collapsed {
+            @apply w-20;
+        }
+
+        aside.app-sidebar--collapsed .app-sidebar-brand-text,
+        aside.app-sidebar--collapsed .app-nav-section,
+        aside.app-sidebar--collapsed .app-nav-link > span,
+        aside.app-sidebar--collapsed .app-sidebar-user-meta {
+            @apply hidden;
+        }
+
+        aside.app-sidebar--collapsed .app-sidebar-header {
+            @apply justify-center px-2;
+        }
+
+        aside.app-sidebar--collapsed .app-sidebar-brand {
+            @apply hidden;
+        }
+
+        aside.app-sidebar--collapsed .app-nav-link {
+            @apply justify-center px-2;
+        }
+
+        aside.app-sidebar--collapsed nav {
+            @apply px-2;
+        }
+
+        aside.app-sidebar--collapsed .app-sidebar-footer {
+            @apply px-2;
+        }
+
+        aside.app-sidebar--collapsed .app-sidebar-user {
+            @apply justify-center px-0;
+        }
     }
 
     /* ── Action icon buttons in tables ── */
@@ -267,6 +304,85 @@
     .login-hero-diagonal {
         clip-path: polygon(22% 0, 100% 0, 100% 100%, 0 100%);
     }
+}
+
+/* ── Split login layout ── */
+.login-split {
+    @apply flex min-h-screen flex-col lg:flex-row;
+}
+
+.login-hero {
+    @apply relative hidden min-h-screen w-full overflow-hidden text-white lg:flex lg:w-1/2 lg:flex-col;
+}
+
+.login-hero__media {
+    @apply absolute inset-0 bg-cover bg-center;
+}
+
+.login-hero__overlay {
+    @apply absolute inset-0;
+    background:
+        linear-gradient(160deg, rgb(0 61 122 / 0.88) 0%, rgb(0 94 184 / 0.72) 45%, rgb(15 23 42 / 0.78) 100%);
+}
+
+.login-hero__content {
+    @apply relative z-10 flex h-full flex-col justify-between px-10 py-10 xl:px-14 xl:py-12;
+}
+
+.login-hero__brand {
+    @apply flex items-center gap-3;
+}
+
+.login-hero__mark {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-lg font-bold text-white ring-1 ring-white/25 backdrop-blur;
+}
+
+.login-hero__brand-name {
+    @apply truncate text-lg font-semibold tracking-tight text-white;
+}
+
+.login-hero__eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70;
+}
+
+.login-hero__copy {
+    @apply max-w-xl;
+}
+
+.login-hero__badge {
+    @apply mb-4 inline-flex rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white ring-1 ring-white/20;
+}
+
+.login-hero__title {
+    @apply text-4xl font-semibold leading-tight tracking-tight text-white xl:text-5xl;
+}
+
+.login-hero__lead {
+    @apply mt-4 max-w-md text-base leading-relaxed text-white/80;
+}
+
+.login-hero__stats {
+    @apply grid grid-cols-3 gap-6 border-t border-white/15 pt-6;
+}
+
+.login-hero__stat-value {
+    @apply text-lg font-semibold tracking-tight text-white;
+}
+
+.login-hero__stat-label {
+    @apply mt-1 text-xs leading-snug text-white/70;
+}
+
+.login-hero__footer {
+    @apply pt-8 text-xs text-white/55;
+}
+
+.login-panel {
+    @apply flex w-full flex-1 items-center justify-center bg-white px-6 py-10 sm:px-10 lg:w-1/2 lg:px-14 xl:px-20;
+}
+
+.login-panel__inner {
+    @apply w-full max-w-md;
 }
 
 /* Stocks matrix — frozen header row (vertical scroll) + product column (horizontal scroll) */

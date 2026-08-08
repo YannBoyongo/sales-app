@@ -139,6 +139,14 @@ class SaleController extends Controller
 
                 foreach ($sale->items as $item) {
                     Stock::modifyQuantity((int) $item->product_id, (int) $item->location_id, (int) $item->quantity);
+                    \App\Models\StockBatch::restore(
+                        (int) $item->product_id,
+                        (int) $item->location_id,
+                        $item->stock_batch_id ? (int) $item->stock_batch_id : null,
+                        $item->batch_number,
+                        $item->unit_cost !== null ? (float) $item->unit_cost : null,
+                        (int) $item->quantity,
+                    );
                 }
 
                 // If this sale created immediate dealer payments, delete them so client debt stays consistent.
@@ -264,7 +272,10 @@ class SaleController extends Controller
                     $item->update([
                         'unit_price' => $catalogUnit,
                         'line_total' => bcmul($catalogUnit, (string) $item->quantity, 2),
+                        'discount_amount' => '0.00',
                     ]);
+                } elseif (bccomp((string) ($item->discount_amount ?? '0'), '0', 2) === 1) {
+                    $item->update(['discount_amount' => '0.00']);
                 }
             }
 
@@ -480,7 +491,17 @@ class SaleController extends Controller
             return;
         }
 
-        abort_unless((int) $sale->user_id === (int) $user?->id, 403, 'Accès non autorisé pour cette vente.');
+        if ((int) $sale->user_id === (int) $user?->id) {
+            return;
+        }
+
+        $sale->loadMissing('posShift.posTerminal');
+        $terminal = $sale->posShift?->posTerminal;
+        if ($terminal && $this->userCanAccessPosTerminal($terminal)) {
+            return;
+        }
+
+        abort(403, 'Accès non autorisé pour cette vente.');
     }
 
     /**

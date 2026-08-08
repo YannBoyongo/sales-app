@@ -22,4 +22,9 @@ class StockTransferItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function batches(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(StockTransferItemBatch::class);
+    }
 }

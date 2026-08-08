@@ -4,7 +4,7 @@
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
             <h1 class="app-page-title">Transfert #{{ $stockTransfer->id }}</h1>
-            <p class="app-page-desc">Date : {{ $stockTransfer->transferred_at->translatedFormat('d/m/Y') }} — par {{ $stockTransfer->user->name }}</p>
+            <p class="app-page-desc">Date : {{ $stockTransfer->transferred_at->translatedFormat('d/m/Y') }} - par {{ $stockTransfer->user->name }}</p>
         </div>
         <div class="flex flex-wrap items-center gap-2 sm:justify-end">
             @if ($canCancelTransfer)
@@ -212,7 +212,7 @@
                         <span class="text-neutral-600">Sélection :</span>
                         <strong class="ml-1" x-text="pendingProduct.label"></strong>
                         <span class="ml-2 text-xs font-medium text-neutral-600">
-                            — <span x-text="'disponible à la source : ' + pendingProduct.stock_qty"></span>
+                            - <span x-text="'disponible à la source : ' + pendingProduct.stock_qty"></span>
                         </span>
                         <button type="button" class="ml-2 text-xs font-semibold text-primary hover:underline" @click="clearPick()">Changer</button>
                     </div>
@@ -235,9 +235,9 @@
                 @if ($stockTransfer->isCancelled())
                     Ce transfert a été annulé.
                 @elseif ($stockTransfer->isConfirmed())
-                    Les mouvements de stock (type Transfert) ont été enregistrés pour cette date comptable.
+                    Les lots ont été déplacés en FIFO depuis la source vers la destination. Détail ci-dessous.
                 @else
-                    Après confirmation, les mouvements apparaîtront dans « Mouvements de stock » avec la date du transfert.
+                    À la confirmation, les lots seront retirés de la source en FIFO et recréés à la destination avec le même numéro de lot et coût.
                 @endif
             </p>
         </div>
@@ -252,6 +252,9 @@
                         <tr>
                             <th class="px-4 py-3">Produit</th>
                             <th class="px-4 py-3 text-right">Quantité</th>
+                            @if ($stockTransfer->isConfirmed())
+                                <th class="px-4 py-3">Lots transférés</th>
+                            @endif
                             @if ($canManageTransfer && $stockTransfer->isPending())
                                 <th class="w-28 px-4 py-3 text-right"><span class="sr-only">Retirer</span></th>
                             @endif
@@ -259,11 +262,32 @@
                     </thead>
                     <tbody class="divide-y divide-neutral-100">
                         @foreach ($stockTransfer->items as $line)
-                            <tr class="hover:bg-neutral-50/80">
+                            <tr class="hover:bg-neutral-50/80 align-top">
                                 <td class="px-4 py-3 font-medium text-neutral-900">
                                     {{ $line->product->name }}@if ($line->product->sku) <span class="font-normal text-neutral-500">({{ $line->product->sku }})</span>@endif
                                 </td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $line->quantity }}</td>
+                                @if ($stockTransfer->isConfirmed())
+                                    <td class="px-4 py-3">
+                                        @if ($line->batches->isEmpty())
+                                            <span class="text-neutral-500">-</span>
+                                        @else
+                                            <ul class="space-y-1.5 text-xs text-neutral-700">
+                                                @foreach ($line->batches as $batchLine)
+                                                    <li class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                        @if ($batchLine->isLegacy())
+                                                            <span class="inline-flex rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-900">Sans lot</span>
+                                                        @else
+                                                            <span class="font-mono font-medium text-neutral-900">Lot {{ $batchLine->batch_number }}</span>
+                                                            <span class="tabular-nums text-neutral-600">{{ \App\Support\Money::usd($batchLine->unit_cost) }}</span>
+                                                        @endif
+                                                        <span class="tabular-nums font-semibold text-neutral-900">× {{ $batchLine->quantity }}</span>
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        @endif
+                                    </td>
+                                @endif
                                 @if ($canManageTransfer && $stockTransfer->isPending())
                                     <td class="px-4 py-3 text-right">
                                         <form

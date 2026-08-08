@@ -8,11 +8,16 @@
                     <p class="app-page-eyebrow">Bon de commande</p>
                     <h1 class="app-page-title">{{ $purchaseOrder->reference }}</h1>
                     <p class="app-page-desc max-w-3xl">
-                        <span class="font-medium text-neutral-800">Emplacement</span> {{ $purchaseOrder->location?->name ?? '—' }}
+                        <span class="font-medium text-neutral-800">Emplacement</span> {{ $purchaseOrder->location?->name ?? '-' }}
                         <span class="text-neutral-300">·</span>
-                        <span class="font-medium text-neutral-800">Fournisseur</span> {{ $purchaseOrder->supplier ?: '—' }}
+                        <span class="font-medium text-neutral-800">Fournisseur</span> {{ $purchaseOrder->supplier ?: '-' }}
                         <span class="text-neutral-300">·</span>
-                        <span class="font-medium text-neutral-800">Créé par</span> {{ $purchaseOrder->creator?->name ?? '—' }}
+                        <span class="font-medium text-neutral-800">Créé par</span> {{ $purchaseOrder->creator?->name ?? '-' }}
+                        @if ($purchaseOrder->requisition)
+                            <span class="text-neutral-300">·</span>
+                            <span class="font-medium text-neutral-800">Réquisition</span>
+                            <a href="{{ route('requisitions.show', $purchaseOrder->requisition) }}" class="font-medium text-primary hover:underline">{{ $purchaseOrder->requisition->reference }}</a>
+                        @endif
                     </p>
                     <div class="mt-4">
                         @if ($purchaseOrder->status === 'received')
@@ -51,6 +56,8 @@
                     <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                         <tr>
                             <th class="px-4 py-3">Produit</th>
+                            <th class="px-4 py-3">Lot</th>
+                            <th class="px-4 py-3 text-right">Coût unit.</th>
                             <th class="px-4 py-3 text-right">Commandé</th>
                             <th class="px-4 py-3 text-right">Reçu</th>
                             <th class="px-4 py-3 text-right">En attente</th>
@@ -65,6 +72,8 @@
                             @endphp
                             <tr class="hover:bg-neutral-50/50">
                                 <td class="px-4 py-3 font-medium text-neutral-900">{{ $item->product->name }}</td>
+                                <td class="px-4 py-3 text-neutral-700">{{ $item->batch_number ?: '-' }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums">{{ $item->unit_cost !== null ? \App\Support\Money::usd($item->unit_cost) : '-' }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_ordered }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_received }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums @if($pending > 0) text-amber-700 font-medium @endif">{{ $pending }}</td>
@@ -81,7 +90,7 @@
                         <div class="app-alert-warning !mb-0">
                             <p class="font-semibold">Réception en attente d’approbation</p>
                             <p class="mt-1 text-amber-900/90">
-                                Soumise par {{ $batch->submitter?->name ?? '—' }}
+                                Soumise par {{ $batch->submitter?->name ?? '-' }}
                                 le {{ $batch->submitted_at->translatedFormat('d/m/Y à H:i') }}
                             </p>
                             <ul class="mt-3 space-y-1 text-amber-900">
@@ -116,6 +125,8 @@
                     <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                         <tr>
                             <th class="px-4 py-3">Produit</th>
+                            <th class="px-4 py-3">Lot</th>
+                            <th class="px-4 py-3 text-right">Coût unit.</th>
                             <th class="px-4 py-3 text-right">Commandé</th>
                             <th class="px-4 py-3 text-right">Reçu</th>
                             <th class="px-4 py-3 text-right">En attente</th>
@@ -135,6 +146,8 @@
                             @endphp
                             <tr class="hover:bg-neutral-50/50">
                                 <td class="px-4 py-3 font-medium text-neutral-900">{{ $item->product->name }}</td>
+                                <td class="px-4 py-3 text-neutral-700">{{ $item->batch_number ?: '-' }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums">{{ $item->unit_cost !== null ? \App\Support\Money::usd($item->unit_cost) : '-' }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_ordered }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $item->quantity_received }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums @if($pending > 0) text-amber-700 font-medium @endif">{{ $pending }}</td>
@@ -173,7 +186,7 @@
                                                 </button>
                                             </form>
                                         @else
-                                            <span class="text-xs text-neutral-400">—</span>
+                                            <span class="text-xs text-neutral-400">-</span>
                                         @endif
                                     </td>
                                 @endif
@@ -218,9 +231,9 @@
                             <tr class="hover:bg-neutral-50/50">
                                 <td class="px-4 py-3 whitespace-nowrap text-neutral-600">{{ $reception->received_at->translatedFormat('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-3 font-medium text-neutral-900">{{ $reception->product->name }}</td>
-                                <td class="px-4 py-3 text-neutral-700">{{ $reception->location?->name ?? '—' }}</td>
+                                <td class="px-4 py-3 text-neutral-700">{{ $reception->location?->name ?? '-' }}</td>
                                 <td class="px-4 py-3 text-right tabular-nums">{{ $reception->quantity }}</td>
-                                <td class="px-4 py-3 text-neutral-700">{{ $reception->receiver?->name ?? '—' }}</td>
+                                <td class="px-4 py-3 text-neutral-700">{{ $reception->receiver?->name ?? '-' }}</td>
                                 <td class="px-4 py-3">
                                     @if ($batchStatus === \App\Models\PurchaseOrderReceptionBatch::STATUS_PENDING)
                                         <span class="app-badge-warning">En attente</span>
@@ -259,7 +272,7 @@
                                                 </button>
                                             </form>
                                         @else
-                                            <span class="text-xs text-neutral-400">—</span>
+                                            <span class="text-xs text-neutral-400">-</span>
                                         @endif
                                     </td>
                                 @endif

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\PosTerminal;
 use App\Models\Sale;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -29,7 +30,10 @@ class SalesOverviewController extends Controller
         $posTerminals = $this->posTerminalsForSalesFilter();
         $showsMultipleBranches = $posTerminals->pluck('branch_id')->unique()->count() > 1;
 
-        $sales = Sale::query()
+        $salesQuery = $this->salesOverviewQuery($request, $filters, $user, $posTerminals);
+        $summaryTotals = $this->summarizeSalesOverview($salesQuery);
+
+        $sales = (clone $salesQuery)
             ->with([
                 'branch:id,name',
                 'user:id,name',
@@ -39,25 +43,6 @@ class SalesOverviewController extends Controller
                 'posShift.posTerminal:id,name,branch_id',
                 'posShift.posTerminal.branch:id,name',
             ]);
-
-        $this->applyBranchFilter($sales, 'branch_id');
-
-        if (! $user?->isAdmin()) {
-            $sales->where('user_id', $user->id);
-        }
-
-        if ($request->boolean('remise')) {
-            $sales->where('sale_status', Sale::STATUS_PENDING_DISCOUNT);
-        }
-
-        $sales
-            ->when($filters['date_from'] ?? null, fn ($q, $value) => $q->whereDate('sold_at', '>=', $value))
-            ->when($filters['date_to'] ?? null, fn ($q, $value) => $q->whereDate('sold_at', '<=', $value))
-            ->when($filters['pos_terminal_id'] ?? null, function ($q, $value) use ($posTerminals) {
-                abort_unless($posTerminals->contains('id', (int) $value), 403);
-                $q->whereHas('posShift', fn ($shift) => $shift->where('pos_terminal_id', (int) $value));
-            })
-            ->when($filters['payment_type'] ?? null, fn ($q, $value) => $q->where('payment_type', $value));
 
         if ($canApproveDiscounts) {
             $sales->orderByRaw('CASE WHEN sale_status = ? THEN 0 ELSE 1 END', [Sale::STATUS_PENDING_DISCOUNT]);
@@ -108,7 +93,78 @@ class SalesOverviewController extends Controller
             'canApproveDiscounts',
             'pendingDiscountCount',
             'infiniteNextPageUrl',
+            'summaryTotals',
         ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @param  Collection<int, PosTerminal>  $posTerminals
+     */
+    private function salesOverviewQuery(
+        Request $request,
+        array $filters,
+        ?\App\Models\User $user,
+        Collection $posTerminals,
+    ): Builder {
+        $query = Sale::query();
+
+        $this->applyBranchFilter($query, 'branch_id');
+
+        if (! $user?->isAdmin()) {
+            $query->where('user_id', $user->id);
+        }
+
+        if ($request->boolean('remise')) {
+            $query->where('sale_status', Sale::STATUS_PENDING_DISCOUNT);
+        }
+
+        return $query
+            ->when($filters['date_from'] ?? null, fn ($q, $value) => $q->whereDate('sold_at', '>=', $value))
+            ->when($filters['date_to'] ?? null, fn ($q, $value) => $q->whereDate('sold_at', '<=', $value))
+            ->when($filters['pos_terminal_id'] ?? null, function ($q, $value) use ($posTerminals) {
+                abort_unless($posTerminals->contains('id', (int) $value), 403);
+                $q->whereHas('posShift', fn ($shift) => $shift->where('pos_terminal_id', (int) $value));
+            })
+            ->when($filters['payment_type'] ?? null, fn ($q, $value) => $q->where('payment_type', $value));
+    }
+
+    /**
+     * @return array{expected: string, paid: string, remaining: string, count: int}
+     */
+    private function summarizeSalesOverview(Builder $query): array
+    {
+        $expected = '0.00';
+        $paid = '0.00';
+        $remaining = '0.00';
+        $count = 0;
+
+        (clone $query)
+            ->select([
+                'id',
+                'subtotal_amount',
+                'total_amount',
+                'discount_amount',
+                'amount_paid',
+                'payment_type',
+                'payment_status',
+            ])
+            ->orderBy('id')
+            ->chunkById(200, function ($sales) use (&$expected, &$paid, &$remaining, &$count) {
+                foreach ($sales as $sale) {
+                    $count++;
+                    $expected = bcadd($expected, $sale->expectedPayableAmount(), 2);
+                    $paid = bcadd($paid, $sale->paidAmountValue(), 2);
+                    $remaining = bcadd($remaining, $sale->remainingAmountValue(), 2);
+                }
+            });
+
+        return [
+            'expected' => $expected,
+            'paid' => $paid,
+            'remaining' => $remaining,
+            'count' => $count,
+        ];
     }
 
     /** @return Collection<int, PosTerminal> */

@@ -237,6 +237,41 @@ class DashboardController extends Controller
             ];
         }
 
+        $creditDueSoonDays = 7;
+        $today = now()->startOfDay();
+        $creditDueHorizon = now()->copy()->addDays($creditDueSoonDays)->endOfDay();
+
+        $creditDueSalesQuery = Sale::query()
+            ->with(['branch:id,name', 'client:id,name'])
+            ->where('payment_type', 'credit')
+            ->whereNotNull('credit_due_date')
+            ->whereDate('credit_due_date', '<=', $creditDueHorizon)
+            ->whereIn('payment_status', [
+                Sale::PAYMENT_STATUS_NOT_PAID,
+                Sale::PAYMENT_STATUS_PARTIALLY_PAID,
+            ])
+            ->orderBy('credit_due_date')
+            ->orderBy('reference');
+
+        $this->applyBranchFilter($creditDueSalesQuery, 'branch_id');
+
+        $creditDueReached = collect();
+        $creditDueSoon = collect();
+
+        $creditDueSalesQuery->chunk(100, function ($sales) use ($today, &$creditDueReached, &$creditDueSoon) {
+            foreach ($sales as $sale) {
+                if (bccomp($sale->remainingAmountValue(), '0', 2) !== 1) {
+                    continue;
+                }
+
+                if ($sale->credit_due_date->lte($today)) {
+                    $creditDueReached->push($sale);
+                } else {
+                    $creditDueSoon->push($sale);
+                }
+            }
+        });
+
         return view('dashboard', compact(
             'recentSales',
             'weekSalesCount',
@@ -262,6 +297,9 @@ class DashboardController extends Controller
             'salesMonthOptions',
             'selectedSalesYear',
             'selectedSalesMonth',
+            'creditDueReached',
+            'creditDueSoon',
+            'creditDueSoonDays',
         ));
     }
 }

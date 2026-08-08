@@ -29,9 +29,9 @@
             @foreach ($products as $product)
                 <tr>
                     <td>{{ $product->name }}</td>
-                    <td>{{ $product->sku ?? '—' }}</td>
-                    <td>{{ $product->department->name ?? '—' }}</td>
-                    <td class="num">{{ $product->minimum_stock ?? '—' }}</td>
+                    <td>{{ $product->sku ?? '-' }}</td>
+                    <td>{{ $product->department->name ?? '-' }}</td>
+                    <td class="num">{{ $product->minimum_stock ?? '-' }}</td>
                     <td class="num">{{ number_format((float) $product->unit_price, 2, ',', ' ') }}</td>
                 </tr>
             @endforeach

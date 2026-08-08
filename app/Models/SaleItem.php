@@ -13,9 +13,14 @@ class SaleItem extends Model
         'sale_id',
         'location_id',
         'product_id',
+        'stock_batch_id',
+        'batch_number',
         'user_id',
         'quantity',
         'unit_price',
+        'unit_cost',
+        'cost_total',
+        'benefit',
         'line_total',
         'discount_amount',
         'payment_type',
@@ -26,6 +31,9 @@ class SaleItem extends Model
     {
         return [
             'unit_price' => 'decimal:2',
+            'unit_cost' => 'decimal:2',
+            'cost_total' => 'decimal:2',
+            'benefit' => 'decimal:2',
             'line_total' => 'decimal:2',
             'discount_amount' => 'decimal:2',
         ];
@@ -49,6 +57,11 @@ class SaleItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function stockBatch(): BelongsTo
+    {
+        return $this->belongsTo(StockBatch::class);
     }
 
     public function user(): BelongsTo

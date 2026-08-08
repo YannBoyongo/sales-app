@@ -9,7 +9,9 @@ use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
 use App\Models\PurchaseOrderReception;
 use App\Models\PurchaseOrderReceptionBatch;
+use App\Models\Requisition;
 use App\Models\Stock;
+use App\Models\StockBatch;
 use App\Models\StockMovement;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -150,7 +152,21 @@ class PurchaseOrderController extends Controller
                 ->with('danger', 'Seuls les bons de commande ouverts (sans réception) peuvent être supprimés.');
         }
 
-        $purchaseOrder->delete();
+        DB::transaction(function () use ($purchaseOrder) {
+            $requisitionId = $purchaseOrder->requisition_id;
+            $purchaseOrder->items()->delete();
+            $purchaseOrder->delete();
+
+            if ($requisitionId) {
+                $stillLinked = PurchaseOrder::query()->where('requisition_id', $requisitionId)->exists();
+                if (! $stillLinked) {
+                    Requisition::query()
+                        ->whereKey($requisitionId)
+                        ->where('status', Requisition::STATUS_ORDERED)
+                        ->update(['status' => Requisition::STATUS_CONFIRMED]);
+                }
+            }
+        });
 
         return redirect()
             ->route('purchase-orders.index')
@@ -196,6 +212,7 @@ class PurchaseOrderController extends Controller
         $purchaseOrder->load([
             'location.branch',
             'creator',
+            'requisition:id,reference,status',
             'items.product.department',
         ]);
         $this->ensureUserCanAccessLocation($purchaseOrder->location);
@@ -363,9 +380,34 @@ class PurchaseOrderController extends Controller
 
                     Stock::modifyQuantity((int) $reception->product_id, (int) $purchaseOrder->location_id, (int) $reception->quantity);
 
+                    $unitCost = $item->effectiveUnitCost();
+                    $stockBatchId = null;
+
+                    // Only create a tracked lot when cost is known (converted requisition / priced PO line).
+                    if ($unitCost !== null) {
+                        $batchNumber = StockBatch::normalizeBatchNumber(
+                            $item->batch_number,
+                            'PO-'.$purchaseOrder->id.'-'.$item->id
+                        );
+
+                        $stockBatch = StockBatch::receive(
+                            (int) $reception->product_id,
+                            (int) $purchaseOrder->location_id,
+                            $batchNumber,
+                            $unitCost,
+                            (int) $reception->quantity,
+                            (int) $purchaseOrder->id,
+                            (int) $item->id,
+                            (int) $reception->id,
+                        );
+                        $stockBatchId = $stockBatch->id;
+                    }
+
                     StockMovement::create([
                         'type' => 'entry',
                         'product_id' => $reception->product_id,
+                        'stock_batch_id' => $stockBatchId,
+                        'purchase_order_reception_id' => $reception->id,
                         'quantity' => $reception->quantity,
                         'from_location_id' => null,
                         'to_location_id' => $purchaseOrder->location_id,
@@ -492,15 +534,28 @@ class PurchaseOrderController extends Controller
                     -((int) $reception->quantity)
                 );
 
-                StockMovement::query()
+                $movement = StockMovement::query()
                     ->where('type', 'entry')
-                    ->where('product_id', $reception->product_id)
-                    ->where('quantity', $reception->quantity)
-                    ->where('to_location_id', $reception->location_id)
-                    ->where('notes', 'Réception PO '.$purchaseOrder->reference)
+                    ->where('purchase_order_reception_id', $reception->id)
                     ->latest('id')
-                    ->limit(1)
-                    ->delete();
+                    ->first();
+
+                if (! $movement) {
+                    $movement = StockMovement::query()
+                        ->where('type', 'entry')
+                        ->where('product_id', $reception->product_id)
+                        ->where('quantity', $reception->quantity)
+                        ->where('to_location_id', $reception->location_id)
+                        ->where('notes', 'Réception PO '.$purchaseOrder->reference)
+                        ->latest('id')
+                        ->first();
+                }
+
+                if ($movement?->stock_batch_id) {
+                    StockBatch::reverseReceive((int) $movement->stock_batch_id, (int) $reception->quantity);
+                }
+
+                $movement?->delete();
 
                 $item->update([
                     'quantity_received' => (int) $item->quantity_received - (int) $reception->quantity,

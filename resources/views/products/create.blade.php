@@ -13,7 +13,7 @@
             <div>
                 <x-input-label for="department_id" value="Département" />
                 <select id="department_id" name="department_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary" required>
-                    <option value="">— Choisir —</option>
+                    <option value="">- Choisir -</option>
                     @foreach ($departments as $d)
                         <option value="{{ $d->id }}" @selected(old('department_id') == $d->id)>{{ $d->name }}</option>
                     @endforeach

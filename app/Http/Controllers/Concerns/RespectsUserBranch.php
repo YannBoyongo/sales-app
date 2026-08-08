@@ -571,30 +571,31 @@ trait RespectsUserBranch
         return collect();
     }
 
-    protected function ensureUserCanAccessPosTerminal(PosTerminal $terminal): void
+    protected function userCanAccessPosTerminal(PosTerminal $terminal): bool
     {
         $user = auth()->user();
-        abort_unless($user && $user->canAccessPosSales(), 403, 'Accès caisse non autorisé.');
+        if (! $user || ! $user->canAccessPosSales()) {
+            return false;
+        }
 
         if ($user->canBypassBranchScope()) {
-            return;
+            return true;
         }
 
         if ($user->isPosUser() || $user->isCashier()) {
-            abort_unless(
-                $user->posTerminals()->whereKey($terminal->getKey())->exists(),
-                403,
-                'Vous n’êtes pas affecté à ce terminal.'
-            );
-
-            return;
+            return $user->posTerminals()->whereKey($terminal->getKey())->exists();
         }
 
         if ($user->isManager() && (int) $user->branch_id === (int) $terminal->branch_id) {
-            return;
+            return true;
         }
 
-        abort(403, 'Accès non autorisé pour ce terminal.');
+        return false;
+    }
+
+    protected function ensureUserCanAccessPosTerminal(PosTerminal $terminal): void
+    {
+        abort_unless($this->userCanAccessPosTerminal($terminal), 403, 'Accès non autorisé pour ce terminal.');
     }
 
     protected function ensurePosTerminalForBranch(PosTerminal $terminal, Branch $branch): void

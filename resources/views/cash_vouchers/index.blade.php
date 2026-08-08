@@ -331,7 +331,7 @@
                 @click.stop
             >
                 <h2 id="cash-voucher-edit-title" class="text-lg font-semibold text-neutral-900">Modifier le n° bon</h2>
-                <p class="mt-1 text-sm text-neutral-600">Bon en attente — seul le numéro peut être modifié.</p>
+                <p class="mt-1 text-sm text-neutral-600">Bon en attente - seul le numéro peut être modifié.</p>
 
                 <form :action="editAction" method="POST" class="mt-5 space-y-4">
                     @csrf

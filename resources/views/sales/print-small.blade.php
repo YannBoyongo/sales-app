@@ -154,8 +154,8 @@
             @endif
         </span>
     </div>
-    <div class="row small"><span>Client</span><span>{{ $sale->displayClientName() ?? '—' }}</span></div>
-    <div class="row small"><span>Tél.</span><span>{{ $sale->displayClientPhone() ?? '—' }}</span></div>
+    <div class="row small"><span>Client</span><span>{{ $sale->displayClientName() ?? '-' }}</span></div>
+    <div class="row small"><span>Tél.</span><span>{{ $sale->displayClientPhone() ?? '-' }}</span></div>
 
     <div class="line"></div>
     <div class="center small">Merci et à bientôt</div>

@@ -12,10 +12,10 @@
                     <span class="block text-xs text-neutral-500">{{ $terminal->branch->name }}</span>
                 @endif
             @else
-                —
+                -
             @endif
         </td>
-        <td class="px-4 py-3 text-neutral-700">{{ $sale->displayClientName() ?? '—' }}</td>
+        <td class="px-4 py-3 text-neutral-700">{{ $sale->displayClientName() ?? '-' }}</td>
         <td class="px-4 py-3 whitespace-nowrap">
             @if ($sale->payment_type === 'credit')
                 <span class="app-badge-warning">Crédit</span>
@@ -27,7 +27,7 @@
         </td>
         <td class="px-4 py-3 text-neutral-700">
             @if ($sale->items->isEmpty())
-                <span class="text-neutral-400">—</span>
+                <span class="text-neutral-400">-</span>
             @else
                 <ul class="space-y-0.5 text-xs leading-relaxed">
                     @foreach ($sale->items as $item)

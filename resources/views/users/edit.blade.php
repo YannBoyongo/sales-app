@@ -47,7 +47,7 @@
         <div id="branch-field" class="space-y-1">
             <x-input-label for="branch_id" value="Branche" />
             <select id="branch_id" name="branch_id" class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-                <option value="">— Choisir une branche —</option>
+                <option value="">- Choisir une branche -</option>
                 @foreach ($branches as $branch)
                     <option value="{{ $branch->id }}" @selected((string) old('branch_id', $user->branch_id) === (string) $branch->id)>{{ $branch->name }}</option>
                 @endforeach

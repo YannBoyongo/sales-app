@@ -11,4 +11,12 @@ final class Money
     {
         return '$'.number_format((float) $amount, 2, '.', ',');
     }
+
+    /**
+     * Format a numeric amount as Congolese francs (e.g. 144 000 CDF).
+     */
+    public static function cdf(float|int|string $amount, int $decimals = 0): string
+    {
+        return number_format((float) $amount, $decimals, ',', ' ').' CDF';
+    }
 }

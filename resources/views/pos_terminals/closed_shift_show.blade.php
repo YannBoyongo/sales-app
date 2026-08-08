@@ -1,12 +1,12 @@
 <x-app-layout>
-    <x-slot name="header">Détail shift fermé — {{ $shift->posTerminal?->name }}</x-slot>
+    <x-slot name="header">Détail shift fermé - {{ $shift->posTerminal?->name }}</x-slot>
 
     <x-caisse-flow
         max-width="max-w-3xl"
         :with-card="false"
         title="Détail de session fermée"
         description="Consultation des ventes par département pour cette session clôturée."
-        :context-line="'<span class=\'text-neutral-500\'>Terminal</span> <strong class=\'text-neutral-900\'>' . e($shift->posTerminal?->name ?? '—') . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Session du</span> <strong class=\'text-neutral-900\'>' . e($shift->effectiveSessionDate()->translatedFormat('d/m/Y')) . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Fermée le</span> <strong class=\'text-neutral-900\'>' . e($shift->effectiveClosedAt()->translatedFormat('d/m/Y H:i')) . '</strong>'"
+        :context-line="'<span class=\'text-neutral-500\'>Terminal</span> <strong class=\'text-neutral-900\'>' . e($shift->posTerminal?->name ?? '-') . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Session du</span> <strong class=\'text-neutral-900\'>' . e($shift->effectiveSessionDate()->translatedFormat('d/m/Y')) . '</strong><span class=\'mx-1.5 text-neutral-300\'>·</span><span class=\'text-neutral-500\'>Fermée le</span> <strong class=\'text-neutral-900\'>' . e($shift->effectiveClosedAt()->translatedFormat('d/m/Y H:i')) . '</strong>'"
     >
         <div
             class="space-y-8"
@@ -31,7 +31,7 @@
             <div class="app-panel app-panel-body sm:p-8">
                 <h2 class="text-lg font-semibold text-neutral-900">Totaux par département</h2>
                 <p class="mt-1 text-sm text-neutral-500">Les montants par département correspondent aux <strong>encaissements réels</strong> (acomptes inclus). Les ventes dealer à solde figurent au crédit client pour la partie non payée.</p>
-                <p class="mt-1 text-xs text-neutral-500">Session ouverte par {{ $shift->openedByUser?->name ?? '—' }} et fermée par {{ $shift->closedByUser?->name ?? '—' }}.</p>
+                <p class="mt-1 text-xs text-neutral-500">Session ouverte par {{ $shift->openedByUser?->name ?? '-' }} et fermée par {{ $shift->closedByUser?->name ?? '-' }}.</p>
 
                 <div class="app-table-shell mt-6">
                         <table class="min-w-full text-sm">
@@ -83,7 +83,7 @@
                                                     Créer le bon de caisse
                                                 </button>
                                             @else
-                                                <span class="text-xs text-neutral-400">—</span>
+                                                <span class="text-xs text-neutral-400">-</span>
                                             @endif
                                         </td>
                                     </tr>
@@ -126,7 +126,7 @@
                             </button>
                         </form>
                     @elseif (auth()->user()?->isAdmin() && ! ($canReopen ?? true))
-                        <p class="text-sm text-neutral-500">Session déjà enregistrée en comptabilité — réouverture impossible.</p>
+                        <p class="text-sm text-neutral-500">Session déjà enregistrée en comptabilité - réouverture impossible.</p>
                     @endif
                 </div>
             </div>

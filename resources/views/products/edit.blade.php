@@ -5,7 +5,7 @@
         max-width="max-w-2xl"
         eyebrow="Catalogue"
         title="Modifier le produit"
-        :description="'« ' . e($product->name) . ' » — mettez à jour les informations et le prix.'"
+        :description="'« ' . e($product->name) . ' » - mettez à jour les informations et le prix.'"
         :with-card="true"
     >
         <form action="{{ route('products.update', $product) }}" method="POST" class="space-y-4">

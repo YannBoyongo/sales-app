@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Nouvelle vente — {{ $posTerminal->name }}</x-slot>
+    <x-slot name="header">Nouvelle vente - {{ $posTerminal->name }}</x-slot>
 
     <x-sale-entry-shell
         :step="3"

@@ -35,23 +35,25 @@
                     @forelse ($requisitions as $requisition)
                         <tr class="transition-colors hover:bg-neutral-50/80">
                             <td class="px-4 py-3 font-medium text-neutral-900">{{ $requisition->reference }}</td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $requisition->date?->format('d/m/Y') ?? '—' }}</td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $requisition->creator?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $requisition->date?->format('d/m/Y') ?? '-' }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $requisition->creator?->name ?? '-' }}</td>
                             <td class="px-4 py-3">
-                                @if ($requisition->status === \App\Models\Requisition::STATUS_APPROVED)
-                                    <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">{{ $requisition->statusLabel() }}</span>
+                                @if ($requisition->status === \App\Models\Requisition::STATUS_CONFIRMED)
+                                    <span class="app-badge-success">{{ $requisition->statusLabel() }}</span>
+                                @elseif ($requisition->status === \App\Models\Requisition::STATUS_ORDERED)
+                                    <span class="app-badge-info">{{ $requisition->statusLabel() }}</span>
                                 @elseif ($requisition->status === \App\Models\Requisition::STATUS_REJECTED)
-                                    <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">{{ $requisition->statusLabel() }}</span>
-                                @elseif ($requisition->status === \App\Models\Requisition::STATUS_FULFILLED)
-                                    <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800">{{ $requisition->statusLabel() }}</span>
+                                    <span class="app-badge-danger">{{ $requisition->statusLabel() }}</span>
+                                @elseif ($requisition->isEditable())
+                                    <span class="app-badge-warning">{{ $requisition->statusLabel() }}</span>
                                 @else
-                                    <span class="inline-flex rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-semibold text-neutral-800">{{ $requisition->statusLabel() }}</span>
+                                    <span class="app-badge-neutral">{{ $requisition->statusLabel() }}</span>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex flex-wrap items-center justify-end gap-2">
                                     <a href="{{ route('requisitions.show', $requisition) }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">Voir</a>
-                                    @if ($requisition->status === \App\Models\Requisition::STATUS_OPEN)
+                                    @if ($requisition->isEditable())
                                         <a href="{{ route('requisitions.edit', $requisition) }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">Modifier</a>
                                         <form
                                             action="{{ route('requisitions.destroy', $requisition) }}"

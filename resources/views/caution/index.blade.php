@@ -3,7 +3,7 @@
 
     <div class="mb-6">
         <h1 class="app-page-title">Caution clients</h1>
-        <p class="app-page-desc">Clients ayant versé une caution — total déposé, montant utilisé et solde disponible.</p>
+        <p class="app-page-desc">Clients ayant versé une caution - total déposé, montant utilisé et solde disponible.</p>
     </div>
 
     <section class="app-table-shell">
@@ -28,7 +28,7 @@
                         @endphp
                         <tr class="hover:bg-neutral-50/50">
                             <td class="py-3 pr-4 font-medium text-neutral-900">{{ $client->name }}</td>
-                            <td class="py-3 pr-4 text-neutral-700">{{ $client->phone ?? '—' }}</td>
+                            <td class="py-3 pr-4 text-neutral-700">{{ $client->phone ?? '-' }}</td>
                             <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($total) }}</td>
                             <td class="py-3 pr-4 text-right tabular-nums text-neutral-700">{{ \App\Support\Money::usd($used) }}</td>
                             <td class="py-3 pr-4 text-right tabular-nums font-semibold text-sky-900">{{ \App\Support\Money::usd($balance) }}</td>

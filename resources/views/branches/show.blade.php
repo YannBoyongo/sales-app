@@ -86,7 +86,7 @@
                 <div class="app-panel-header">
                     <div>
                         <h2 class="text-base font-semibold text-neutral-900">Emplacements</h2>
-                        <p class="mt-0.5 text-sm text-neutral-600">Entrepôts et points de vente — le stock est suivi par emplacement.</p>
+                        <p class="mt-0.5 text-sm text-neutral-600">Entrepôts et points de vente - le stock est suivi par emplacement.</p>
                     </div>
                     <a
                         href="{{ route('branches.locations.create', $branch) }}"
@@ -124,7 +124,7 @@
                                     </td>
                                     <td class="max-w-xs text-neutral-600">
                                         @if ($location->stockManagers->isEmpty())
-                                            <span class="text-neutral-400">—</span>
+                                            <span class="text-neutral-400">-</span>
                                         @else
                                             <span class="leading-snug">{{ $location->stockManagers->pluck('name')->join(', ') }}</span>
                                         @endif
@@ -187,7 +187,7 @@
                 <div class="app-panel-header">
                     <div>
                         <h2 class="text-base font-semibold text-neutral-900">Terminaux POS</h2>
-                        <p class="mt-0.5 text-sm text-neutral-600">Caisse et sessions — chaque terminal est lié à un point de vente.</p>
+                        <p class="mt-0.5 text-sm text-neutral-600">Caisse et sessions - chaque terminal est lié à un point de vente.</p>
                     </div>
                     <a
                         href="{{ route('branches.pos-terminals.create', $branch) }}"
@@ -213,7 +213,7 @@
                             @forelse ($terminals as $t)
                                 <tr>
                                     <td class="font-medium text-neutral-900">{{ $t->name }}</td>
-                                    <td>{{ $t->location?->name ?? '—' }}</td>
+                                    <td>{{ $t->location?->name ?? '-' }}</td>
                                     <td>
                                         <span class="app-badge-neutral tabular-nums">{{ $t->pos_users_count }}</span>
                                     </td>

@@ -112,9 +112,13 @@
                     </a>
 
                     <p class="app-nav-section">Stock</p>
-                    <a href="{{ route('stocks.index') }}" class="app-nav-link {{ request()->routeIs('stocks.*') ? 'app-nav-link-active' : '' }}" title="Stocks par emplacement">
+                    <a href="{{ route('stocks.index') }}" class="app-nav-link {{ request()->routeIs('stocks.index', 'stocks.edit') ? 'app-nav-link-active' : '' }}" title="Stocks par emplacement">
                         <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
                         <span>Stocks par emplacement</span>
+                    </a>
+                    <a href="{{ route('stocks.valuation') }}" class="app-nav-link {{ request()->routeIs('stocks.valuation') ? 'app-nav-link-active' : '' }}" title="Valorisation stock">
+                        <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 12v-2m9-4a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Valorisation stock</span>
                     </a>
                     @if (Auth::user()->canViewStockTransfers())
                         <a href="{{ route('stock-transfers.index') }}" class="app-nav-link {{ request()->routeIs('stock-transfers.*') ? 'app-nav-link-active' : '' }}" title="Transfert de stock">
@@ -165,6 +169,33 @@
                         <a href="{{ route('clients.index') }}" class="app-nav-link {{ request()->routeIs('clients.*') ? 'app-nav-link-active' : '' }}" title="Clients">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.964 0a9 9 0 10-11.964 0m11.964 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             <span>Clients</span>
+                        </a>
+                    @endif
+                    @if (Auth::user()->isAdmin() || Auth::user()->canAccessCashDeskFinanceFeatures() || Auth::user()->canAccessPosSales())
+                        <p class="app-nav-section">Rapports</p>
+                        <a href="{{ route('reports.benefits') }}" class="app-nav-link {{ request()->routeIs('reports.benefits') ? 'app-nav-link-active' : '' }}" title="Bénéfices par article">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+                            <span>Bénéfices</span>
+                        </a>
+                        <a href="{{ route('reports.transfers') }}" class="app-nav-link {{ request()->routeIs('reports.transfers') ? 'app-nav-link-active' : '' }}" title="Liste de transferts">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+                            <span>Liste de transferts</span>
+                        </a>
+                        <a href="{{ route('reports.entries') }}" class="app-nav-link {{ request()->routeIs('reports.entries') ? 'app-nav-link-active' : '' }}" title="Liste des entrées">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+                            <span>Liste des entrées</span>
+                        </a>
+                        <a href="{{ route('reports.discounts') }}" class="app-nav-link {{ request()->routeIs('reports.discounts') ? 'app-nav-link-active' : '' }}" title="Liste de remises">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+                            <span>Liste de remises</span>
+                        </a>
+                        <a href="{{ route('reports.cautions') }}" class="app-nav-link {{ request()->routeIs('reports.cautions') ? 'app-nav-link-active' : '' }}" title="Liste de cautions">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a2.25 2.25 0 01-2.25 2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 013 12m18 0V8.25A2.25 2.25 0 0018.75 6H5.25A2.25 2.25 0 003 8.25V12m18 0v3.75A2.25 2.25 0 0118.75 18H5.25A2.25 2.25 0 013 15.75V12"/></svg>
+                            <span>Liste de cautions</span>
+                        </a>
+                        <a href="{{ route('reports.credit-sales') }}" class="app-nav-link {{ request()->routeIs('reports.credit-sales') ? 'app-nav-link-active' : '' }}" title="Liste des ventes crédit">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h16.5m-16.5 3h16.5M3.75 6.75h16.5a.75.75 0 01.75.75v10.5a.75.75 0 01-.75.75H3.75a.75.75 0 01-.75-.75V7.5a.75.75 0 01.75-.75z"/></svg>
+                            <span>Liste des ventes crédit</span>
                         </a>
                     @endif
                     @if (Auth::user()->canAccessCashDeskFinanceFeatures())

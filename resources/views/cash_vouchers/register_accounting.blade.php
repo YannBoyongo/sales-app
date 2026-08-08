@@ -23,7 +23,7 @@
                     const code = (this.newAccountCode || '').trim();
                     if (!code) return;
                     const select = this.$refs.accountSelect;
-                    const label = this.newAccountName ? `${code} — ${this.newAccountName}` : code;
+                    const label = this.newAccountName ? `${code} - ${this.newAccountName}` : code;
                     let exists = false;
                     for (const option of select.options) {
                         if (option.value === code) {
@@ -75,10 +75,10 @@
                         required
                         class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                     >
-                        <option value="">— Choisir un compte —</option>
+                        <option value="">- Choisir un compte -</option>
                         @foreach ($accounts as $account)
                             <option value="{{ $account->account_code }}">
-                                {{ $account->account_code }} — {{ $account->name }}
+                                {{ $account->account_code }} - {{ $account->name }}
                             </option>
                         @endforeach
                     </select>
@@ -141,7 +141,7 @@
                                 x-model="newAccountType"
                                 class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                             >
-                                <option value="">— Choisir —</option>
+                                <option value="">- Choisir -</option>
                                 <option value="asset">Actif</option>
                                 <option value="liability">Passif</option>
                                 <option value="equity">Capitaux propres</option>

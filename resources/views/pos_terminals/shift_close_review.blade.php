@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Fermeture de session — {{ $posTerminal->name }}</x-slot>
+    <x-slot name="header">Fermeture de session - {{ $posTerminal->name }}</x-slot>
 
     <x-caisse-flow
         max-width="max-w-3xl"

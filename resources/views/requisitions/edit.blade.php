@@ -1,12 +1,16 @@
 <x-app-layout>
-    <x-slot name="header">Modifier — {{ $requisition->reference }}</x-slot>
+    <x-slot name="header">Modifier - {{ $requisition->reference }}</x-slot>
 
     <div
         x-data="{
             canEdit: @js($canEditItems),
-            items: @js($requisitionItems),
+            expenses: @js((float) ($requisition->expenses ?? 0)),
+            items: @js($requisitionItems).map((item, index) => ({
+                ...item,
+                _uid: 'req-' + String(item.product_id) + '-' + index + '-' + Math.random().toString(36).slice(2, 8),
+            })),
             itemKey(item) {
-                return String(item.product_id);
+                return item._uid;
             },
             hasItem(productId) {
                 return this.items.some((item) => Number(item.product_id) === Number(productId));
@@ -15,14 +19,16 @@
                 if (! this.canEdit) {
                     return;
                 }
-                const existing = this.items.find((item) => Number(item.product_id) === Number(payload.product_id));
-                if (existing) {
-                    existing.quantity = Number(existing.quantity || 0) + 1;
-                    return;
-                }
+                // Always add a new line so the same product can have different lots/costs.
                 this.items.push({
+                    _uid: 'req-' + String(payload.product_id) + '-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
                     product_id: payload.product_id,
                     quantity: 1,
+                    batch_number: '',
+                    unit_price: 0,
+                    tax: 0,
+                    other: 0,
+                    cost: 0,
                     product_name: payload.product_name,
                     product_sku: payload.product_sku,
                 });
@@ -59,13 +65,14 @@
                                 />
                                 <x-input-error :messages="$errors->get('date')" class="mt-2" />
                             </div>
+                            <input type="hidden" form="requisition-items-form" name="expenses" :value="expenses">
                             <div class="pb-0.5">
-                                @if ($requisition->status === \App\Models\Requisition::STATUS_APPROVED)
+                                @if ($requisition->status === \App\Models\Requisition::STATUS_CONFIRMED)
                                     <span class="app-badge-success">{{ $requisition->statusLabel() }}</span>
                                 @elseif ($requisition->status === \App\Models\Requisition::STATUS_REJECTED)
-                                    <span class="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-800">{{ $requisition->statusLabel() }}</span>
-                                @elseif ($requisition->status === \App\Models\Requisition::STATUS_FULFILLED)
-                                    <span class="inline-flex rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-800">{{ $requisition->statusLabel() }}</span>
+                                    <span class="app-badge-danger">{{ $requisition->statusLabel() }}</span>
+                                @elseif ($requisition->isEditable())
+                                    <span class="app-badge-warning">{{ $requisition->statusLabel() }}</span>
                                 @else
                                     <span class="app-badge-neutral">{{ $requisition->statusLabel() }}</span>
                                 @endif
@@ -139,7 +146,7 @@
                                     @php
                                         $payload = [
                                             'product_id' => (int) $item->product_id,
-                                            'product_name' => $item->product?->name ?? '—',
+                                            'product_name' => $item->product?->name ?? '-',
                                             'product_sku' => $item->product?->sku,
                                         ];
                                     @endphp
@@ -152,7 +159,7 @@
                                         @endif
                                     >
                                         <td class="px-4 py-3 sm:px-5">
-                                            <div class="font-medium text-neutral-900">{{ $item->product?->name ?? '—' }}</div>
+                                            <div class="font-medium text-neutral-900">{{ $item->product?->name ?? '-' }}</div>
                                             @if ($item->product?->sku)
                                                 <div class="text-xs text-neutral-500">{{ $item->product->sku }}</div>
                                             @endif
@@ -185,7 +192,7 @@
                         action="{{ route('requisitions.items.sync', $requisition) }}"
                         method="POST"
                         class="flex min-h-0 flex-1 flex-col"
-                        @submit="if (canEdit && ! confirm('Enregistrer les articles de cette réquisition ?')) { $event.preventDefault(); }"
+                        @submit="if (canEdit && ! confirm('Enregistrer les articles (statut En attente) ?')) { $event.preventDefault(); }"
                     >
                         @csrf
                         @if (! empty($filters['stock_scope']))
@@ -211,8 +218,14 @@
                                         <tr class="transition-colors hover:bg-neutral-50/80">
                                             <td class="px-4 py-3 sm:px-5">
                                                 <input type="hidden" :name="'items[' + index + '][product_id]'" :value="item.product_id">
+                                                <input type="hidden" :name="'items[' + index + '][batch_number]'" :value="item.batch_number ?? ''">
+                                                <input type="hidden" :name="'items[' + index + '][unit_price]'" :value="item.unit_price ?? 0">
+                                                <input type="hidden" :name="'items[' + index + '][tax]'" :value="item.tax ?? 0">
                                                 <div class="font-medium text-neutral-900" x-text="item.product_name"></div>
                                                 <div class="text-xs text-neutral-500" x-show="item.product_sku" x-text="item.product_sku"></div>
+                                                <div class="mt-0.5 text-xs text-neutral-400">
+                                                    Prix / taxe à saisir sur la fiche réquisition.
+                                                </div>
                                             </td>
                                             <td class="px-4 py-3 text-right sm:px-5">
                                                 @if ($canEditItems)
@@ -255,7 +268,7 @@
                                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     <p class="text-xs text-neutral-500" x-text="items.length ? (items.length + ' article(s) prêt(s) à enregistrer') : 'Vous pouvez confirmer pour enregistrer la date, même sans article.'"></p>
                                     <button type="submit" class="app-btn-primary w-full sm:w-auto">
-                                        Confirmer
+                                        Enregistrer
                                     </button>
                                 </div>
                             </div>

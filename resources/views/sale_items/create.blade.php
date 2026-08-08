@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Nouvelle vente — {{ $posTerminal->name }} — {{ $department->name }}</x-slot>
+    <x-slot name="header">Nouvelle vente - {{ $posTerminal->name }} - {{ $department->name }}</x-slot>
 
     <x-caisse-flow max-width="max-w-7xl" :with-card="false">
         <x-slot name="header">
@@ -55,6 +55,7 @@
                 ])->values()),
                 isAdmin: @js(auth()->user()->isAdmin()),
                 amountPaid: @js(old('amount_paid', '0')),
+                creditDueDate: @js(old('credit_due_date', '')),
                 paymentType: @js(old('payment_type', $saleEffectiveCustomerType === 'dealer' ? 'credit' : 'cash')),
                 allowLineDiscount: @js(filter_var(old('allow_line_discount'), FILTER_VALIDATE_BOOLEAN)),
             })"
@@ -163,7 +164,7 @@
                             <h2 class="text-base font-semibold text-neutral-900">Articles</h2>
                             <p class="mt-0.5 text-sm text-neutral-600">
                                 Recherchez, ajoutez au panier
-                                <span>— cochez <strong>Remise</strong> dans le récapitulatif pour ajuster le prix unitaire</span>.
+                                <span>- cochez <strong>Remise</strong> dans le récapitulatif pour ajuster le prix unitaire</span>.
                             </p>
                         </div>
                     </div>
@@ -413,7 +414,7 @@
                         </p>
                     </div>
 
-                    {{-- Remise globale — désactivée temporairement (réactiver sur demande)
+                    {{-- Remise globale - désactivée temporairement (réactiver sur demande)
                     <div class="border-t border-neutral-100 pt-3">
                         <label class="flex cursor-pointer items-start gap-2">
                             <input type="checkbox" name="apply_sale_discount" value="1" class="mt-0.5 rounded border-neutral-300 text-primary focus:ring-primary" x-model="apply_sale_discount" />
@@ -465,6 +466,18 @@
                     <div x-show="customerType === 'dealer' && paymentType === 'credit'" x-cloak class="space-y-3 border-t border-neutral-100 pt-3">
                         <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Encaissement revendeur</p>
                         <div>
+                            <label for="credit_due_date" class="text-xs font-semibold text-neutral-700">Date d'échéance</label>
+                            <input
+                                id="credit_due_date"
+                                name="credit_due_date"
+                                type="date"
+                                x-model="creditDueDate"
+                                :min="minDueDate()"
+                                class="mt-1 block w-full rounded-xl border-neutral-200 text-sm focus:border-primary focus:ring-primary"
+                            />
+                            <x-input-error :messages="$errors->get('credit_due_date')" class="mt-1" />
+                        </div>
+                        <div>
                             <label for="amount_paid" class="text-xs font-semibold text-neutral-700">Montant payé maintenant</label>
                             <input id="amount_paid" name="amount_paid" type="number" step="0.01" min="0" x-model="amountPaid" class="mt-1 block w-full rounded-xl border-neutral-200 text-sm tabular-nums focus:border-primary focus:ring-primary" />
                             <x-input-error :messages="$errors->get('amount_paid')" class="mt-1" />
@@ -480,7 +493,7 @@
                         <button
                             type="submit"
                             class="inline-flex w-full items-center justify-center rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-50"
-                            :disabled="submitting || rows.length === 0 || (customerType === 'dealer' && !String(clientName || '').trim())"
+                            :disabled="submitting || rows.length === 0 || (customerType === 'dealer' && !String(clientName || '').trim()) || (customerType === 'dealer' && paymentType === 'credit' && !String(creditDueDate || '').trim())"
                             @unless ($hasProducts) disabled @endunless
                         >
                             <span x-show="!submitting">Valider la vente</span>
@@ -526,6 +539,7 @@
                 clientPanelOpen: false,
                 isAdmin: config.isAdmin,
                 amountPaid: config.amountPaid,
+                creditDueDate: config.creditDueDate,
                 paymentType: config.paymentType,
                 allowLineDiscount: config.allowLineDiscount,
                 submitting: false,
@@ -605,7 +619,7 @@
                 rowProductName(row) {
                     if (row.product_name) return row.product_name;
                     const p = this.findProduct(row.product_id);
-                    return p ? (p.name || p.label) : '—';
+                    return p ? (p.name || p.label) : '-';
                 },
 
                 catalogUnitPrice(row) {
@@ -686,7 +700,16 @@
                     }
                     if (this.paymentType !== 'credit') {
                         this.amountPaid = '0';
+                        this.creditDueDate = '';
                     }
+                },
+
+                minDueDate() {
+                    const today = new Date();
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
                 },
 
                 totalPaidNumber() {

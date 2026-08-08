@@ -65,16 +65,16 @@
                                 <p class="text-xs text-neutral-500">Fermée le {{ $shift->effectiveClosedAt()->format('d/m/Y H:i') }}</p>
                             </td>
                             <td class="px-4 py-3">
-                                <p class="font-medium text-neutral-900">{{ $shift->posTerminal?->name ?? '—' }}</p>
+                                <p class="font-medium text-neutral-900">{{ $shift->posTerminal?->name ?? '-' }}</p>
                                 <p class="text-xs text-neutral-500">
-                                    {{ $shift->posTerminal?->branch?->name ?? '—' }}
+                                    {{ $shift->posTerminal?->branch?->name ?? '-' }}
                                     @if ($shift->posTerminal?->location?->name)
                                         · {{ $shift->posTerminal->location->name }}
                                     @endif
                                 </p>
                             </td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $shift->openedByUser?->name ?? '—' }}</td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $shift->closedByUser?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $shift->openedByUser?->name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $shift->closedByUser?->name ?? '-' }}</td>
                             <td class="px-4 py-3">
                                 @if ((int) ($shift->accounting_registered_count ?? 0) > 0)
                                     <span class="app-badge-success">

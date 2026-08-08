@@ -15,7 +15,7 @@
                         Vous voyez les indicateurs sur <span class="font-medium text-neutral-800">toutes les branches</span>.
                         Gérez la structure (branches, départements, utilisateurs), les clients crédit, la comptabilité et les paramètres boutique.
                         @if ($branchesCount !== null)
-                            <span class="text-neutral-500">— {{ $branchesCount }} branche{{ $branchesCount > 1 ? 's' : '' }}.</span>
+                            <span class="text-neutral-500">- {{ $branchesCount }} branche{{ $branchesCount > 1 ? 's' : '' }}.</span>
                         @endif
                     @elseif ($isAccountant)
                         Vue <span class="font-medium text-neutral-800">finances</span> sur toutes les branches : clients (crédit), comptabilité et indicateurs agrégés.
@@ -40,7 +40,7 @@
                         <div>
                             <p class="font-semibold text-amber-900">Remises en attente d’approbation</p>
                             <p class="mt-0.5 text-amber-800/90">
-                                {{ $pendingDiscountCount }} vente{{ $pendingDiscountCount > 1 ? 's' : '' }} avec une remise demandée par la caisse — validez ou refusez sur la fiche vente.
+                                {{ $pendingDiscountCount }} vente{{ $pendingDiscountCount > 1 ? 's' : '' }} avec une remise demandée par la caisse - validez ou refusez sur la fiche vente.
                             </p>
                         </div>
                     </div>
@@ -57,7 +57,7 @@
                         <div>
                             <p class="font-semibold text-amber-900">Réceptions de bons de commande en attente</p>
                             <p class="mt-0.5 text-amber-800/90">
-                                {{ $pendingReceptionBatchCount }} réception{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} soumise{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} — approuvez ou refusez sur la fiche du bon de commande pour mettre à jour le stock.
+                                {{ $pendingReceptionBatchCount }} réception{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} soumise{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} - approuvez ou refusez sur la fiche du bon de commande pour mettre à jour le stock.
                             </p>
                         </div>
                     </div>
@@ -95,7 +95,7 @@
                             <div>
                                 <h2 class="font-semibold text-neutral-900">Analyse des ventes</h2>
                                 <p class="mt-0.5 text-xs text-neutral-500">
-                                    {{ $monthlySalesTrend['month_label'] }} — {{ $monthlySalesTrend['total_count'] }} vente{{ $monthlySalesTrend['total_count'] > 1 ? 's' : '' }}
+                                    {{ $monthlySalesTrend['month_label'] }} - {{ $monthlySalesTrend['total_count'] }} vente{{ $monthlySalesTrend['total_count'] > 1 ? 's' : '' }}
                                     · {{ \App\Support\Money::usd($monthlySalesTrend['total_amount']) }} (toutes branches)
                                 </p>
                             </div>
@@ -132,14 +132,14 @@
                                         <span class="mt-2 h-0.5 w-5 shrink-0 rounded-full bg-[#005EB8]" aria-hidden="true"></span>
                                         <div>
                                             <p class="font-semibold text-neutral-800">Montant ($)</p>
-                                            <p class="text-neutral-500">Total des ventes du jour — échelle à gauche</p>
+                                            <p class="text-neutral-500">Total des ventes du jour - échelle à gauche</p>
                                         </div>
                                     </div>
                                     <div class="flex items-start gap-2">
                                         <span class="mt-2 h-0.5 w-5 shrink-0 border-t-2 border-dashed border-slate-500" aria-hidden="true"></span>
                                         <div>
                                             <p class="font-semibold text-neutral-800">Nombre de ventes</p>
-                                            <p class="text-neutral-500">Quantité de tickets du jour — échelle à droite</p>
+                                            <p class="text-neutral-500">Quantité de tickets du jour - échelle à droite</p>
                                         </div>
                                     </div>
                                     <div class="flex items-start gap-2">
@@ -257,7 +257,7 @@
                                                 callbacks: {
                                                     title(items) {
                                                         const day = items[0]?.label ?? '';
-                                                        return 'Jour ' + day + ' — ' + (trend.month_label || '');
+                                                        return 'Jour ' + day + ' - ' + (trend.month_label || '');
                                                     },
                                                     label(context) {
                                                         const value = context.parsed.y;
@@ -351,7 +351,7 @@
                                                 callbacks: {
                                                     title(items) {
                                                         const branch = items[0]?.label ?? '';
-                                                        return branch + ' — ' + (branchChart.month_label || '');
+                                                        return branch + ' - ' + (branchChart.month_label || '');
                                                     },
                                                     label(context) {
                                                         const entry = entries[context.dataIndex];
@@ -399,7 +399,7 @@
                     <p class="mt-2 text-3xl font-semibold tabular-nums @if ($lowStocksCount > 0) text-red-700 @else text-primary @endif">{{ $lowStocksCount }}</p>
                     <p class="mt-1 text-sm @if ($lowStocksCount > 0) font-medium text-red-900 @else text-neutral-600 @endif">
                         @if ($lowStocksCount > 0)
-                            Sous le seuil — action requise
+                            Sous le seuil - action requise
                         @else
                             Aucune alerte @if (! $seesAllBranches) (votre branche) @endif
                         @endif
@@ -423,51 +423,87 @@
                 @endif
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-2">
-                <section class="app-panel">
-                    <div class="app-panel-body">
-                        <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Opérationnel</h2>
-                        <p class="mt-1 text-xs text-slate-500">Ventes, stock et achats selon vos droits.</p>
-                        <div class="mt-4 flex flex-wrap gap-2">
-                        <a href="{{ route('sales.overview') }}" class="app-btn-secondary !px-3 !py-1.5 !text-sm">Liste des ventes</a>
-                        <a href="{{ route('sales.entry') }}" class="app-btn-primary !px-3 !py-1.5 !text-sm">Nouvelle vente</a>
-                        <a href="{{ route('stocks.index') }}" class="app-btn-secondary !px-3 !py-1.5 !text-sm">Stocks</a>
-                        <a href="{{ route('products.index') }}" class="app-btn-secondary !px-3 !py-1.5 !text-sm">Produits</a>
-                        @if (auth()->user()->canManageApplication())
-                            <a href="{{ route('branches.index') }}" class="app-btn-secondary !px-3 !py-1.5 !text-sm">Branches</a>
-                        @endif
-                        <a href="{{ route('stock-movements.index') }}" class="app-btn-secondary !px-3 !py-1.5 !text-sm">Mouvements</a>
-                        <a href="{{ route('purchase-orders.index') }}" class="app-btn-secondary !px-3 !py-1.5 !text-sm">Bons de commande</a>
-                        @if ($isAdmin)
-                            <a href="{{ route('purchase-orders.create') }}" class="app-btn-secondary !px-3 !py-1.5 !text-sm">Nouveau bon de commande</a>
-                        @endif
-                        </div>
+            <section class="app-panel overflow-hidden">
+                <div class="app-panel-header">
+                    <div>
+                        <h2 class="font-semibold text-neutral-900">Ventes crédit - échéances</h2>
+                        <p class="mt-0.5 text-xs text-neutral-500">
+                            Échéance atteinte ou dépassée, et échéances dans les {{ $creditDueSoonDays }} prochains jours (solde restant).
+                        </p>
                     </div>
-                </section>
+                    <a href="{{ route('reports.credit-sales') }}" class="text-sm font-medium text-neutral-600 hover:text-primary">Rapport crédit</a>
+                </div>
 
-                @if ($canAccessAccounting || $isAdmin)
-                    <section class="app-panel app-panel-body">
-                        @if ($canAccessAccounting)
-                            <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500">Finances</h2>
-                            <p class="mt-1 text-xs text-neutral-500">Clients au crédit et grand livre.</p>
-                            <div class="mt-4 flex flex-wrap gap-2">
-                                <a href="{{ route('accounting.index') }}" class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-neutral-50">Comptabilité</a>
-                                <a href="{{ route('clients.index') }}" class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-neutral-50">Clients</a>
-                            </div>
-                        @endif
-                        @if ($isAdmin)
-                            <h2 class="text-sm font-semibold uppercase tracking-wide text-neutral-500 {{ $canAccessAccounting ? 'mt-6' : '' }}">Configuration</h2>
-                            <p class="mt-1 text-xs text-neutral-500">Structure boutique et comptes applicatifs.</p>
-                            <div class="mt-4 flex flex-wrap gap-2">
-                                <a href="{{ route('parametre.edit') }}" class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-neutral-50">Paramètre boutique</a>
-                                <a href="{{ route('branches.index') }}" class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-neutral-50">Branches</a>
-                                <a href="{{ route('departments.index') }}" class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-neutral-50">Départements</a>
-                                <a href="{{ route('users.index') }}" class="rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-sm shadow-sm hover:bg-neutral-50">Utilisateurs</a>
-                            </div>
-                        @endif
-                    </section>
+                @if ($creditDueReached->isNotEmpty())
+                    <div class="border-b border-red-100 bg-red-50/60 px-5 py-2">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-red-900">Échéance atteinte ou dépassée</p>
+                    </div>
+                    <ul class="divide-y divide-neutral-100">
+                        @foreach ($creditDueReached as $sale)
+                            <li class="flex flex-col gap-3 px-5 py-3 transition-colors hover:bg-red-50/40 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="truncate font-mono font-medium text-neutral-900">{{ $sale->reference }}</p>
+                                    <p class="text-sm text-neutral-700">{{ $sale->displayClientName() ?? 'Client non renseigné' }}</p>
+                                    <p class="text-xs text-neutral-500">
+                                        Échéance :
+                                        <span class="font-medium text-red-800">{{ $sale->credit_due_date->translatedFormat('d/m/Y') }}</span>
+                                        @if ($seesAllBranches && $sale->branch)
+                                            · {{ $sale->branch->name }}
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="flex shrink-0 items-center gap-3 sm:text-right">
+                                    <div>
+                                        <p class="text-xs text-neutral-500">Solde</p>
+                                        <p class="tabular-nums font-semibold text-red-900">{{ \App\Support\Money::usd($sale->remainingAmountValue()) }}</p>
+                                    </div>
+                                    @if ($sale->branch)
+                                        <a href="{{ route('sales.show', [$sale->branch, $sale]) }}" class="app-btn-primary !px-3 !py-1.5 !text-xs">Ouvrir</a>
+                                    @endif
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
                 @endif
-            </div>
+
+                @if ($creditDueSoon->isNotEmpty())
+                    <div class="border-b border-amber-100 bg-amber-50/60 px-5 py-2 {{ $creditDueReached->isNotEmpty() ? 'border-t' : '' }}">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-amber-950">Échéance proche</p>
+                    </div>
+                    <ul class="divide-y divide-neutral-100">
+                        @foreach ($creditDueSoon as $sale)
+                            <li class="flex flex-col gap-3 px-5 py-3 transition-colors hover:bg-amber-50/40 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="min-w-0">
+                                    <p class="truncate font-mono font-medium text-neutral-900">{{ $sale->reference }}</p>
+                                    <p class="text-sm text-neutral-700">{{ $sale->displayClientName() ?? 'Client non renseigné' }}</p>
+                                    <p class="text-xs text-neutral-500">
+                                        Échéance :
+                                        <span class="font-medium text-amber-900">{{ $sale->credit_due_date->translatedFormat('d/m/Y') }}</span>
+                                        @if ($seesAllBranches && $sale->branch)
+                                            · {{ $sale->branch->name }}
+                                        @endif
+                                    </p>
+                                </div>
+                                <div class="flex shrink-0 items-center gap-3 sm:text-right">
+                                    <div>
+                                        <p class="text-xs text-neutral-500">Solde</p>
+                                        <p class="tabular-nums font-semibold text-amber-950">{{ \App\Support\Money::usd($sale->remainingAmountValue()) }}</p>
+                                    </div>
+                                    @if ($sale->branch)
+                                        <a href="{{ route('sales.show', [$sale->branch, $sale]) }}" class="app-btn-secondary !px-3 !py-1.5 !text-xs">Ouvrir</a>
+                                    @endif
+                                </div>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                @if ($creditDueReached->isEmpty() && $creditDueSoon->isEmpty())
+                    <div class="px-5 py-10 text-center text-sm text-neutral-500">
+                        Aucune vente crédit avec échéance proche ou atteinte.
+                    </div>
+                @endif
+            </section>
 
             <div class="grid gap-8 lg:grid-cols-2">
                 <section class="app-panel overflow-hidden">
@@ -486,7 +522,7 @@
                                     @if ($seesAllBranches)
                                         <p class="text-xs text-neutral-500">{{ $sale->branch?->name ?? 'Branche introuvable' }}</p>
                                     @endif
-                                    <p class="text-xs text-neutral-500">{{ $sale->sold_at?->translatedFormat('d M Y, H:i') ?? '—' }}</p>
+                                    <p class="text-xs text-neutral-500">{{ $sale->sold_at?->translatedFormat('d M Y, H:i') ?? '-' }}</p>
                                     @if ($sale->user)
                                         <p class="text-xs text-neutral-500">Par {{ $sale->user->name }}</p>
                                     @endif
@@ -494,7 +530,7 @@
                                 @if ($sale->branch)
                                     <a href="{{ route('sales.show', [$sale->branch, $sale]) }}" class="app-btn-primary shrink-0 !px-3 !py-1.5 !text-xs">Ouvrir</a>
                                 @else
-                                    <span class="shrink-0 text-xs text-neutral-400">—</span>
+                                    <span class="shrink-0 text-xs text-neutral-400">-</span>
                                 @endif
                             </li>
                         @empty
@@ -508,7 +544,7 @@
                         <div>
                             <h2 class="font-semibold @if ($lowStocksCount > 0) text-red-900 @else text-neutral-900 @endif">Stocks bas</h2>
                             @if ($lowStocksCount > 0)
-                                <p class="mt-0.5 text-xs font-medium text-red-800">5 premières lignes sous le seuil (emplacement ou produit) — voir la matrice pour la liste complète</p>
+                                <p class="mt-0.5 text-xs font-medium text-red-800">5 premières lignes sous le seuil (emplacement ou produit) - voir la matrice pour la liste complète</p>
                             @endif
                         </div>
                         <a href="{{ route('stocks.index') }}" class="text-sm @if ($lowStocksCount > 0) font-medium text-red-800 hover:text-red-950 @else font-medium text-neutral-600 hover:text-primary @endif">Stocks</a>
@@ -530,7 +566,7 @@
                                 </p>
                                 <p class="mt-1 text-xs text-red-900/90">
                                     Qté actuelle : <span class="font-semibold tabular-nums">{{ $stock->quantity }}</span>
-                                    — Seuil : <span class="font-semibold tabular-nums">{{ $seuil ?? '—' }}</span>
+                                    - Seuil : <span class="font-semibold tabular-nums">{{ $seuil ?? '-' }}</span>
                                     @if ($stock->minimum_stock !== null && $product?->minimum_stock !== null && (int) $stock->minimum_stock !== (int) $product->minimum_stock)
                                         <span class="text-neutral-500">(empl.)</span>
                                     @elseif ($stock->minimum_stock === null && $product?->minimum_stock !== null)
@@ -539,7 +575,7 @@
                                 </p>
                             </li>
                         @empty
-                            <li class="px-5 py-8 text-center text-sm text-neutral-500">Aucune alerte — tous les stocks suivis sont au-dessus du minimum.</li>
+                            <li class="px-5 py-8 text-center text-sm text-neutral-500">Aucune alerte - tous les stocks suivis sont au-dessus du minimum.</li>
                         @endforelse
                     </ul>
                 </section>

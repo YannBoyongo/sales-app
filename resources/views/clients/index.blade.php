@@ -7,7 +7,7 @@
             @if (auth()->user()?->canViewClientsLedger())
                 <p class="app-page-desc">Liste des clients ayant des ventes à crédit et suivi de leur dette.</p>
             @else
-                <p class="app-page-desc">Liste des clients — vos droits permettent de créer ou modifier une fiche (nom et téléphone).</p>
+                <p class="app-page-desc">Liste des clients - vos droits permettent de créer ou modifier une fiche (nom et téléphone).</p>
             @endif
         </div>
         @if (auth()->user()?->canEditClientProfile())
@@ -45,7 +45,7 @@
                         @endphp
                         <tr>
                             <td class="py-3 pr-4 font-medium text-neutral-900">{{ $client->name }}</td>
-                            <td class="py-3 pr-4 text-neutral-700">{{ $client->phone ?? '—' }}</td>
+                            <td class="py-3 pr-4 text-neutral-700">{{ $client->phone ?? '-' }}</td>
                             @if ($showLedgerCols)
                                 <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($totalCredit) }}</td>
                                 <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($totalPaid) }}</td>

@@ -38,8 +38,8 @@
                     @forelse ($purchaseOrders as $po)
                         <tr class="transition-colors hover:bg-neutral-50/80">
                             <td class="px-4 py-3 font-medium text-neutral-900">{{ $po->reference }}</td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $po->location?->name ?? '—' }}</td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $po->supplier ?: '—' }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $po->location?->name ?? '-' }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $po->supplier ?: '-' }}</td>
                             <td class="px-4 py-3">
                                 @if ($po->status === 'received')
                                     <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Réceptionné</span>
@@ -49,7 +49,7 @@
                                     <span class="inline-flex rounded-full bg-neutral-200 px-2.5 py-0.5 text-xs font-semibold text-neutral-800">Ouvert</span>
                                 @endif
                             </td>
-                            <td class="px-4 py-3 text-neutral-700">{{ $po->creator?->name ?? '—' }}</td>
+                            <td class="px-4 py-3 text-neutral-700">{{ $po->creator?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex flex-wrap items-center justify-end gap-2">
                                     @if (auth()->user()->isAdmin() && ! $po->reception_started)

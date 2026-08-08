@@ -28,7 +28,7 @@
             <div>
                 <x-input-label for="product_id" value="Produit" />
                 <select id="product_id" name="product_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary" required>
-                    <option value="">— Choisir —</option>
+                    <option value="">- Choisir -</option>
                     @foreach ($products as $p)
                         <option value="{{ $p->id }}" @selected(old('product_id') == $p->id)>{{ $p->name }} ({{ $p->department->name }})</option>
                     @endforeach
@@ -45,7 +45,7 @@
             <div x-show="type === 'exit' || type === 'transfer'" x-cloak>
                 <x-input-label for="from_location_id" value="Emplacement source" />
                 <select id="from_location_id" name="from_location_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary" :required="type === 'exit' || type === 'transfer'">
-                    <option value="">— Choisir —</option>
+                    <option value="">- Choisir -</option>
                     @foreach ($locations as $loc)
                         <option value="{{ $loc->id }}" @selected(old('from_location_id') == $loc->id)>{{ $loc->name }} ({{ $loc->branch->name }})</option>
                     @endforeach
@@ -56,7 +56,7 @@
             <div x-show="type === 'entry' || type === 'transfer'" x-cloak>
                 <x-input-label for="to_location_id" value="Emplacement destination" />
                 <select id="to_location_id" name="to_location_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary" :required="type === 'entry' || type === 'transfer'">
-                    <option value="">— Choisir —</option>
+                    <option value="">- Choisir -</option>
                     @foreach ($locations as $loc)
                         <option value="{{ $loc->id }}" @selected(old('to_location_id') == $loc->id)>{{ $loc->name }} ({{ $loc->branch->name }})</option>
                     @endforeach

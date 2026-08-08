@@ -64,7 +64,7 @@
                         </button>
                     </form>
                 @else
-                    <span class="inline-flex h-8 w-8 items-center justify-center text-xs text-neutral-400" title="Bon comptabilisé — suppression impossible">—</span>
+                    <span class="inline-flex h-8 w-8 items-center justify-center text-xs text-neutral-400" title="Bon comptabilisé - suppression impossible">-</span>
                 @endif
             </div>
         </td>
@@ -91,7 +91,7 @@
                     </button>
                 </form>
             @else
-                <span class="text-xs text-neutral-500">—</span>
+                <span class="text-xs text-neutral-500">-</span>
             @endif
         </td>
     @endif

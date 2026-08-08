@@ -12,12 +12,21 @@ class RequisitionItem extends Model
         'product_id',
         'location_id',
         'quantity',
+        'batch_number',
+        'unit_price',
+        'tax',
+        'other',
+        'cost',
     ];
 
     protected function casts(): array
     {
         return [
             'quantity' => 'integer',
+            'unit_price' => 'decimal:2',
+            'tax' => 'decimal:2',
+            'other' => 'decimal:2',
+            'cost' => 'decimal:2',
         ];
     }
 
@@ -34,5 +43,10 @@ class RequisitionItem extends Model
     public function location(): BelongsTo
     {
         return $this->belongsTo(Location::class);
+    }
+
+    public function merchandiseTotal(): float
+    {
+        return round((int) $this->quantity * (float) $this->unit_price, 2);
     }
 }

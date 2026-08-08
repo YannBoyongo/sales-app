@@ -1,7 +1,7 @@
 <x-app-layout>
-    <x-slot name="header">Nouveau terminal — {{ $branch->name }}</x-slot>
+    <x-slot name="header">Nouveau terminal - {{ $branch->name }}</x-slot>
 
-    <x-page-header title="Nouveau terminal POS — {{ $branch->name }}" />
+    <x-page-header title="Nouveau terminal POS - {{ $branch->name }}" />
 
     <form action="{{ route('branches.pos-terminals.store', $branch) }}" method="POST" class="max-w-lg space-y-4 rounded-lg border border-neutral-200 bg-white p-6 shadow-sm">
         @csrf
@@ -13,7 +13,7 @@
         <div>
             <x-input-label for="location_id" value="Emplacement" />
             <select id="location_id" name="location_id" class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary" required>
-                <option value="">— Choisir —</option>
+                <option value="">- Choisir -</option>
                 @foreach ($locations as $loc)
                     <option value="{{ $loc->id }}" @selected((string) old('location_id') === (string) $loc->id)>{{ $loc->name }} ({{ \App\Models\Location::kindLabel($loc->kind) }})</option>
                 @endforeach

@@ -59,7 +59,7 @@
                 <div class="min-w-0 flex-1">
                     <p class="text-xs font-semibold uppercase tracking-wide text-neutral-500">Importer des produits</p>
                     <p class="mt-1 text-sm text-neutral-600">
-                        Fichier <strong>.xlsx</strong> (recommandé) ou <strong>.csv / .txt</strong> — mêmes colonnes que le modèle ci-dessous (max. 10 Mo).
+                        Fichier <strong>.xlsx</strong> (recommandé) ou <strong>.csv / .txt</strong> - mêmes colonnes que le modèle ci-dessous (max. 10 Mo).
                     </p>
                     <a
                         href="{{ route('products.import.sample') }}"
@@ -141,9 +141,9 @@
                     @forelse ($products as $product)
                         <tr class="transition-colors hover:bg-neutral-50/80">
                             <td class="px-4 py-3 font-medium text-neutral-900">{{ $product->name }}</td>
-                            <td class="px-4 py-3 text-neutral-600">{{ $product->sku ?? '—' }}</td>
+                            <td class="px-4 py-3 text-neutral-600">{{ $product->sku ?? '-' }}</td>
                             <td class="px-4 py-3 text-neutral-600">{{ $product->department->name }}</td>
-                            <td class="px-4 py-3 text-right tabular-nums text-neutral-600">{{ $product->minimum_stock ?? '—' }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums text-neutral-600">{{ $product->minimum_stock ?? '-' }}</td>
                             <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($product->unit_price) }}</td>
                             @if (auth()->user()?->canEditOrDeleteProducts())
                                 <td class="px-4 py-3 text-right">

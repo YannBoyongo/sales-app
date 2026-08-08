@@ -5,7 +5,7 @@
         <div>
             <p class="app-page-eyebrow">Administration</p>
             <h1 class="app-page-title">Modifier la vente {{ $sale->reference }}</h1>
-            <p class="app-page-desc">{{ $branch->name }} — lignes de produit inchangées</p>
+            <p class="app-page-desc">{{ $branch->name }} - lignes de produit inchangées</p>
         </div>
         <a href="{{ route('sales.show', [$branch, $sale]) }}" class="text-sm text-neutral-600 hover:text-primary underline-offset-2 hover:underline">← Retour à la vente</a>
     </div>

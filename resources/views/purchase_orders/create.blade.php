@@ -22,7 +22,7 @@
                 <div>
                     <x-input-label for="location_id" value="Emplacement de réception" />
                     <select id="location_id" name="location_id" class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary" required>
-                        <option value="">— Choisir —</option>
+                        <option value="">- Choisir -</option>
                         @foreach ($locations as $loc)
                             <option value="{{ $loc->id }}" @selected(old('location_id') == $loc->id)>{{ $loc->name }} ({{ $loc->branch->name }})</option>
                         @endforeach

@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Modifier — {{ $client->name }}</x-slot>
+    <x-slot name="header">Modifier - {{ $client->name }}</x-slot>
 
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

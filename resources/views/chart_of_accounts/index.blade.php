@@ -101,7 +101,7 @@
                     <div>
                         <label for="account_type" class="block text-xs font-semibold text-neutral-700">Type</label>
                         <select id="account_type" name="account_type" required class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
-                            <option value="">— Choisir —</option>
+                            <option value="">- Choisir -</option>
                             <option value="asset" @selected(old('account_type') === 'asset')>Actif</option>
                             <option value="liability" @selected(old('account_type') === 'liability')>Passif</option>
                             <option value="equity" @selected(old('account_type') === 'equity')>Capitaux propres</option>

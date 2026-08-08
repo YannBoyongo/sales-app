@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Modifier le compte — {{ $chartOfAccount->account_code }}</x-slot>
+    <x-slot name="header">Modifier le compte - {{ $chartOfAccount->account_code }}</x-slot>
 
     <x-caisse-flow max-width="max-w-xl" :with-card="false">
         <x-slot name="header">

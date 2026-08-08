@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Client — {{ $client->name }}</x-slot>
+    <x-slot name="header">Client - {{ $client->name }}</x-slot>
 
     <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -109,7 +109,7 @@
                                     @if ($parentSale)
                                         <a class="font-medium text-primary hover:underline" href="{{ route('sales.show', [$line->branch, $parentSale]) }}">{{ $parentSale->reference }}</a>
                                     @else
-                                        —
+                                        -
                                     @endif
                                 </td>
                                 <td class="py-3 pr-4 text-neutral-700">{{ $line->product->name }}</td>
@@ -119,14 +119,14 @@
                                         @if ($parentSale)
                                             {{ \App\Support\Money::usd($expectedAmount) }}
                                         @else
-                                            —
+                                            -
                                         @endif
                                     </td>
                                     <td rowspan="{{ $saleRowSpan }}" class="bg-neutral-50/60 py-3 pr-4 text-right align-top tabular-nums text-neutral-800">
                                         @if ($parentSale)
                                             {{ \App\Support\Money::usd($paidAmount) }}
                                         @else
-                                            —
+                                            -
                                         @endif
                                     </td>
                                     <td rowspan="{{ $saleRowSpan }}" class="bg-neutral-50/60 py-3 text-right align-top tabular-nums font-semibold">
@@ -135,7 +135,7 @@
                                                 {{ \App\Support\Money::usd($remainingAmount) }}
                                             </span>
                                         @else
-                                            —
+                                            -
                                         @endif
                                     </td>
                                 @endif
@@ -211,8 +211,8 @@
                             @forelse ($client->cautionDeposits as $deposit)
                                 <tr>
                                     <td class="py-3 pr-4 text-neutral-600">{{ $deposit->deposited_at->translatedFormat('d/m/Y H:i') }}</td>
-                                    <td class="py-3 pr-4 text-neutral-700">{{ $deposit->user?->name ?? '—' }}</td>
-                                    <td class="py-3 pr-4 text-neutral-700">{{ $deposit->note ?? '—' }}</td>
+                                    <td class="py-3 pr-4 text-neutral-700">{{ $deposit->user?->name ?? '-' }}</td>
+                                    <td class="py-3 pr-4 text-neutral-700">{{ $deposit->note ?? '-' }}</td>
                                     <td class="py-3 pr-4 text-right tabular-nums font-medium text-sky-900">{{ \App\Support\Money::usd($deposit->amount) }}</td>
                                     @if (auth()->user()?->isAdmin())
                                         <td class="py-3 text-right">
@@ -268,11 +268,11 @@
                                         @elseif ($usage->sale)
                                             <span class="font-medium text-neutral-800">{{ $usage->sale->reference }}</span>
                                         @else
-                                            —
+                                            -
                                         @endif
                                     </td>
-                                    <td class="py-3 pr-4 text-neutral-700">{{ $usage->user?->name ?? '—' }}</td>
-                                    <td class="py-3 pr-4 text-neutral-700">{{ $usage->note ?? '—' }}</td>
+                                    <td class="py-3 pr-4 text-neutral-700">{{ $usage->user?->name ?? '-' }}</td>
+                                    <td class="py-3 pr-4 text-neutral-700">{{ $usage->note ?? '-' }}</td>
                                     <td class="py-3 text-right tabular-nums font-medium text-amber-800">{{ \App\Support\Money::usd($usage->amount) }}</td>
                                 </tr>
                             @empty
@@ -307,8 +307,8 @@
                         @forelse ($client->payments as $payment)
                             <tr>
                                 <td class="py-3 pr-4 text-neutral-600">{{ $payment->paid_at->translatedFormat('d/m/Y H:i') }}</td>
-                                <td class="py-3 pr-4 text-neutral-700">{{ $payment->user?->name ?? '—' }}</td>
-                                <td class="py-3 pr-4 text-neutral-700">{{ $payment->note ?? '—' }}</td>
+                                <td class="py-3 pr-4 text-neutral-700">{{ $payment->user?->name ?? '-' }}</td>
+                                <td class="py-3 pr-4 text-neutral-700">{{ $payment->note ?? '-' }}</td>
                                 <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($payment->amount) }}</td>
                                 @if (auth()->user()?->isAdmin())
                                     <td class="py-3 text-right">

@@ -14,7 +14,7 @@ return new class extends Migration
                 $table->id();
                 $table->string('reference', 50)->unique();
                 $table->date('date');
-                $table->string('status', 20)->default('open');
+                $table->string('status', 20)->default('pending');
                 $table->unsignedBigInteger('created_by');
                 $table->timestamps();
 

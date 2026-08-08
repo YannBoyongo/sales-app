@@ -20,11 +20,18 @@ use App\Http\Controllers\RequisitionController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SaleEntryController;
 use App\Http\Controllers\SaleItemController;
+use App\Http\Controllers\BenefitReportController;
+use App\Http\Controllers\CautionListReportController;
+use App\Http\Controllers\CreditSalesListReportController;
+use App\Http\Controllers\DiscountListReportController;
+use App\Http\Controllers\EntryListReportController;
 use App\Http\Controllers\SalesOverviewController;
+use App\Http\Controllers\TransferListReportController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockController;
 use App\Http\Controllers\StockMovementController;
 use App\Http\Controllers\StockTransferController;
+use App\Http\Controllers\SuiviCoutController;
 use App\Http\Controllers\UserManagementController;
 use App\Models\Branch;
 use App\Models\Department;
@@ -47,6 +54,21 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/suivi-cout', [SuiviCoutController::class, 'index'])->name('suivi-cout');
+    Route::get('/suivi-cout/centres-couts', [SuiviCoutController::class, 'costCentersReport'])->name('suivi-cout.centres-report');
+    Route::get('/suivi-cout/centres', [SuiviCoutController::class, 'indexCostCenters'])->name('suivi-cout.centres.index');
+    Route::get('/suivi-cout/centres/{costCenter}/edit', [SuiviCoutController::class, 'editCostCenter'])->name('suivi-cout.centres.edit');
+    Route::put('/suivi-cout/centres/{costCenter}', [SuiviCoutController::class, 'updateCostCenter'])->name('suivi-cout.centres.update');
+    Route::delete('/suivi-cout/centres/{costCenter}', [SuiviCoutController::class, 'destroyCostCenter'])->name('suivi-cout.centres.destroy');
+    Route::post('/suivi-cout/centres', [SuiviCoutController::class, 'storeCostCenter'])->name('suivi-cout.centres.store');
+    Route::get('/suivi-cout/types', [SuiviCoutController::class, 'indexTransactionTypes'])->name('suivi-cout.types.index');
+    Route::get('/suivi-cout/types/{costTransactionType}/edit', [SuiviCoutController::class, 'editTransactionType'])->name('suivi-cout.types.edit');
+    Route::put('/suivi-cout/types/{costTransactionType}', [SuiviCoutController::class, 'updateTransactionType'])->name('suivi-cout.types.update');
+    Route::delete('/suivi-cout/types/{costTransactionType}', [SuiviCoutController::class, 'destroyTransactionType'])->name('suivi-cout.types.destroy');
+    Route::post('/suivi-cout/types', [SuiviCoutController::class, 'storeTransactionType'])->name('suivi-cout.types.store');
+    Route::post('/suivi-cout/entries', [SuiviCoutController::class, 'storeEntry'])->name('suivi-cout.entries.store');
+    Route::put('/suivi-cout/entries/{entry}', [SuiviCoutController::class, 'updateEntry'])->name('suivi-cout.entries.update');
+    Route::delete('/suivi-cout/entries/{entry}', [SuiviCoutController::class, 'destroyEntry'])->name('suivi-cout.entries.destroy');
     Route::get('/pending-actions', PendingActionController::class)->name('pending-actions.index');
 
     Route::get('products/export/pdf', [ProductController::class, 'exportPdf'])->name('products.export.pdf');
@@ -56,6 +78,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::resource('products', ProductController::class)->except(['show']);
 
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
+    Route::get('stocks/valorisation', [StockController::class, 'valuation'])->name('stocks.valuation');
+    Route::get('stocks/produits/{product}', [StockController::class, 'productLedger'])->whereNumber('product')->name('stocks.products.show');
     Route::get('stocks/{stock}/edit', [StockController::class, 'edit'])->whereNumber('stock')->name('stocks.edit');
     Route::patch('stocks/{stock}', [StockController::class, 'update'])->whereNumber('stock')->name('stocks.update');
 
@@ -82,6 +106,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('requisitions', [RequisitionController::class, 'store'])->name('requisitions.store');
     Route::get('requisitions/{requisition}', [RequisitionController::class, 'show'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.show');
     Route::post('requisitions/{requisition}/items', [RequisitionController::class, 'syncItems'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.items.sync');
+    Route::post('requisitions/{requisition}/convert-to-po', [RequisitionController::class, 'convertToPurchaseOrder'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.convert-to-po');
     Route::get('requisitions/{requisition}/edit', [RequisitionController::class, 'edit'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.edit');
     Route::patch('requisitions/{requisition}', [RequisitionController::class, 'update'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.update');
     Route::delete('requisitions/{requisition}', [RequisitionController::class, 'destroy'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.destroy');
@@ -90,6 +115,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive'])->whereNumber('purchase_order')->name('purchase-orders.receive');
 
     Route::get('ventes', SalesOverviewController::class)->name('sales.overview');
+    Route::get('rapports/benefices', BenefitReportController::class)->name('reports.benefits');
+    Route::get('rapports/benefices/pdf', [BenefitReportController::class, 'pdf'])->name('reports.benefits.pdf');
+    Route::get('rapports/transferts', TransferListReportController::class)->name('reports.transfers');
+    Route::get('rapports/transferts/pdf', [TransferListReportController::class, 'pdf'])->name('reports.transfers.pdf');
+    Route::get('rapports/entrees', EntryListReportController::class)->name('reports.entries');
+    Route::get('rapports/entrees/pdf', [EntryListReportController::class, 'pdf'])->name('reports.entries.pdf');
+    Route::get('rapports/remises', DiscountListReportController::class)->name('reports.discounts');
+    Route::get('rapports/remises/pdf', [DiscountListReportController::class, 'pdf'])->name('reports.discounts.pdf');
+    Route::get('rapports/cautions', CautionListReportController::class)->name('reports.cautions');
+    Route::get('rapports/cautions/pdf', [CautionListReportController::class, 'pdf'])->name('reports.cautions.pdf');
+    Route::get('rapports/ventes-credit', CreditSalesListReportController::class)->name('reports.credit-sales');
+    Route::get('rapports/ventes-credit/pdf', [CreditSalesListReportController::class, 'pdf'])->name('reports.credit-sales.pdf');
     Route::get('caisse', [SaleEntryController::class, 'create'])->name('sales.entry');
     Route::get('caisse/shifts/closed', [PosShiftController::class, 'closed'])->name('pos-terminal.shifts.closed');
     Route::get('caisse/shifts/closed/{shift}', [PosShiftController::class, 'showClosed'])->name('pos-terminal.shifts.closed.show')->whereNumber('shift');
@@ -97,6 +134,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('caisse/shifts/closed/{shift}/push-accounting', [PosShiftController::class, 'pushClosedShiftToAccounting'])->name('pos-terminal.shifts.closed.push-accounting')->whereNumber('shift');
     Route::get('caisse/branches/{branch}/terminaux', [SaleItemController::class, 'chooseTerminal'])->name('sales.choose-terminal')->whereNumber('branch');
     Route::get('caisse/branches/{branch}/terminaux/{pos_terminal}', [PosTerminalWorkspaceController::class, 'show'])->name('pos-terminal.workspace')->whereNumber(['branch', 'pos_terminal']);
+    Route::get('caisse/branches/{branch}/terminaux/{pos_terminal}/ventes', [PosTerminalWorkspaceController::class, 'sales'])->name('pos-terminal.sales.index')->whereNumber(['branch', 'pos_terminal']);
     Route::post('caisse/branches/{branch}/terminaux/{pos_terminal}/shifts/open', [PosShiftController::class, 'open'])->name('pos-terminal.shifts.open')->whereNumber(['branch', 'pos_terminal']);
     Route::get('caisse/branches/{branch}/terminaux/{pos_terminal}/shifts/close-review', [PosShiftController::class, 'confirmClose'])->name('pos-terminal.shifts.close-review')->whereNumber(['branch', 'pos_terminal']);
     Route::post('caisse/branches/{branch}/terminaux/{pos_terminal}/shifts/close', [PosShiftController::class, 'close'])->name('pos-terminal.shifts.close')->whereNumber(['branch', 'pos_terminal']);

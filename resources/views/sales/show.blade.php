@@ -56,7 +56,7 @@
             <p class="mt-1">
                 Montant demandé : <span class="tabular-nums font-medium">{{ \App\Support\Money::usd($sale->discount_requested_amount ?? 0) }}</span>
                 @if ($sale->discountRequestedByUser)
-                    — demandé par {{ $sale->discountRequestedByUser->name }}
+                    - demandé par {{ $sale->discountRequestedByUser->name }}
                     @if ($sale->discount_requested_at)
                         le {{ $sale->discount_requested_at->translatedFormat('d/m/Y à H:i') }}
                     @endif
@@ -81,52 +81,52 @@
     <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
         <section class="app-panel app-panel-body">
             <h2 class="text-lg font-semibold text-neutral-900">Produits vendus</h2>
-            <div class="app-table-shell mt-4 -mx-4 sm:-mx-5 lg:-mx-6 border-0 shadow-none">
-                <table class="min-w-full text-sm">
+            <div class="mt-5 overflow-x-auto rounded-xl border border-slate-200/80">
+                <table class="app-table min-w-full text-sm">
                     <thead>
                         <tr>
-                            <th class="py-3 pr-4">Produit</th>
-                            <th class="py-3 pr-4">Emplacement</th>
-                            <th class="py-3 pr-4 text-right">Qté</th>
-                            <th class="py-3 pr-4 text-right">PU</th>
-                            <th class="py-3 text-right">Montant</th>
+                            <th class="py-3.5 pl-5 pr-4">Produit</th>
+                            <th class="py-3.5 px-4">Emplacement</th>
+                            <th class="py-3.5 px-4 text-right">Qté</th>
+                            <th class="py-3.5 px-4 text-right">PU</th>
+                            <th class="py-3.5 pr-5 pl-4 text-right">Montant</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach ($sale->items as $item)
                             <tr>
-                                <td class="font-medium text-neutral-900">{{ $item->product->name }}</td>
-                                <td>{{ $item->location->name }}</td>
-                                <td class="text-right tabular-nums">{{ $item->quantity }}</td>
-                                <td class="text-right tabular-nums">{{ \App\Support\Money::usd($item->unit_price) }}</td>
-                                <td class="text-right tabular-nums">{{ \App\Support\Money::usd($item->line_total) }}</td>
+                                <td class="py-3.5 pl-5 pr-4 font-medium text-neutral-900">{{ $item->product->name }}</td>
+                                <td class="py-3.5 px-4">{{ $item->location->name }}</td>
+                                <td class="py-3.5 px-4 text-right tabular-nums">{{ $item->quantity }}</td>
+                                <td class="py-3.5 px-4 text-right tabular-nums">{{ \App\Support\Money::usd($item->unit_price) }}</td>
+                                <td class="py-3.5 pr-5 pl-4 text-right tabular-nums">{{ \App\Support\Money::usd($item->line_total) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                     <tfoot class="border-t border-slate-200 bg-slate-50/60">
                         <tr>
-                            <th colspan="4" scope="row" class="text-left text-xs font-semibold uppercase tracking-wide">
+                            <th colspan="4" scope="row" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide">
                                 Montant à payer
                             </th>
-                            <td class="text-right tabular-nums font-semibold text-neutral-900">
+                            <td class="px-5 py-3.5 text-right tabular-nums font-semibold text-neutral-900">
                                 {{ \App\Support\Money::usd($sale->subtotal_amount ?? $sale->total_amount) }}
                             </td>
                         </tr>
                         @if (($sale->isPendingDiscount() && (float) ($sale->discount_requested_amount ?? 0) > 0) || ((float) ($sale->discount_amount ?? 0) > 0))
                             <tr>
-                                <th colspan="4" scope="row" class="text-left text-xs font-semibold uppercase tracking-wide">
+                                <th colspan="4" scope="row" class="px-5 py-3.5 text-left text-xs font-semibold uppercase tracking-wide">
                                     Remise
                                 </th>
-                                <td class="text-right tabular-nums font-medium text-amber-800">
+                                <td class="px-5 py-3.5 text-right tabular-nums font-medium text-amber-800">
                                     − {{ \App\Support\Money::usd($sale->isPendingDiscount() ? ($sale->discount_requested_amount ?? 0) : ($sale->discount_amount ?? 0)) }}
                                 </td>
                             </tr>
                         @endif
                         <tr>
-                            <th colspan="4" scope="row" class="text-left text-sm font-semibold">
+                            <th colspan="4" scope="row" class="px-5 py-3.5 text-left text-sm font-semibold">
                                 Nouveau total
                             </th>
-                            <td class="text-right tabular-nums text-base font-bold text-primary">
+                            <td class="px-5 py-3.5 text-right tabular-nums text-base font-bold text-primary">
                                 {{ \App\Support\Money::usd($expectedAmount) }}
                             </td>
                         </tr>
@@ -152,7 +152,7 @@
                 @endif
                 <div class="app-stat-card !p-4 !shadow-none">
                     <p class="text-xs text-neutral-500">Client</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $sale->displayClientName() ?? '—' }}</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $sale->displayClientName() ?? '-' }}</p>
                     @if ($sale->displayClientPhone())
                         <p class="mt-1 text-sm text-neutral-600">{{ $sale->displayClientPhone() }}</p>
                     @endif
@@ -182,6 +182,9 @@
                         <p class="flex justify-between gap-2"><span class="text-neutral-600">Montant à payer</span><span class="tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($expectedAmount) }}</span></p>
                         <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Montant payé</span><span class="tabular-nums font-medium text-neutral-900">{{ \App\Support\Money::usd($paidAmount) }}</span></p>
                         <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Reste à payer</span><span class="tabular-nums font-semibold {{ (float) $remainingAmount > 0 ? 'text-amber-800' : 'text-emerald-700' }}">{{ \App\Support\Money::usd($remainingAmount) }}</span></p>
+                        @if ($sale->payment_type === 'credit' && $sale->credit_due_date)
+                            <p class="mt-1 flex justify-between gap-2"><span class="text-neutral-600">Échéance</span><span class="font-medium text-neutral-900">{{ $sale->credit_due_date->translatedFormat('d/m/Y') }}</span></p>
+                        @endif
                     </div>
                 </div>
                 <div class="app-stat-card !p-4 !shadow-none space-y-3 text-sm">

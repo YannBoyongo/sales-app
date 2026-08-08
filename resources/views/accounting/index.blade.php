@@ -38,10 +38,10 @@
                     <div class="sm:col-span-2">
                         <x-input-label for="account_code" value="Compte comptable" />
                         <select id="account_code" name="account_code" required class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
-                            <option value="">— Choisir un compte —</option>
+                            <option value="">- Choisir un compte -</option>
                             @foreach ($accounts as $account)
                                 <option value="{{ $account->account_code }}" @selected(old('account_code') === $account->account_code)>
-                                    {{ $account->account_code }} — {{ $account->name }}
+                                    {{ $account->account_code }} - {{ $account->name }}
                                 </option>
                             @endforeach
                         </select>
@@ -119,10 +119,10 @@
                     @forelse ($rows as $row)
                         <tr>
                             <td class="py-3 pr-4 whitespace-nowrap text-neutral-700">{{ \Illuminate\Support\Carbon::parse($row->transaction_date)->translatedFormat('d/m/Y') }}</td>
-                            <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs text-neutral-700">{{ $row->account_code ?: '—' }}</td>
+                            <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs text-neutral-700">{{ $row->account_code ?: '-' }}</td>
                             <td class="py-3 pr-4 text-neutral-900">{{ $row->reference }}</td>
-                            <td class="py-3 pr-4 text-right tabular-nums text-emerald-700">{{ (float) $row->debit_amount > 0 ? \App\Support\Money::usd($row->debit_amount) : '—' }}</td>
-                            <td class="py-3 pr-4 text-right tabular-nums text-red-700">{{ (float) $row->credit_amount > 0 ? \App\Support\Money::usd($row->credit_amount) : '—' }}</td>
+                            <td class="py-3 pr-4 text-right tabular-nums text-emerald-700">{{ (float) $row->debit_amount > 0 ? \App\Support\Money::usd($row->debit_amount) : '-' }}</td>
+                            <td class="py-3 pr-4 text-right tabular-nums text-red-700">{{ (float) $row->credit_amount > 0 ? \App\Support\Money::usd($row->credit_amount) : '-' }}</td>
                             <td class="py-3 text-right tabular-nums font-semibold text-primary">{{ \App\Support\Money::usd($row->running_balance) }}</td>
                         </tr>
                     @empty

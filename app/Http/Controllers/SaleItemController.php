@@ -198,6 +198,13 @@ class SaleItemController extends Controller
             'client_phone' => ['nullable', 'string', 'max:50'],
             'amount_paid' => ['nullable', 'numeric', 'min:0'],
             'balance' => ['nullable', 'numeric', 'min:0'],
+            'credit_due_date' => [
+                Rule::requiredIf(fn () => $request->input('customer_type') === 'dealer'
+                    && $request->input('payment_type') === 'credit'),
+                'nullable',
+                'date',
+                'after_or_equal:today',
+            ],
             'items' => ['required', 'array', 'min:1'],
             'items.*.department_id' => ['required', 'integer', Rule::in([$departmentId])],
             'items.*.product_id' => ['required', 'exists:products,id'],
@@ -247,6 +254,9 @@ class SaleItemController extends Controller
                 $clientName = trim((string) ($data['client_name'] ?? ''));
                 $clientPhone = trim((string) ($data['client_phone'] ?? ''));
                 $amountPaid = number_format((float) ($data['amount_paid'] ?? 0), 2, '.', '');
+                $creditDueDate = $paymentType === 'credit'
+                    ? ($data['credit_due_date'] ?? null)
+                    : null;
 
                 $clientId = null;
                 $saleClientName = null;
@@ -274,6 +284,7 @@ class SaleItemController extends Controller
                     'pos_shift_id' => $openShift->id,
                     'user_id' => $request->user()->id,
                     'payment_type' => $paymentType,
+                    'credit_due_date' => $creditDueDate,
                     'client_id' => $clientId,
                     'client_name' => $saleClientName,
                     'client_phone' => $saleClientPhone,
@@ -314,37 +325,62 @@ class SaleItemController extends Controller
                         $unit = $catalogUnit;
                     }
 
-                    $catalogLineTotal = bcmul($catalogUnit, (string) $qty, 2);
-                    $lineTotal = bcmul($unit, (string) $qty, 2);
-                    $catalogSubtotal = bcadd($catalogSubtotal, $catalogLineTotal, 2);
-                    $saleTotal = bcadd($saleTotal, $lineTotal, 2);
+                    $chunks = \App\Models\StockBatch::consumeFifo($product->id, $pointOfSale->id, $qty);
 
-                    $saleItem = SaleItem::create([
-                        'reference' => null,
-                        'sale_id' => $sale->id,
-                        'branch_id' => $branch->id,
-                        'location_id' => $pointOfSale->id,
-                        'product_id' => $product->id,
-                        'user_id' => $request->user()->id,
-                        'quantity' => $qty,
-                        'unit_price' => $unit,
-                        'line_total' => $lineTotal,
-                        'discount_amount' => '0.00',
-                        'payment_type' => $paymentType,
-                        'client_id' => $clientId,
-                    ]);
+                    foreach ($chunks as $chunk) {
+                        $chunkQty = (int) $chunk['quantity'];
+                        $catalogLineTotal = bcmul($catalogUnit, (string) $chunkQty, 2);
+                        $lineTotal = bcmul($unit, (string) $chunkQty, 2);
+                        $catalogSubtotal = bcadd($catalogSubtotal, $catalogLineTotal, 2);
+                        $saleTotal = bcadd($saleTotal, $lineTotal, 2);
 
-                    StockMovement::create([
-                        'type' => 'exit',
-                        'product_id' => $product->id,
-                        'quantity' => $qty,
-                        'from_location_id' => $pointOfSale->id,
-                        'to_location_id' => null,
-                        'user_id' => $request->user()->id,
-                        'sale_item_id' => $saleItem->id,
-                        'occurred_on' => $sessionSoldAt->toDateString(),
-                        'notes' => 'Vente '.$saleReference.' — '.$branch->name,
-                    ]);
+                        $unitCost = $chunk['unit_cost'];
+                        $costTotal = $unitCost !== null
+                            ? number_format($unitCost * $chunkQty, 2, '.', '')
+                            : null;
+                        $benefit = $costTotal !== null
+                            ? bcsub($lineTotal, $costTotal, 2)
+                            : null;
+
+                        $itemDiscountAmount = '0.00';
+                        if ($allowLineDiscount && bccomp($catalogLineTotal, $lineTotal, 2) === 1) {
+                            $itemDiscountAmount = bcsub($catalogLineTotal, $lineTotal, 2);
+                        }
+
+                        $saleItem = SaleItem::create([
+                            'reference' => null,
+                            'sale_id' => $sale->id,
+                            'branch_id' => $branch->id,
+                            'location_id' => $pointOfSale->id,
+                            'product_id' => $product->id,
+                            'stock_batch_id' => $chunk['stock_batch_id'],
+                            'batch_number' => $chunk['batch_number'],
+                            'user_id' => $request->user()->id,
+                            'quantity' => $chunkQty,
+                            'unit_price' => $unit,
+                            'unit_cost' => $unitCost !== null ? number_format($unitCost, 2, '.', '') : null,
+                            'cost_total' => $costTotal,
+                            'benefit' => $benefit,
+                            'line_total' => $lineTotal,
+                            'discount_amount' => $itemDiscountAmount,
+                            'payment_type' => $paymentType,
+                            'client_id' => $clientId,
+                        ]);
+
+                        StockMovement::create([
+                            'type' => 'exit',
+                            'product_id' => $product->id,
+                            'stock_batch_id' => $chunk['stock_batch_id'],
+                            'quantity' => $chunkQty,
+                            'from_location_id' => $pointOfSale->id,
+                            'to_location_id' => null,
+                            'user_id' => $request->user()->id,
+                            'sale_item_id' => $saleItem->id,
+                            'occurred_on' => $sessionSoldAt->toDateString(),
+                            'notes' => 'Vente '.$saleReference.' - '.$branch->name
+                                .($chunk['batch_number'] ? ' - lot '.$chunk['batch_number'] : ''),
+                        ]);
+                    }
                 }
 
                 $subtotal = $saleTotal;
@@ -418,6 +454,22 @@ class SaleItemController extends Controller
                         'balance_amount' => '0.00',
                         'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
                     ]);
+                } elseif ($allowLineDiscount && bccomp($lineDiscountAmount, '0', 2) === 1 && $isAdmin) {
+                    $dueTotal = $saleTotal;
+                    $sale->update([
+                        'subtotal_amount' => $catalogSubtotal,
+                        'sale_status' => Sale::STATUS_CONFIRMED,
+                        'discount_requested_amount' => null,
+                        'discount_requested_by' => null,
+                        'discount_requested_at' => null,
+                        'discount_amount' => $lineDiscountAmount,
+                        'discount_approved_by' => $request->user()->id,
+                        'discount_approved_at' => now(),
+                        'total_amount' => $saleTotal,
+                        'amount_paid' => $saleTotal,
+                        'balance_amount' => '0.00',
+                        'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
+                    ]);
                 } else {
                     $dueTotal = $subtotal;
                     $sale->update([
@@ -459,6 +511,7 @@ class SaleItemController extends Controller
 
                         $sale->update([
                             'payment_type' => 'credit',
+                            'credit_due_date' => $creditDueDate,
                             'amount_paid' => $amountPaid,
                             'balance_amount' => $computedBalance,
                             'payment_status' => $status,
@@ -485,6 +538,7 @@ class SaleItemController extends Controller
 
                         $sale->update([
                             'payment_type' => 'caution',
+                            'credit_due_date' => null,
                             'amount_paid' => $dueTotal,
                             'balance_amount' => '0.00',
                             'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,
@@ -504,6 +558,7 @@ class SaleItemController extends Controller
                     } else {
                         $sale->update([
                             'payment_type' => 'cash',
+                            'credit_due_date' => null,
                             'amount_paid' => $dueTotal,
                             'balance_amount' => '0.00',
                             'payment_status' => Sale::PAYMENT_STATUS_FULLY_PAID,

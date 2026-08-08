@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Caisse — {{ $posTerminal->name }}</x-slot>
+    <x-slot name="header">Caisse - {{ $posTerminal->name }}</x-slot>
 
     <x-caisse-flow max-width="max-w-5xl" :with-card="false">
         <x-slot name="header">
@@ -28,7 +28,7 @@
                         <strong class="text-neutral-900">{{ $branch->name }}</strong>
                         <span class="text-neutral-300">·</span>
                         <span class="text-neutral-500">Stock</span>
-                        <strong class="text-neutral-900">{{ $posTerminal->location?->name ?? '—' }}</strong>
+                        <strong class="text-neutral-900">{{ $posTerminal->location?->name ?? '-' }}</strong>
                     </p>
                 </div>
             </div>
@@ -49,7 +49,7 @@
                                     <p class="mt-1 text-sm text-emerald-900/85">
                                         Session du {{ $openShift->effectiveSessionDate()->translatedFormat('d/m/Y') }}
                                         @if ($openShift->openedByUser)
-                                            <span class="text-emerald-800/80">— {{ $openShift->openedByUser->name }}</span>
+                                            <span class="text-emerald-800/80">- {{ $openShift->openedByUser->name }}</span>
                                         @endif
                                     </p>
                                     <p class="mt-2 text-xs font-medium text-emerald-800/70">
@@ -86,9 +86,20 @@
                                 <h2 class="text-lg font-semibold text-neutral-900">Ventes de cette session</h2>
                                 <p class="mt-1 text-sm text-neutral-500">Historique en temps réel pour la session ouverte.</p>
                             </div>
-                            <span class="inline-flex w-fit items-center rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold tabular-nums text-neutral-700">
-                                {{ $shiftSales->count() }} ligne{{ $shiftSales->count() > 1 ? 's' : '' }}
-                            </span>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <a
+                                    href="{{ route('pos-terminal.sales.index', [$branch, $posTerminal]) }}"
+                                    class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                                >
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                    </svg>
+                                    Toutes les ventes du terminal
+                                </a>
+                                <span class="inline-flex w-fit items-center rounded-full bg-neutral-100 px-3 py-1 text-xs font-semibold tabular-nums text-neutral-700">
+                                    {{ $shiftSales->count() }} ligne{{ $shiftSales->count() > 1 ? 's' : '' }}
+                                </span>
+                            </div>
                         </div>
 
                         <div class="app-table-shell mt-6">
@@ -114,7 +125,7 @@
                                             ])>
                                                 <td class="px-4 py-3.5 text-neutral-600 whitespace-nowrap">{{ $sale->effectiveSoldAt()->translatedFormat('d/m/Y') }}</td>
                                                 <td class="px-4 py-3.5 font-mono text-sm text-neutral-800">{{ $sale->reference }}</td>
-                                                <td class="px-4 py-3.5 text-neutral-700">{{ $sale->user?->name ?? '—' }}</td>
+                                                <td class="px-4 py-3.5 text-neutral-700">{{ $sale->user?->name ?? '-' }}</td>
                                                 <td class="px-4 py-3.5 whitespace-nowrap">
                                                     @if ($sale->payment_type === 'credit')
                                                         <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-900">Crédit</span>
@@ -224,6 +235,15 @@
                 @endif
 
                 <div class="flex flex-wrap items-center gap-2 border-t border-neutral-200/80 pt-6">
+                    <a
+                        href="{{ route('pos-terminal.sales.index', [$branch, $posTerminal]) }}"
+                        class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:border-primary/30 hover:text-primary"
+                    >
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        Toutes les ventes du terminal
+                    </a>
                     @if ($canPickAnotherBranch)
                         <a
                             href="{{ route('sales.entry') }}"

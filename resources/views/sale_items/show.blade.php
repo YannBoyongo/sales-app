@@ -22,7 +22,7 @@
                 <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                     <p class="text-xs uppercase tracking-wide text-neutral-500">Produit</p>
                     <p class="mt-1 font-semibold text-neutral-900">{{ $saleItem->product->name }}</p>
-                    <p class="mt-1 text-xs text-neutral-600">{{ $saleItem->product->department?->name ?? '—' }}</p>
+                    <p class="mt-1 text-xs text-neutral-600">{{ $saleItem->product->department?->name ?? '-' }}</p>
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                     <p class="text-xs uppercase tracking-wide text-neutral-500">Emplacement</p>
@@ -30,14 +30,14 @@
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                     <p class="text-xs uppercase tracking-wide text-neutral-500">Vendu par</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $saleItem->user?->name ?? '—' }}</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $saleItem->user?->name ?? '-' }}</p>
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                     <p class="text-xs uppercase tracking-wide text-neutral-500">Client</p>
                     @if ($saleItem->client)
                         <a class="mt-1 inline-block font-semibold text-primary hover:underline" href="{{ route('clients.show', $saleItem->client) }}">{{ $saleItem->client->name }}</a>
                     @else
-                        <p class="mt-1 font-semibold text-neutral-900">—</p>
+                        <p class="mt-1 font-semibold text-neutral-900">-</p>
                     @endif
                 </div>
             </div>
@@ -65,6 +65,22 @@
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
                     <p class="text-xs text-neutral-500">Prix unitaire</p>
                     <p class="mt-1 font-semibold tabular-nums text-neutral-900">{{ \App\Support\Money::usd($saleItem->unit_price) }}</p>
+                </div>
+                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                    <p class="text-xs text-neutral-500">Lot</p>
+                    <p class="mt-1 font-semibold text-neutral-900">{{ $saleItem->batch_number ?: '-' }}</p>
+                </div>
+                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                    <p class="text-xs text-neutral-500">Coût d’achat</p>
+                    <p class="mt-1 font-semibold tabular-nums text-neutral-900">
+                        {{ $saleItem->unit_cost !== null ? \App\Support\Money::usd($saleItem->unit_cost) : '-' }}
+                    </p>
+                </div>
+                <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
+                    <p class="text-xs text-neutral-500">Bénéfice</p>
+                    <p class="mt-1 font-semibold tabular-nums {{ $saleItem->benefit !== null && (float) $saleItem->benefit < 0 ? 'text-red-700' : 'text-emerald-700' }}">
+                        {{ $saleItem->benefit !== null ? \App\Support\Money::usd($saleItem->benefit) : '-' }}
+                    </p>
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
                     <p class="text-xs text-neutral-500">Remise</p>

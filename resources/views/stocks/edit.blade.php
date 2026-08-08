@@ -6,7 +6,7 @@
         :with-card="false"
         eyebrow="Stock"
         title="Seuil d’alerte"
-        :description="'Produit « ' . e($stock->product->name) . ' » — emplacement ' . e($stock->location->name) . ' (' . e($stock->location->branch->name) . '). Quantité actuelle : ' . e((string) $stock->quantity) . ' (modifiée via mouvements ou ventes).'"
+        :description="'Produit « ' . e($stock->product->name) . ' » - emplacement ' . e($stock->location->name) . ' (' . e($stock->location->branch->name) . '). Quantité actuelle : ' . e((string) $stock->quantity) . ' (modifiée via mouvements ou ventes).'"
     >
         <form action="{{ route('stocks.update', $stock) }}" method="POST" class="space-y-4 rounded-2xl border border-neutral-200/90 bg-white/90 p-6 shadow-xl shadow-neutral-900/5 ring-1 ring-neutral-900/5 backdrop-blur-sm sm:p-8">
             @csrf

@@ -50,7 +50,7 @@
                     @foreach ($posTerminals as $terminal)
                         <option value="{{ $terminal->id }}" @selected((string) ($filters['pos_terminal_id'] ?? '') === (string) $terminal->id)>
                             @if ($showsMultipleBranches)
-                                {{ $terminal->branch->name }} — {{ $terminal->name }}
+                                {{ $terminal->branch->name }} - {{ $terminal->name }}
                             @else
                                 {{ $terminal->name }}
                             @endif
@@ -97,6 +97,17 @@
                 <tbody id="sales-overview-tbody" class="divide-y divide-neutral-100" x-ref="tbody">
                     @include('sales.partials.overview-rows')
                 </tbody>
+                @if (($summaryTotals['count'] ?? 0) > 0)
+                    <tfoot class="border-t-2 border-neutral-200 bg-neutral-50/90 text-sm font-semibold text-neutral-900">
+                        <tr>
+                            <td colspan="6" class="px-4 py-3">Total ({{ number_format($summaryTotals['count'], 0, ',', ' ') }} vente{{ $summaryTotals['count'] > 1 ? 's' : '' }})</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($summaryTotals['expected']) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($summaryTotals['paid']) }}</td>
+                            <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($summaryTotals['remaining']) }}</td>
+                            <td class="px-4 py-3"></td>
+                        </tr>
+                    </tfoot>
+                @endif
             </table>
         </div>
 

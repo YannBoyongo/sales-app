@@ -1,7 +1,7 @@
 <x-app-layout>
-    <x-slot name="header">Terminaux POS — {{ $branch->name }}</x-slot>
+    <x-slot name="header">Terminaux POS - {{ $branch->name }}</x-slot>
 
-    <x-page-header title="Terminaux POS — {{ $branch->name }}" action="Nouveau terminal" :action-href="route('branches.pos-terminals.create', $branch)" />
+    <x-page-header title="Terminaux POS - {{ $branch->name }}" action="Nouveau terminal" :action-href="route('branches.pos-terminals.create', $branch)" />
 
     @if ($errors->has('terminal'))
         <div class="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{{ $errors->first('terminal') }}</div>
@@ -21,7 +21,7 @@
                 @forelse ($terminals as $t)
                     <tr class="hover:bg-neutral-50/80">
                         <td class="px-4 py-3 font-medium text-neutral-900">{{ $t->name }}</td>
-                        <td class="px-4 py-3 text-neutral-600">{{ $t->location?->name ?? '—' }}</td>
+                        <td class="px-4 py-3 text-neutral-600">{{ $t->location?->name ?? '-' }}</td>
                         <td class="px-4 py-3 text-neutral-600">{{ $t->pos_users_count }}</td>
                         <td class="px-4 py-3 text-right space-x-2">
                             <a href="{{ route('branches.pos-terminals.edit', [$branch, $t]) }}" class="text-neutral-700 underline-offset-2 hover:underline">Modifier</a>

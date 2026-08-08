@@ -121,7 +121,7 @@
         @else
             <div class="rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-800">
                 <span class="font-medium text-neutral-600">Branche :</span>
-                <span class="ml-1 font-semibold text-neutral-900">{{ $userBranchName ?? '—' }}</span>
+                <span class="ml-1 font-semibold text-neutral-900">{{ $userBranchName ?? '-' }}</span>
                 <span class="mt-1 block text-xs text-neutral-500">Les emplacements proposés correspondent automatiquement à votre branche.</span>
             </div>
         @endif
@@ -174,7 +174,7 @@
                     @change="onInternalBranchChange()"
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary"
                 >
-                    <option value="">— Choisir la branche —</option>
+                    <option value="">- Choisir la branche -</option>
                     <template x-for="b in branches" :key="'ib-' + b.id">
                         <option :value="String(b.id)" x-text="b.name"></option>
                     </template>
@@ -191,7 +191,7 @@
                         @change="onExternalFromBranchChange()"
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary"
                     >
-                        <option value="">— Choisir —</option>
+                        <option value="">- Choisir -</option>
                         <template x-for="b in branches" :key="'efb-' + b.id">
                             <option :value="String(b.id)" x-text="b.name"></option>
                         </template>
@@ -205,7 +205,7 @@
                         @change="onExternalToBranchChange()"
                         class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary"
                     >
-                        <option value="">— Choisir —</option>
+                        <option value="">- Choisir -</option>
                         <template x-for="b in externalToBranchOptions()" :key="'etb-' + b.id">
                             <option :value="String(b.id)" x-text="b.name"></option>
                         </template>
@@ -219,7 +219,7 @@
             <div>
                 <x-input-label for="from_location_id">
                     <span x-show="transferScope === 'internal'">Source (principal ou secondaire)</span>
-                    <span x-show="transferScope === 'external'" x-cloak>Source (entrepôt — autre branche possible)</span>
+                    <span x-show="transferScope === 'external'" x-cloak>Source (entrepôt - autre branche possible)</span>
                 </x-input-label>
                 <select
                     id="from_location_id"
@@ -228,9 +228,9 @@
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary"
                     required
                 >
-                    <option value="">— Choisir —</option>
+                    <option value="">- Choisir -</option>
                     <template x-for="loc in fromOptions" :key="'f-' + transferScope + '-' + loc.id">
-                        <option :value="String(loc.id)" x-text="loc.name + ' — ' + loc.branch_name"></option>
+                        <option :value="String(loc.id)" x-text="loc.name + ' - ' + loc.branch_name"></option>
                     </template>
                 </select>
                 <x-input-error :messages="$errors->get('from_location_id')" class="mt-2" />
@@ -238,7 +238,7 @@
             <div>
                 <x-input-label for="to_location_id">
                     <span x-show="transferScope === 'internal'">Destination (emplacement de la branche)</span>
-                    <span x-show="transferScope === 'external'" x-cloak>Destination (entrepôt — autre branche)</span>
+                    <span x-show="transferScope === 'external'" x-cloak>Destination (entrepôt - autre branche)</span>
                 </x-input-label>
                 <select
                     id="to_location_id"
@@ -247,9 +247,9 @@
                     class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary"
                     required
                 >
-                    <option value="">— Choisir —</option>
+                    <option value="">- Choisir -</option>
                     <template x-for="loc in filteredToOptions()" :key="'t-' + transferScope + '-' + loc.id">
-                        <option :value="String(loc.id)" x-text="loc.name + ' — ' + loc.branch_name"></option>
+                        <option :value="String(loc.id)" x-text="loc.name + ' - ' + loc.branch_name"></option>
                     </template>
                 </select>
                 <x-input-error :messages="$errors->get('to_location_id')" class="mt-2" />

@@ -10,6 +10,8 @@ class StockMovement extends Model
     protected $fillable = [
         'type',
         'product_id',
+        'stock_batch_id',
+        'purchase_order_reception_id',
         'quantity',
         'from_location_id',
         'to_location_id',
@@ -30,6 +32,11 @@ class StockMovement extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function stockBatch(): BelongsTo
+    {
+        return $this->belongsTo(StockBatch::class);
     }
 
     public function fromLocation(): BelongsTo

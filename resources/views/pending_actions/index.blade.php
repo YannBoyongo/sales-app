@@ -37,7 +37,7 @@
                         <div>
                             <p class="font-semibold text-amber-900">Réceptions de bons de commande en attente</p>
                             <p class="mt-0.5 text-amber-800/90">
-                                {{ $pendingReceptionBatchCount }} réception{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} soumise{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} — validez ou refusez pour mettre à jour le stock.
+                                {{ $pendingReceptionBatchCount }} réception{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} soumise{{ $pendingReceptionBatchCount > 1 ? 's' : '' }} - validez ou refusez pour mettre à jour le stock.
                             </p>
                         </div>
                     </div>
@@ -98,7 +98,7 @@
                             </p>
                             <p class="mt-1 text-xs text-red-900/90">
                                 Qté actuelle : <span class="font-semibold tabular-nums">{{ $stock->quantity }}</span>
-                                — Seuil : <span class="font-semibold tabular-nums">{{ $seuil }}</span>
+                                - Seuil : <span class="font-semibold tabular-nums">{{ $seuil }}</span>
                             </p>
                         </li>
                     @endforeach

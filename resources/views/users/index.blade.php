@@ -23,7 +23,7 @@
                 @foreach ($users as $user)
                     <tr class="hover:bg-neutral-50/80">
                         <td class="px-4 py-3 font-medium text-neutral-900">{{ $user->name }}</td>
-                        <td class="px-4 py-3 font-mono text-xs text-neutral-700">{{ $user->username ?? '—' }}</td>
+                        <td class="px-4 py-3 font-mono text-xs text-neutral-700">{{ $user->username ?? '-' }}</td>
                         <td class="px-4 py-3 text-neutral-600">{{ $user->email }}</td>
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-1">
@@ -38,13 +38,13 @@
                                         <span class="rounded border border-neutral-200 bg-white px-2 py-0.5 text-xs text-neutral-700">{{ $role->name }}</span>
                                     @endif
                                 @empty
-                                    <span class="text-neutral-400">—</span>
+                                    <span class="text-neutral-400">-</span>
                                 @endforelse
                             </div>
                         </td>
                         <td class="px-4 py-3 text-neutral-600">
                             @if ($user->canBypassBranchScope())
-                                <span class="text-neutral-400">—</span>
+                                <span class="text-neutral-400">-</span>
                             @elseif ($user->branch)
                                 {{ $user->branch->name }}
                             @else

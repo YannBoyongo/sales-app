@@ -7,9 +7,12 @@ use App\Models\Branch;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\Stock;
+use App\Models\StockBatch;
 use App\Models\StockMovement;
 use App\Models\StockTransfer;
 use App\Models\StockTransferItem;
+use App\Models\StockTransferItemBatch;
+use App\Support\Money;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -399,6 +402,7 @@ class StockTransferController extends Controller
             'fromLocation.branch:id,name',
             'toLocation.branch:id,name',
             'items.product:id,name,sku',
+            'items.batches' => fn ($query) => $query->orderBy('id'),
             'user:id,name',
         ]);
 
@@ -429,7 +433,7 @@ class StockTransferController extends Controller
                     'id' => (int) $p->id,
                     'name' => $p->name,
                     'sku' => $p->sku,
-                    'label' => $p->name.($p->sku ? ' — '.$p->sku : ''),
+                    'label' => $p->name.($p->sku ? ' - '.$p->sku : ''),
                     'stock_qty' => max(0, $atSource - $onLine),
                 ];
             })->values()->all();
@@ -580,17 +584,31 @@ class StockTransferController extends Controller
                     Stock::modifyQuantity($pid, $fromId, -$q);
                     Stock::modifyQuantity($pid, $toId, $q);
 
-                    StockMovement::create([
-                        'type' => 'transfer',
-                        'product_id' => $pid,
-                        'quantity' => $q,
-                        'from_location_id' => $fromId,
-                        'to_location_id' => $toId,
-                        'user_id' => $request->user()->id,
-                        'stock_transfer_id' => $transfer->id,
-                        'notes' => null,
-                        'occurred_on' => $occurredOn,
-                    ]);
+                    $chunks = StockBatch::transferFifo($pid, $fromId, $toId, $q);
+
+                    foreach ($chunks as $chunk) {
+                        StockTransferItemBatch::create([
+                            'stock_transfer_item_id' => $item->id,
+                            'source_stock_batch_id' => $chunk['source_stock_batch_id'],
+                            'destination_stock_batch_id' => $chunk['destination_stock_batch_id'],
+                            'batch_number' => $chunk['batch_number'],
+                            'unit_cost' => $chunk['unit_cost'],
+                            'quantity' => $chunk['quantity'],
+                        ]);
+
+                        StockMovement::create([
+                            'type' => 'transfer',
+                            'product_id' => $pid,
+                            'stock_batch_id' => $chunk['destination_stock_batch_id'] ?? $chunk['source_stock_batch_id'],
+                            'quantity' => $chunk['quantity'],
+                            'from_location_id' => $fromId,
+                            'to_location_id' => $toId,
+                            'user_id' => $request->user()->id,
+                            'stock_transfer_id' => $transfer->id,
+                            'notes' => $this->transferBatchMovementNotes($chunk),
+                            'occurred_on' => $occurredOn,
+                        ]);
+                    }
                 }
 
                 $transfer->update(['status' => StockTransfer::STATUS_CONFIRMED]);
@@ -625,6 +643,7 @@ class StockTransferController extends Controller
 
                 if ($transfer->isConfirmed()) {
                     $items = StockTransferItem::query()
+                        ->with('batches')
                         ->where('stock_transfer_id', $transfer->id)
                         ->orderBy('id')
                         ->lockForUpdate()
@@ -633,6 +652,18 @@ class StockTransferController extends Controller
                     foreach ($items as $item) {
                         $pid = (int) $item->product_id;
                         $q = (int) $item->quantity;
+
+                        foreach ($item->batches as $batchLine) {
+                            StockBatch::reverseTransferChunk(
+                                $pid,
+                                $fromId,
+                                $batchLine->source_stock_batch_id,
+                                $batchLine->destination_stock_batch_id,
+                                $batchLine->batch_number,
+                                $batchLine->unit_cost !== null ? (float) $batchLine->unit_cost : null,
+                                (int) $batchLine->quantity,
+                            );
+                        }
 
                         Stock::modifyQuantity($pid, $fromId, $q);
                         Stock::modifyQuantity($pid, $toId, -$q);
@@ -865,5 +896,23 @@ class StockTransferController extends Controller
             'branch_id' => (int) $l->branch_id,
             'branch_name' => $l->branch->name,
         ])->values()->all();
+    }
+
+    /**
+     * @param  array{
+     *     source_stock_batch_id: ?int,
+     *     destination_stock_batch_id: ?int,
+     *     batch_number: ?string,
+     *     unit_cost: ?float,
+     *     quantity: int
+     * }  $chunk
+     */
+    private function transferBatchMovementNotes(array $chunk): ?string
+    {
+        if ($chunk['batch_number'] === null || $chunk['unit_cost'] === null) {
+            return 'Sans lot suivi';
+        }
+
+        return 'Lot '.$chunk['batch_number'].' - '.Money::usd($chunk['unit_cost']);
     }
 }

@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Nouvel emplacement — {{ $branch->name }}</x-slot>
+    <x-slot name="header">Nouvel emplacement - {{ $branch->name }}</x-slot>
 
     <x-page-header title="Nouvel emplacement" />
 

@@ -174,7 +174,7 @@
                             return '';
                         }
                         if (location.branch_name) {
-                            return `${location.branch_name} — ${location.name}`;
+                            return `${location.branch_name} - ${location.name}`;
                         }
                         return location.name;
                     },

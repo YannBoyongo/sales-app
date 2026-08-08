@@ -185,7 +185,7 @@
                 @if ($setting && ($setting->address || $setting->phone || $setting->email))
                     <p class="shop-meta">
                         @if ($setting->address)
-                            <strong>Adresse</strong> — {{ $setting->address }}<br>
+                            <strong>Adresse</strong> - {{ $setting->address }}<br>
                         @endif
                         @if ($setting->phone)
                             <strong>Tél.</strong> {{ $setting->phone }}
@@ -226,7 +226,7 @@
             <td>
                 <div class="box">
                     <h3>Facturé à</h3>
-                    <p><strong>{{ $sale->displayClientName() ?: ($sale->payment_type === 'cash' ? 'Client au comptant' : '—') }}</strong></p>
+                    <p><strong>{{ $sale->displayClientName() ?: ($sale->payment_type === 'cash' ? 'Client au comptant' : '-') }}</strong></p>
                     @if ($sale->displayClientPhone())
                         <p class="muted">Tél. {{ $sale->displayClientPhone() }}</p>
                     @endif
@@ -312,7 +312,7 @@
     </table>
 
     <div class="footer">
-        Merci pour votre achat. — {{ $setting?->shopname ?? config('app.name') }}
+        Merci pour votre achat. - {{ $setting?->shopname ?? config('app.name') }}
     </div>
 </body>
 </html>

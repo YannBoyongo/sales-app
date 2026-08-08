@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Caisse — {{ $branch->name }}</x-slot>
+    <x-slot name="header">Caisse - {{ $branch->name }}</x-slot>
 
     <x-sale-entry-shell
         :step="2"

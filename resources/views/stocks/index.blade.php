@@ -119,14 +119,14 @@
                             <tr>
                                 <th scope="col" class="stocks-matrix-corner min-w-[12rem] border-r border-neutral-200 px-4 py-3">Produit</th>
                                     @foreach ($locations as $loc)
-                                        <th scope="col" class="min-w-[6.5rem] whitespace-nowrap px-3 py-3 text-right" title="{{ $loc->branch->name }} — {{ $loc->name }}">
+                                        <th scope="col" class="min-w-[6.5rem] whitespace-nowrap px-3 py-3 text-right" title="{{ $loc->branch->name }} - {{ $loc->name }}">
                                             <span class="block max-w-[8rem] truncate">{{ $loc->name }}</span>
                                             @if ($stockBranches->count() > 1)
                                                 <span class="block max-w-[8rem] truncate font-normal normal-case text-neutral-300">{{ $loc->branch->name }}</span>
                                             @endif
                                         </th>
                                     @endforeach
-                                    <th scope="col" class="stocks-matrix-total min-w-[5rem] whitespace-nowrap border-l border-neutral-200 px-3 py-3 text-right">Total</th>
+                                    <th scope="col" class="stocks-matrix-total min-w-[9rem] whitespace-nowrap border-l border-neutral-200 px-3 py-3 text-right">Total</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-neutral-100">
@@ -177,12 +177,33 @@
                                         $rowTotal = $locations->sum(
                                             fn ($loc) => (int) (($matrix[$product->id][$loc->id] ?? null)?->quantity ?? 0)
                                         );
+                                        $productBatches = $batchesByProduct[$product->id] ?? [];
+                                        $batchedQty = collect($productBatches)->sum('quantity');
+                                        $legacyQty = max(0, $rowTotal - (int) $batchedQty);
+                                        $lotParts = [];
+                                        foreach ($productBatches as $layer) {
+                                            $lotParts[] = 'Lot '.$layer['batch_number'].': '.$layer['quantity'];
+                                        }
+                                        if ($legacyQty > 0 && $productBatches !== []) {
+                                            $lotParts[] = 'Sans lot: '.$legacyQty;
+                                        }
+                                        $lotSummary = implode(' · ', $lotParts);
+                                        $lotTitle = collect($productBatches)
+                                            ->map(fn ($layer) => 'Lot '.$layer['batch_number'].': '.$layer['quantity'].' @ '.\App\Support\Money::usd($layer['unit_cost']))
+                                            ->when($legacyQty > 0 && $productBatches !== [], fn ($c) => $c->push('Sans lot: '.$legacyQty))
+                                            ->implode("\n");
                                     @endphp
                                     <td
                                         data-row-total
-                                        class="border-l border-neutral-200 bg-neutral-50/80 px-3 py-3 text-right tabular-nums font-semibold text-neutral-900"
+                                        class="border-l border-neutral-200 bg-neutral-50/80 px-3 py-3 text-right text-neutral-900"
+                                        @if ($lotTitle !== '') title="{{ $lotTitle }}" @endif
                                     >
-                                        {{ $rowTotal }}
+                                        <span data-row-total-qty class="block tabular-nums font-semibold">{{ $rowTotal }}</span>
+                                        @if ($lotSummary !== '')
+                                            <span class="mt-0.5 block max-w-[11rem] truncate text-[10px] font-normal leading-snug text-neutral-500 normal-case tracking-normal">
+                                                {{ $lotSummary }}
+                                            </span>
+                                        @endif
                                     </td>
                                 </tr>
                             @empty
@@ -232,7 +253,7 @@
                                     x-model="productId"
                                     @change="refreshCurrent()"
                                 >
-                                    <option value="">— Choisir —</option>
+                                    <option value="">- Choisir -</option>
                                     @foreach ($adjustmentProducts as $p)
                                         <option value="{{ $p->id }}">{{ $p->name }}@if ($p->sku) ({{ $p->sku }})@endif</option>
                                     @endforeach
@@ -248,7 +269,7 @@
                                     x-model="locationId"
                                     @change="refreshCurrent()"
                                 >
-                                    <option value="">— Choisir —</option>
+                                    <option value="">- Choisir -</option>
                                     @foreach ($adjustmentLocations as $loc)
                                         <option value="{{ $loc->id }}">{{ $loc->name }} ({{ $loc->branch->name }})</option>
                                     @endforeach
@@ -256,7 +277,7 @@
                             </div>
                             <div class="rounded-lg border border-neutral-100 bg-neutral-50 px-3 py-2 text-sm">
                                 <span class="text-neutral-600">Quantité actuelle en base :</span>
-                                <span class="ml-1 font-semibold tabular-nums text-neutral-900" x-text="loading ? '…' : (currentQty === null ? '—' : currentQty)"></span>
+                                <span class="ml-1 font-semibold tabular-nums text-neutral-900" x-text="loading ? '…' : (currentQty === null ? '-' : currentQty)"></span>
                             </div>
                             <div>
                                 <label for="adj_quantity" class="block text-xs font-semibold text-neutral-700">Nouvelle quantité</label>
@@ -399,7 +420,12 @@
                                 row.querySelectorAll('[data-stock-cell] [data-qty-display]').forEach((el) => {
                                     sum += parseInt(el.textContent?.trim() || '0', 10);
                                 });
-                                totalCell.textContent = String(sum);
+                                const qtyEl = totalCell.querySelector('[data-row-total-qty]');
+                                if (qtyEl) {
+                                    qtyEl.textContent = String(sum);
+                                } else {
+                                    totalCell.textContent = String(sum);
+                                }
                             },
                             async commitCellEdit(event) {
                                 const td = event.target.closest('[data-stock-cell]');

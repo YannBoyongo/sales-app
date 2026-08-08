@@ -12,11 +12,11 @@
         </td>
         <td class="px-4 py-3 text-neutral-700 whitespace-nowrap">{{ \App\Models\StockTransfer::scopeLabel($t->transfer_scope ?? \App\Models\StockTransfer::SCOPE_INTERNAL) }}</td>
         <td class="px-4 py-3 text-neutral-600 whitespace-nowrap">{{ $t->transferred_at->translatedFormat('d/m/Y') }}</td>
-        <td class="px-4 py-3 text-neutral-700">{{ $t->fromLocation?->name ?? '—' }} <span class="text-neutral-400">({{ $t->fromLocation?->branch?->name ?? '—' }})</span></td>
-        <td class="px-4 py-3 text-neutral-700">{{ $t->toLocation?->name ?? '—' }} <span class="text-neutral-400">({{ $t->toLocation?->branch?->name ?? '—' }})</span></td>
+        <td class="px-4 py-3 text-neutral-700">{{ $t->fromLocation?->name ?? '-' }} <span class="text-neutral-400">({{ $t->fromLocation?->branch?->name ?? '-' }})</span></td>
+        <td class="px-4 py-3 text-neutral-700">{{ $t->toLocation?->name ?? '-' }} <span class="text-neutral-400">({{ $t->toLocation?->branch?->name ?? '-' }})</span></td>
         <td class="px-4 py-3 text-neutral-700">
             @if ($t->items->isEmpty())
-                <span class="text-neutral-400">—</span>
+                <span class="text-neutral-400">-</span>
             @else
                 <ul class="space-y-0.5 text-xs leading-relaxed">
                     @foreach ($t->items as $line)
@@ -28,7 +28,7 @@
                 </ul>
             @endif
         </td>
-        <td class="px-4 py-3 text-neutral-600 whitespace-nowrap">{{ $t->user?->name ?? '—' }}</td>
+        <td class="px-4 py-3 text-neutral-600 whitespace-nowrap">{{ $t->user?->name ?? '-' }}</td>
         <td class="px-4 py-3 text-right whitespace-nowrap">
             <a href="{{ route('stock-transfers.show', $t) }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">Détail</a>
         </td>

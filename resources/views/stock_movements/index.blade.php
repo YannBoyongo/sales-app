@@ -61,18 +61,18 @@
                                 @elseif ($m->type === 'exit')
                                     ← {{ $m->fromLocation?->name }}
                                 @elseif ($m->type === 'adjustment')
-                                    {{ $m->fromLocation?->name ?? '—' }}
+                                    {{ $m->fromLocation?->name ?? '-' }}
                                 @else
                                     {{ $m->fromLocation?->name }} → {{ $m->toLocation?->name }}
                                     @if ($m->stock_transfer_id)
                                         @if (auth()->user()->canViewStockTransfers())
-                                            — <a href="{{ route('stock-transfers.show', $m->stock_transfer_id) }}" class="text-primary underline-offset-2 hover:underline">Transfert #{{ $m->stock_transfer_id }}</a>
+                                            - <a href="{{ route('stock-transfers.show', $m->stock_transfer_id) }}" class="text-primary underline-offset-2 hover:underline">Transfert #{{ $m->stock_transfer_id }}</a>
                                         @else
-                                            — <span class="text-neutral-500">Transfert #{{ $m->stock_transfer_id }}</span>
+                                            - <span class="text-neutral-500">Transfert #{{ $m->stock_transfer_id }}</span>
                                         @endif
                                     @endif
                                 @endif
-                                @if ($m->notes) — {{ $m->notes }} @endif
+                                @if ($m->notes) - {{ $m->notes }} @endif
                             </td>
                             <td class="px-4 py-3 text-neutral-600">{{ $m->user->name }}</td>
                         </tr>

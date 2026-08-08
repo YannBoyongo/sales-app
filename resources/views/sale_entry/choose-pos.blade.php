@@ -1,5 +1,5 @@
 <x-app-layout>
-    <x-slot name="header">Caisse — Points de vente</x-slot>
+    <x-slot name="header">Caisse - Points de vente</x-slot>
 
     <x-caisse-flow
         max-width="max-w-2xl"

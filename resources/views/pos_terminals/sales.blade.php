@@ -19,7 +19,7 @@
                     </p>
                 </div>
                 <a
-                    href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
+                    href="{{ route($routes['workspace'], [$branch, $posTerminal]) }}"
                     class="app-btn-secondary shrink-0 gap-2"
                 >
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -31,7 +31,7 @@
         </x-slot>
 
         <div class="app-filter-bar mb-4">
-            <form method="GET" action="{{ route('pos-terminal.sales.index', [$branch, $posTerminal]) }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <form method="GET" action="{{ route($routes['sales_index'], [$branch, $posTerminal]) }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <div>
                     <label for="date_from" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Vente du</label>
                     <input id="date_from" name="date_from" type="date" value="{{ old('date_from', $filters['date_from'] ?? '') }}" class="app-input mt-1" />
@@ -51,7 +51,7 @@
                 </div>
                 <div class="flex items-end gap-2">
                     <button type="submit" class="app-btn-primary">Filtrer</button>
-                    <a href="{{ route('pos-terminal.sales.index', [$branch, $posTerminal]) }}" class="app-btn-secondary">Réinitialiser</a>
+                    <a href="{{ route($routes['sales_index'], [$branch, $posTerminal]) }}" class="app-btn-secondary">Réinitialiser</a>
                 </div>
             </form>
             @if ($errors->has('date_from') || $errors->has('date_to'))
@@ -65,6 +65,9 @@
                     <tr>
                         <th class="px-4 py-3 whitespace-nowrap">Date</th>
                         <th class="px-4 py-3 whitespace-nowrap">Référence</th>
+                        @if ($posTerminal->isFieldPointOfSale())
+                            <th class="px-4 py-3 whitespace-nowrap">Vendu à</th>
+                        @endif
                         <th class="px-4 py-3 whitespace-nowrap">Session</th>
                         <th class="px-4 py-3 whitespace-nowrap">Caissier</th>
                         <th class="px-4 py-3 whitespace-nowrap">Type</th>
@@ -84,6 +87,9 @@
                         ])>
                             <td class="px-4 py-3.5 text-neutral-600 whitespace-nowrap">{{ $sale->effectiveSoldAt()->translatedFormat('d/m/Y') }}</td>
                             <td class="px-4 py-3.5 font-mono text-sm text-neutral-800">{{ $sale->reference }}</td>
+                            @if ($posTerminal->isFieldPointOfSale())
+                                <td class="px-4 py-3.5 text-neutral-700">{{ $sale->saleLocation?->name ?? '-' }}</td>
+                            @endif
                             <td class="px-4 py-3.5 text-neutral-700">
                                 @if ($shift)
                                     <div class="leading-snug">

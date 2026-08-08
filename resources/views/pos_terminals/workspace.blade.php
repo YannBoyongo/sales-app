@@ -21,14 +21,25 @@
                     </div>
                     <h1 class="app-page-title">{{ $posTerminal->name }}</h1>
                     <p class="app-page-desc max-w-2xl">
-                        Point de vente et déstockage sur l’emplacement lié. Ouvrez une session pour encaisser, consultez les ventes de la session en cours.
+                        @if ($posTerminal->isFieldPointOfSale())
+                            Vente mobile pour toutes les branches. Le stock est déduit de l’emplacement configuré dans les paramètres.
+                        @else
+                            Point de vente et déstockage sur l’emplacement lié. Ouvrez une session pour encaisser, consultez les ventes de la session en cours.
+                        @endif
                     </p>
                     <p class="mt-3 inline-flex flex-wrap items-center gap-x-2 gap-y-1 rounded-full border border-neutral-200/80 bg-white/80 px-4 py-1.5 text-sm text-neutral-700 shadow-sm backdrop-blur-sm">
-                        <span class="text-neutral-500">Branche</span>
-                        <strong class="text-neutral-900">{{ $branch->name }}</strong>
-                        <span class="text-neutral-300">·</span>
-                        <span class="text-neutral-500">Stock</span>
-                        <strong class="text-neutral-900">{{ $posTerminal->location?->name ?? '-' }}</strong>
+                        @if ($posTerminal->isFieldPointOfSale() && ($stockLocation ?? null))
+                            <span class="text-neutral-500">Déstockage</span>
+                            <strong class="text-neutral-900">{{ $stockLocation->branch?->name ?? '—' }}</strong>
+                            <span class="text-neutral-300">·</span>
+                            <strong class="text-neutral-900">{{ $stockLocation->name }}</strong>
+                        @else
+                            <span class="text-neutral-500">Branche</span>
+                            <strong class="text-neutral-900">{{ $branch->name }}</strong>
+                            <span class="text-neutral-300">·</span>
+                            <span class="text-neutral-500">Stock</span>
+                            <strong class="text-neutral-900">{{ ($stockLocation ?? $posTerminal->location)?->name ?? 'Non configuré' }}</strong>
+                        @endif
                     </p>
                 </div>
             </div>
@@ -59,7 +70,7 @@
                             </div>
                             <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                                 <a
-                                    href="{{ route('sales.choose-department', [$branch, $posTerminal]) }}"
+                                    href="{{ route($routes['choose_department'], [$branch, $posTerminal]) }}"
                                     class="app-btn-primary gap-2 px-6 py-3"
                                 >
                                     <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -68,7 +79,7 @@
                                     Nouvelle vente
                                 </a>
                                 <a
-                                    href="{{ route('pos-terminal.shifts.close-review', [$branch, $posTerminal]) }}"
+                                    href="{{ route($routes['shifts_close_review'], [$branch, $posTerminal]) }}"
                                     class="app-btn-secondary w-full gap-2 px-6 py-3 sm:w-auto"
                                 >
                                     <svg class="h-5 w-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -88,7 +99,7 @@
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <a
-                                    href="{{ route('pos-terminal.sales.index', [$branch, $posTerminal]) }}"
+                                    href="{{ route($routes['sales_index'], [$branch, $posTerminal]) }}"
                                     class="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
                                 >
                                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -108,6 +119,9 @@
                                         <tr>
                                             <th class="px-4 py-3 whitespace-nowrap">Date</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Référence</th>
+                                            @if ($posTerminal->isFieldPointOfSale())
+                                                <th class="px-4 py-3 whitespace-nowrap">Vendu à</th>
+                                            @endif
                                             <th class="px-4 py-3 whitespace-nowrap">Caissier</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Type</th>
                                             <th class="px-4 py-3 whitespace-nowrap">Statut paiement</th>
@@ -125,6 +139,9 @@
                                             ])>
                                                 <td class="px-4 py-3.5 text-neutral-600 whitespace-nowrap">{{ $sale->effectiveSoldAt()->translatedFormat('d/m/Y') }}</td>
                                                 <td class="px-4 py-3.5 font-mono text-sm text-neutral-800">{{ $sale->reference }}</td>
+                                                @if ($posTerminal->isFieldPointOfSale())
+                                                    <td class="px-4 py-3.5 text-neutral-700">{{ $sale->saleLocation?->name ?? '-' }}</td>
+                                                @endif
                                                 <td class="px-4 py-3.5 text-neutral-700">{{ $sale->user?->name ?? '-' }}</td>
                                                 <td class="px-4 py-3.5 whitespace-nowrap">
                                                     @if ($sale->payment_type === 'credit')
@@ -173,7 +190,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="9" class="px-4 py-14">
+                                                <td colspan="{{ $posTerminal->isFieldPointOfSale() ? 10 : 9 }}" class="px-4 py-14">
                                                     <div class="flex flex-col items-center text-center">
                                                         <span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-neutral-100 text-neutral-400">
                                                             <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -206,7 +223,7 @@
                                     </p>
                                 </div>
                             </div>
-                            <form action="{{ route('pos-terminal.shifts.open', [$branch, $posTerminal]) }}" method="POST" class="w-full shrink-0 space-y-3 sm:w-auto sm:min-w-[14rem]">
+                            <form action="{{ route($routes['shifts_open'], [$branch, $posTerminal]) }}" method="POST" class="w-full shrink-0 space-y-3 sm:w-auto sm:min-w-[14rem]">
                                 @csrf
                                 <div>
                                     <label for="session_date" class="block text-xs font-semibold uppercase tracking-wide text-amber-900/80">Date de session</label>
@@ -236,7 +253,7 @@
 
                 <div class="flex flex-wrap items-center gap-2 border-t border-neutral-200/80 pt-6">
                     <a
-                        href="{{ route('pos-terminal.sales.index', [$branch, $posTerminal]) }}"
+                        href="{{ route($routes['sales_index'], [$branch, $posTerminal]) }}"
                         class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:border-primary/30 hover:text-primary"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -246,7 +263,7 @@
                     </a>
                     @if ($canPickAnotherBranch)
                         <a
-                            href="{{ route('sales.entry') }}"
+                            href="{{ route($routes['entry']) }}"
                             class="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2.5 text-sm font-medium text-neutral-700 shadow-sm transition hover:border-primary/30 hover:text-primary"
                         >
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -256,13 +273,17 @@
                         </a>
                     @endif
                     <a
-                        href="{{ route('sales.choose-terminal', $branch) }}"
+                        href="{{ route($routes['entry']) }}"
                         class="inline-flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium text-neutral-600 transition hover:bg-white/80 hover:text-primary"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                         </svg>
-                        Changer de terminal
+                        @if ($posTerminal->isFieldPointOfSale())
+                            Changer de terminal
+                        @else
+                            Changer de terminal
+                        @endif
                     </a>
                 </div>
         </div>

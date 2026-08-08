@@ -381,6 +381,9 @@ class PosShiftController extends Controller
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, $this->expectedPosTerminalKind());
+
+        $routes = $this->posRouteNames($posTerminal);
 
         $data = $request->validate([
             'session_date' => ['required', 'date'],
@@ -413,12 +416,12 @@ class PosShiftController extends Controller
 
         if ($alreadyOpen) {
             return redirect()
-                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->route($routes['workspace'], [$branch, $posTerminal])
                 ->with('warning', 'Une session est déjà ouverte sur ce terminal.');
         }
 
         return redirect()
-            ->route('pos-terminal.workspace', [$branch, $posTerminal])
+            ->route($routes['workspace'], [$branch, $posTerminal])
             ->with('success', 'Session de caisse ouverte.');
     }
 
@@ -426,11 +429,14 @@ class PosShiftController extends Controller
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, $this->expectedPosTerminalKind());
+
+        $routes = $this->posRouteNames($posTerminal);
 
         $shift = $posTerminal->openShift();
         if ($shift === null) {
             return redirect()
-                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->route($routes['workspace'], [$branch, $posTerminal])
                 ->with('warning', 'Aucune session ouverte sur ce terminal.');
         }
 
@@ -458,6 +464,7 @@ class PosShiftController extends Controller
             'grandTotal',
             'pendingDiscountCount',
             'closableSalesCount',
+            'routes',
         ));
     }
 
@@ -465,6 +472,9 @@ class PosShiftController extends Controller
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, $this->expectedPosTerminalKind());
+
+        $routes = $this->posRouteNames($posTerminal);
 
         $request->validate([
             'confirm_totals' => ['accepted'],
@@ -477,7 +487,7 @@ class PosShiftController extends Controller
         $shift = $posTerminal->openShift();
         if ($shift === null) {
             return redirect()
-                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->route($routes['workspace'], [$branch, $posTerminal])
                 ->with('warning', 'Aucune session ouverte sur ce terminal.');
         }
 
@@ -488,7 +498,7 @@ class PosShiftController extends Controller
 
         if ($hasPendingDiscount) {
             return redirect()
-                ->route('pos-terminal.shifts.close-review', [$branch, $posTerminal])
+                ->route($routes['shifts_close_review'], [$branch, $posTerminal])
                 ->withErrors([
                     'shift_close' => 'Impossible de fermer la session : au moins une vente a une remise en attente d’approbation.',
                 ]);
@@ -521,8 +531,13 @@ class PosShiftController extends Controller
         });
 
         return redirect()
-            ->route('pos-terminal.workspace', [$branch, $posTerminal])
+            ->route($routes['workspace'], [$branch, $posTerminal])
             ->with('success', 'Session de caisse fermée.');
+    }
+
+    private function expectedPosTerminalKind(): string
+    {
+        return request()->routeIs('point-de-vente.*') ? PosTerminal::KIND_FIELD : PosTerminal::KIND_POS;
     }
 
     /**

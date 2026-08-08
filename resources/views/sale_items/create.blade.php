@@ -8,14 +8,24 @@
                     <p class="app-page-eyebrow">Caisse</p>
                     <h1 class="app-page-title">Nouvelle vente</h1>
                     <p class="app-page-desc">
-                        {{ $department->name }} · {{ $pointOfSale->name }} · {{ $branch->name }}
+                        @if ($posTerminal->isFieldPointOfSale() && isset($saleLocation))
+                            {{ $department->name }} · Vendu à {{ $saleLocation->name }} ({{ $branch->name }}) · Stock : {{ $pointOfSale->name }}
+                        @else
+                            {{ $department->name }} · {{ $pointOfSale->name }} · {{ $branch->name }}
+                        @endif
                     </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <a href="{{ route('sales.choose-department', [$branch, $posTerminal]) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:border-primary/30 hover:text-primary">
-                        Autre département
-                    </a>
-                    <a href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}" class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary">
+                    @if ($posTerminal->isFieldPointOfSale() && isset($saleLocation))
+                        <a href="{{ route('point-de-vente.sale.choose-department', [$terminalBranch ?? $branch, $posTerminal, $branch, $saleLocation]) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:border-primary/30 hover:text-primary">
+                            Autre département
+                        </a>
+                    @else
+                        <a href="{{ route($routes['choose_department'], [$branch, $posTerminal]) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm hover:border-primary/30 hover:text-primary">
+                            Autre département
+                        </a>
+                    @endif
+                    <a href="{{ route($routes['workspace'], [$terminalBranch ?? $branch, $posTerminal]) }}" class="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 hover:text-primary">
                         Retour caisse
                     </a>
                 </div>
@@ -23,7 +33,7 @@
         </x-slot>
 
         <x-slot name="stepper">
-            <x-flow-sale-stepper :step="4" :total-steps="4" />
+            <x-flow-sale-stepper :step="4" :total-steps="$posTerminal->isFieldPointOfSale() ? 4 : 3" />
         </x-slot>
 
         @if ($errors->has('sale'))
@@ -35,7 +45,7 @@
         @endphp
 
         <form
-            action="{{ route('sales.store', [$branch, $posTerminal, $department]) }}"
+            action="@if ($posTerminal->isFieldPointOfSale() && isset($saleLocation)){{ route('point-de-vente.sales.store', [$terminalBranch ?? $branch, $posTerminal, $branch, $saleLocation, $department]) }}@else{{ route($routes['store'], [$branch, $posTerminal, $department]) }}@endif"
             method="POST"
             class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,480px)] lg:items-start"
             x-data="posSaleForm({
@@ -63,6 +73,15 @@
             @submit="guardSubmit($event)"
         >
             @csrf
+
+            @if ($posTerminal->isFieldPointOfSale() && isset($saleLocation))
+                <section class="app-panel app-panel-body lg:col-span-2">
+                    <p class="text-sm text-neutral-600">
+                        Vente enregistrée pour <strong>{{ $branch->name }}</strong> · <strong>{{ $saleLocation->name }}</strong>.
+                        Stock déduit de <strong>{{ $pointOfSale->name }}</strong>.
+                    </p>
+                </section>
+            @endif
 
             {{-- Colonne principale : étapes 1 et 2 --}}
             <div class="space-y-6">

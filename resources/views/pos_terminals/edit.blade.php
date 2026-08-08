@@ -12,7 +12,8 @@
             <x-input-error :messages="$errors->get('name')" class="mt-2" />
         </div>
         <div class="rounded-md border border-neutral-100 bg-neutral-50 px-3 py-2 text-sm text-neutral-600">
-            Emplacement : <strong>{{ $posTerminal->location?->name ?? '-' }}</strong> (non modifiable)
+            Type : <strong>{{ \App\Models\PosTerminal::kindLabel($posTerminal->kind) }}</strong><br>
+            Emplacement stock : <strong>{{ $posTerminal->location?->name ?? '-' }}</strong> (non modifiable)
         </div>
         @if ($eligibleUsers->isNotEmpty())
             <div>

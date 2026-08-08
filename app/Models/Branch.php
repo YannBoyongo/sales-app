@@ -5,10 +5,31 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 
 class Branch extends Model
 {
     protected $fillable = ['name'];
+
+    protected static function booted(): void
+    {
+        static::created(function (Branch $branch): void {
+            DB::transaction(function () use ($branch): void {
+                $location = Location::query()->create([
+                    'branch_id' => $branch->id,
+                    'name' => $branch->name,
+                    'kind' => Location::KIND_MAIN,
+                ]);
+
+                PosTerminal::query()->create([
+                    'branch_id' => $branch->id,
+                    'kind' => PosTerminal::KIND_FIELD,
+                    'name' => $branch->name,
+                    'location_id' => $location->id,
+                ]);
+            });
+        });
+    }
 
     public function locations(): HasMany
     {

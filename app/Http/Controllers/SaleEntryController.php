@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Models\PosTerminal;
 use Illuminate\View\View;
 
 class SaleEntryController extends Controller
@@ -18,7 +19,7 @@ class SaleEntryController extends Controller
             abort(403, 'Aucune branche accessible pour enregistrer une vente.');
         }
 
-        $terminals = $this->posTerminalsForUser(null);
+        $terminals = $this->posTerminalsForUser(null, false, PosTerminal::KIND_POS);
         $openTerminalIds = $this->openPosTerminalIds($terminals);
         $openIds = array_flip($openTerminalIds);
 

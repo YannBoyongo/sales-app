@@ -189,22 +189,31 @@
                         <h2 class="text-base font-semibold text-neutral-900">Terminaux POS</h2>
                         <p class="mt-0.5 text-sm text-neutral-600">Caisse et sessions - chaque terminal est lié à un point de vente.</p>
                     </div>
-                    <a
-                        href="{{ route('branches.pos-terminals.create', $branch) }}"
-                        class="app-btn-primary shrink-0"
-                    >
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                        </svg>
-                        Nouveau terminal
-                    </a>
+                    <div class="flex flex-wrap gap-2 shrink-0">
+                        <a
+                            href="{{ route('branches.pos-terminals.create', [$branch, 'kind' => \App\Models\PosTerminal::KIND_FIELD]) }}"
+                            class="app-btn-secondary shrink-0"
+                        >
+                            Nouveau point de vente
+                        </a>
+                        <a
+                            href="{{ route('branches.pos-terminals.create', $branch) }}"
+                            class="app-btn-primary shrink-0"
+                        >
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                            </svg>
+                            Nouveau terminal
+                        </a>
+                    </div>
                 </div>
                 <div class="app-table-shell border-0 shadow-none">
                     <table class="min-w-full text-sm">
                         <thead>
                             <tr>
+                                <th class="whitespace-nowrap">Type</th>
                                 <th class="whitespace-nowrap">Nom</th>
-                                <th class="whitespace-nowrap">Emplacement</th>
+                                <th class="whitespace-nowrap">Emplacement stock</th>
                                 <th class="whitespace-nowrap">Caissiers</th>
                                 <th class="whitespace-nowrap text-right">Actions</th>
                             </tr>
@@ -212,6 +221,9 @@
                         <tbody>
                             @forelse ($terminals as $t)
                                 <tr>
+                                    <td class="whitespace-nowrap">
+                                        <span class="app-badge-neutral">{{ \App\Models\PosTerminal::kindLabel($t->kind) }}</span>
+                                    </td>
                                     <td class="font-medium text-neutral-900">{{ $t->name }}</td>
                                     <td>{{ $t->location?->name ?? '-' }}</td>
                                     <td>

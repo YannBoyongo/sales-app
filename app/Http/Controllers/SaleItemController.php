@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Client;
 use App\Models\ClientCautionUsage;
 use App\Models\Department;
+use App\Models\Location;
 use App\Models\PosShift;
 use App\Models\PosTerminal;
 use App\Models\Product;
@@ -47,15 +48,18 @@ class SaleItemController extends Controller
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless(auth()->user()?->canAccessPosSales(), 403);
 
-        $terminals = $this->posTerminalsForUser($branch);
+        $kind = $this->expectedPosTerminalKind();
+        $terminals = $this->posTerminalsForUser($branch, false, $kind);
         if ($terminals->isEmpty()) {
-            abort(403, 'Aucun terminal POS accessible pour cette branche.');
+            abort(403, 'Aucun terminal accessible pour cette branche.');
         }
 
         $user = auth()->user();
-        // Administrateurs / comptables : toujours afficher la liste des terminaux (sélection explicite).
         if ($terminals->count() === 1 && ! $user?->canBypassBranchScope()) {
-            return redirect()->route('pos-terminal.workspace', [$branch, $terminals->first()]);
+            $terminal = $terminals->first();
+            $routes = $this->posRouteNames($terminal);
+
+            return redirect()->route($routes['workspace'], [$branch, $terminal]);
         }
 
         $canPickAnotherBranch = $this->branchesForUser()->count() > 1;
@@ -69,11 +73,13 @@ class SaleItemController extends Controller
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, $this->expectedPosTerminalKind());
 
+        $routes = $this->posRouteNames($posTerminal);
         $openShift = $posTerminal->openShift();
         if ($openShift === null) {
             return redirect()
-                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->route($routes['workspace'], [$branch, $posTerminal])
                 ->with('warning', 'Ouvrez une session de caisse avant de vendre.');
         }
 
@@ -90,28 +96,84 @@ class SaleItemController extends Controller
 
         $canPickAnotherBranch = $this->branchesForUser()->count() > 1;
 
-        return view('sale_entry.choose-department', compact('branch', 'posTerminal', 'pointOfSale', 'departments', 'canPickAnotherBranch'));
+        return view('sale_entry.choose-department', compact('branch', 'posTerminal', 'pointOfSale', 'departments', 'canPickAnotherBranch', 'routes'));
     }
 
     public function create(Branch $branch, PosTerminal $posTerminal, Department $department): View|RedirectResponse
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, PosTerminal::KIND_POS);
 
+        $routes = $this->posRouteNames($posTerminal);
         $openShift = $posTerminal->openShift();
         if ($openShift === null) {
             return redirect()
-                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->route($routes['workspace'], [$branch, $posTerminal])
                 ->with('warning', 'Ouvrez une session de caisse avant de vendre.');
         }
 
         $pointOfSale = $posTerminal->location;
         abort_unless($pointOfSale !== null, 404);
 
+        return $this->renderSaleCreateForm($branch, $posTerminal, $department, $pointOfSale, $routes);
+    }
+
+    public function createFieldSale(
+        Branch $branch,
+        PosTerminal $posTerminal,
+        Branch $entryBranch,
+        Location $location,
+        Department $department,
+    ): View|RedirectResponse {
+        $this->ensurePosTerminalForBranch($posTerminal, $branch);
+        $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, PosTerminal::KIND_FIELD);
+        $this->ensureFieldSaleEntryBranchAccessible($entryBranch);
+        abort_unless((int) $location->branch_id === (int) $entryBranch->id, 404);
+        if ($redirect = $this->ensureFieldPosStockConfigured()) {
+            return $redirect;
+        }
+
+        $routes = $this->posRouteNames($posTerminal);
+        $openShift = $posTerminal->openShift();
+        if ($openShift === null) {
+            return redirect()
+                ->route($routes['workspace'], [$branch, $posTerminal])
+                ->with('warning', 'Ouvrez une session de caisse avant de vendre.');
+        }
+
+        $pointOfSale = $this->fieldPosStockLocation();
+        abort_unless($pointOfSale !== null, 403);
+
+        return $this->renderSaleCreateForm(
+            $entryBranch,
+            $posTerminal,
+            $department,
+            $pointOfSale,
+            $routes,
+            $location,
+            $branch,
+        );
+    }
+
+    private function renderSaleCreateForm(
+        Branch $branch,
+        PosTerminal $posTerminal,
+        Department $department,
+        Location $pointOfSale,
+        array $routes,
+        ?Location $saleLocation = null,
+        ?Branch $terminalBranch = null,
+    ): View|RedirectResponse {
+        $terminalBranch ??= $branch;
+
         $products = Product::query()
             ->where('department_id', $department->id);
-        $this->applyProductBranchScope($products);
-        $this->applyProductScopeForBranch($products, $branch);
+        if (! $posTerminal->isFieldPointOfSale()) {
+            $this->applyProductBranchScope($products);
+            $this->applyProductScopeForBranch($products, $branch);
+        }
         $products = $products
             ->select(['id', 'department_id', 'name', 'unit_price'])
             ->orderBy('name')
@@ -167,6 +229,9 @@ class SaleItemController extends Controller
             'clients',
             'canChooseDealerCustomer',
             'saleEffectiveCustomerType',
+            'routes',
+            'saleLocation',
+            'terminalBranch',
         ));
     }
 
@@ -174,24 +239,83 @@ class SaleItemController extends Controller
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, PosTerminal::KIND_POS);
+
+        $routes = $this->posRouteNames($posTerminal);
+        $openShift = $posTerminal->openShift();
+        if ($openShift === null) {
+            return redirect()
+                ->route($routes['workspace'], [$branch, $posTerminal])
+                ->with('warning', 'Session de caisse fermée ou non ouverte.');
+        }
 
         $pointOfSale = $posTerminal->location;
         abort_unless($pointOfSale !== null, 404);
 
+        return $this->persistSale($request, $branch, $posTerminal, $department, $pointOfSale, $openShift, $routes);
+    }
+
+    public function storeFieldSale(
+        Request $request,
+        Branch $branch,
+        PosTerminal $posTerminal,
+        Branch $entryBranch,
+        Location $location,
+        Department $department,
+    ): RedirectResponse {
+        $this->ensurePosTerminalForBranch($posTerminal, $branch);
+        $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, PosTerminal::KIND_FIELD);
+        $this->ensureFieldSaleEntryBranchAccessible($entryBranch);
+        abort_unless((int) $location->branch_id === (int) $entryBranch->id, 404);
+        if ($redirect = $this->ensureFieldPosStockConfigured()) {
+            return $redirect;
+        }
+
+        $routes = $this->posRouteNames($posTerminal);
         $openShift = $posTerminal->openShift();
         if ($openShift === null) {
             return redirect()
-                ->route('pos-terminal.workspace', [$branch, $posTerminal])
+                ->route($routes['workspace'], [$branch, $posTerminal])
                 ->with('warning', 'Session de caisse fermée ou non ouverte.');
         }
 
+        $pointOfSale = $this->fieldPosStockLocation();
+        abort_unless($pointOfSale !== null, 403);
+
+        return $this->persistSale(
+            $request,
+            $entryBranch,
+            $posTerminal,
+            $department,
+            $pointOfSale,
+            $openShift,
+            $routes,
+            $location->id,
+            $branch,
+        );
+    }
+
+    private function persistSale(
+        Request $request,
+        Branch $branch,
+        PosTerminal $posTerminal,
+        Department $department,
+        Location $pointOfSale,
+        PosShift $openShift,
+        array $routes,
+        ?int $saleLocationId = null,
+        ?Branch $terminalBranch = null,
+    ): RedirectResponse {
+        $terminalBranch ??= $branch;
         $departmentId = (int) $department->id;
+        $isFieldSale = $posTerminal->isFieldPointOfSale();
 
         $allowedCustomerTypes = $request->user()->canChooseDealerCustomerOnPosSale()
             ? ['walkin', 'dealer']
             : ['walkin'];
 
-        $data = $request->validate([
+        $validationRules = [
             'customer_type' => ['required', Rule::in($allowedCustomerTypes)],
             'payment_type' => ['required', Rule::in(['cash', 'credit', 'caution'])],
             'client_name' => ['nullable', 'string', 'max:255'],
@@ -227,12 +351,25 @@ class SaleItemController extends Controller
                 'numeric',
                 'min:0',
             ],
-        ]);
+        ];
+
+        if ($isFieldSale && $saleLocationId === null) {
+            $validationRules['sale_location_id'] = [
+                'required',
+                'integer',
+                Rule::exists('locations', 'id')->where(
+                    fn ($q) => $q->where('branch_id', $branch->id)->where('kind', Location::KIND_POINT_OF_SALE)
+                ),
+            ];
+        }
+
+        $data = $request->validate($validationRules);
 
         $pendingDiscountAfterSave = false;
+        $resolvedSaleLocationId = $isFieldSale ? ($saleLocationId ?? (int) $data['sale_location_id']) : null;
 
         try {
-            DB::transaction(function () use ($request, $branch, $departmentId, $pointOfSale, $posTerminal, $openShift, $data, &$pendingDiscountAfterSave) {
+            DB::transaction(function () use ($request, $branch, $departmentId, $pointOfSale, $posTerminal, $openShift, $data, &$pendingDiscountAfterSave, $resolvedSaleLocationId, $isFieldSale) {
                 $openShift = PosShift::query()
                     ->whereKey($openShift->id)
                     ->where('pos_terminal_id', $posTerminal->id)
@@ -282,6 +419,7 @@ class SaleItemController extends Controller
                     'reference' => $saleReference,
                     'branch_id' => $branch->id,
                     'pos_shift_id' => $openShift->id,
+                    'sale_location_id' => $isFieldSale ? $resolvedSaleLocationId : null,
                     'user_id' => $request->user()->id,
                     'payment_type' => $paymentType,
                     'credit_due_date' => $creditDueDate,
@@ -302,15 +440,17 @@ class SaleItemController extends Controller
                 $catalogSubtotal = '0.00';
                 $saleTotal = '0.00';
                 foreach ($data['items'] as $row) {
-                    $product = Product::query()
+                    $productQuery = Product::query()
                         ->lockForUpdate()
                         ->whereKey((int) $row['product_id'])
-                        ->where('department_id', $departmentId)
-                        ->where(function ($q) use ($branch) {
+                        ->where('department_id', $departmentId);
+                    if (! $isFieldSale) {
+                        $productQuery->where(function ($q) use ($branch) {
                             $this->applyProductBranchScope($q);
                             $this->applyProductScopeForBranch($q, $branch);
-                        })
-                        ->firstOrFail();
+                        });
+                    }
+                    $product = $productQuery->firstOrFail();
 
                     $qty = (int) $row['quantity'];
                     Stock::modifyQuantity($product->id, $pointOfSale->id, -$qty);
@@ -598,8 +738,13 @@ class SaleItemController extends Controller
             : 'Vente enregistrée et stock mis à jour.';
 
         return redirect()
-            ->route('pos-terminal.workspace', [$branch, $posTerminal])
+            ->route($routes['workspace'], [$terminalBranch, $posTerminal])
             ->with('success', $success);
+    }
+
+    private function expectedPosTerminalKind(): string
+    {
+        return request()->routeIs('point-de-vente.*') ? PosTerminal::KIND_FIELD : PosTerminal::KIND_POS;
     }
 
     /**

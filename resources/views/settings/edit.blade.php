@@ -107,6 +107,107 @@
                 <x-input-error :messages="$errors->get('logo')" class="mt-2" />
             </div>
 
+            <div class="md:col-span-2 pt-2 border-t border-neutral-200">
+                <h2 class="text-base font-semibold text-neutral-900">Point de vente — déstockage</h2>
+                <p class="mt-1 text-sm text-neutral-600">Emplacement où le stock sera déduit pour toutes les ventes du point de vente mobile.</p>
+
+                @if ($setting->hasFieldPosStockLocation())
+                    <p class="mt-3 rounded-lg border border-emerald-200/80 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-900">
+                        Configuration actuelle :
+                        <strong>{{ $setting->fieldPosStockBranch?->name }}</strong>
+                        ·
+                        <strong>{{ $setting->fieldPosStockLocation?->name }}</strong>
+                        @if ($setting->fieldPosStockLocation)
+                            <span class="text-emerald-800/80">({{ \App\Models\Location::kindLabel($setting->fieldPosStockLocation->kind) }})</span>
+                        @endif
+                    </p>
+                @endif
+
+                @php
+                    $selectedBranchId = old('field_pos_stock_branch_id', $setting->field_pos_stock_branch_id);
+                    $selectedLocationId = old('field_pos_stock_location_id', $setting->field_pos_stock_location_id);
+                @endphp
+
+                <div class="mt-4 grid gap-4 md:grid-cols-2">
+                    <div>
+                        <x-input-label for="field_pos_stock_branch_id" value="Branche de déstockage" />
+                        <select
+                            id="field_pos_stock_branch_id"
+                            name="field_pos_stock_branch_id"
+                            class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary"
+                        >
+                            <option value="">— Non configuré —</option>
+                            @foreach ($branches as $branch)
+                                <option value="{{ $branch->id }}" @selected((string) $selectedBranchId === (string) $branch->id)>
+                                    {{ $branch->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('field_pos_stock_branch_id')" class="mt-2" />
+                    </div>
+                    <div>
+                        <x-input-label for="field_pos_stock_location_id" value="Emplacement de déstockage" />
+                        <select
+                            id="field_pos_stock_location_id"
+                            name="field_pos_stock_location_id"
+                            class="mt-1 block w-full rounded-md border-neutral-300 shadow-sm focus:border-primary focus:ring-primary"
+                            @if (! $selectedBranchId) disabled @endif
+                        >
+                            <option value="">Choisir…</option>
+                            @foreach ($locationsByBranch as $branchId => $locations)
+                                @foreach ($locations as $location)
+                                    <option
+                                        value="{{ $location['id'] }}"
+                                        data-branch-id="{{ $branchId }}"
+                                        @selected((string) $selectedLocationId === (string) $location['id'])
+                                        @if ($selectedBranchId && (string) $branchId !== (string) $selectedBranchId) hidden @endif
+                                    >
+                                        {{ $location['name'] }} ({{ $location['kind'] }})
+                                    </option>
+                                @endforeach
+                            @endforeach
+                        </select>
+                        <x-input-error :messages="$errors->get('field_pos_stock_location_id')" class="mt-2" />
+                    </div>
+                </div>
+            </div>
+
+            @push('scripts')
+                <script>
+                    document.addEventListener('DOMContentLoaded', () => {
+                        const branchSelect = document.getElementById('field_pos_stock_branch_id');
+                        const locationSelect = document.getElementById('field_pos_stock_location_id');
+                        if (!branchSelect || !locationSelect) return;
+
+                        const syncLocationOptions = (preserveSelection = false) => {
+                            const branchId = branchSelect.value;
+                            let hasVisible = false;
+
+                            locationSelect.querySelectorAll('option[data-branch-id]').forEach((option) => {
+                                const show = branchId !== '' && option.dataset.branchId === branchId;
+                                option.hidden = !show;
+                                if (show) hasVisible = true;
+                            });
+
+                            locationSelect.disabled = branchId === '';
+
+                            if (preserveSelection) {
+                                return;
+                            }
+
+                            if (!branchId || !hasVisible) {
+                                locationSelect.value = '';
+                            } else if (!locationSelect.querySelector(`option[value="${locationSelect.value}"]:not([hidden])`)) {
+                                locationSelect.value = '';
+                            }
+                        };
+
+                        branchSelect.addEventListener('change', () => syncLocationOptions(false));
+                        syncLocationOptions(true);
+                    });
+                </script>
+            @endpush
+
             <div class="md:col-span-2 pt-2">
                 <x-primary-button>Enregistrer</x-primary-button>
             </div>

@@ -23,6 +23,7 @@ class Sale extends Model
         'reference',
         'branch_id',
         'pos_shift_id',
+        'sale_location_id',
         'user_id',
         'payment_type',
         'credit_due_date',
@@ -269,6 +270,11 @@ class Sale extends Model
     public function posShift(): BelongsTo
     {
         return $this->belongsTo(PosShift::class);
+    }
+
+    public function saleLocation(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'sale_location_id');
     }
 
     public function user(): BelongsTo

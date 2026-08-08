@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Branch;
+use App\Models\Location;
 use App\Models\PosTerminal;
 use App\Models\Sale;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -13,19 +15,30 @@ class PosTerminalWorkspaceController extends Controller
 {
     use RespectsUserBranch;
 
-    public function show(Branch $branch, PosTerminal $posTerminal): View
+    public function show(Branch $branch, PosTerminal $posTerminal): View|RedirectResponse
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, $this->expectedPosTerminalKind());
 
+        if ($posTerminal->isFieldPointOfSale()) {
+            if ($redirect = $this->ensureFieldPosStockConfigured()) {
+                return $redirect;
+            }
+        }
+
+        $routes = $this->posRouteNames($posTerminal);
         $posTerminal->load('location');
         $openShift = $posTerminal->openShift();
+        $stockLocation = $posTerminal->isFieldPointOfSale()
+            ? $this->fieldPosStockLocation()
+            : $posTerminal->location;
         $shiftSales = collect();
         if ($openShift) {
             $openShift->load(['openedByUser:id,name']);
             $openShift->alignSalesSoldAtToSessionDate();
             $shiftSales = $openShift->sales()
-                ->with(['user:id,name', 'posShift:id,pos_terminal_id,session_date,opened_at'])
+                ->with(['user:id,name', 'saleLocation:id,name', 'posShift:id,pos_terminal_id,session_date,opened_at'])
                 ->orderByDesc('sold_at')
                 ->orderByDesc('id')
                 ->get();
@@ -39,6 +52,8 @@ class PosTerminalWorkspaceController extends Controller
             'openShift',
             'shiftSales',
             'canPickAnotherBranch',
+            'routes',
+            'stockLocation',
         ));
     }
 
@@ -46,6 +61,9 @@ class PosTerminalWorkspaceController extends Controller
     {
         $this->ensurePosTerminalForBranch($posTerminal, $branch);
         $this->ensureUserCanAccessPosTerminal($posTerminal);
+        $this->ensurePosTerminalKind($posTerminal, $this->expectedPosTerminalKind());
+
+        $routes = $this->posRouteNames($posTerminal);
 
         $filters = $request->validate([
             'date_from' => ['nullable', 'date'],
@@ -59,6 +77,7 @@ class PosTerminalWorkspaceController extends Controller
             ->whereHas('posShift', fn ($q) => $q->where('pos_terminal_id', $posTerminal->id))
             ->with([
                 'user:id,name',
+                'saleLocation:id,name',
                 'posShift:id,pos_terminal_id,session_date,opened_at,closed_at',
                 'posShift.openedByUser:id,name',
             ])
@@ -78,6 +97,12 @@ class PosTerminalWorkspaceController extends Controller
             'sales',
             'filters',
             'canViewClosedShiftDetail',
+            'routes',
         ));
+    }
+
+    private function expectedPosTerminalKind(): string
+    {
+        return request()->routeIs('point-de-vente.*') ? PosTerminal::KIND_FIELD : PosTerminal::KIND_POS;
     }
 }

@@ -6,8 +6,8 @@
 @php
     $all = [
         1 => ['label' => 'Branche', 'short' => '1'],
-        2 => ['label' => 'Terminal', 'short' => '2'],
-        3 => ['label' => 'Département', 'short' => '3'],
+        2 => ['label' => $totalSteps >= 4 ? 'Emplacement' : 'Terminal', 'short' => '2'],
+        3 => ['label' => 'Catégorie', 'short' => '3'],
         4 => ['label' => 'Saisie', 'short' => '4'],
     ];
     $steps = array_slice($all, 0, max(1, min(4, (int) $totalSteps)), true);

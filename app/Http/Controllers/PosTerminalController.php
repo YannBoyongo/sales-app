@@ -21,6 +21,8 @@ class PosTerminalController extends Controller
         $terminals = $branch->posTerminals()
             ->with('location')
             ->withCount('posUsers')
+            ->orderBy('kind')
+            ->orderBy('name')
             ->get();
 
         return view('pos_terminals.index', compact('branch', 'terminals'));
@@ -30,12 +32,27 @@ class PosTerminalController extends Controller
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $usedLocationIds = PosTerminal::query()->where('branch_id', $branch->id)->pluck('location_id');
-        $locations = Location::query()
+        $kind = request()->query('kind', PosTerminal::KIND_POS);
+        if (! in_array($kind, [PosTerminal::KIND_POS, PosTerminal::KIND_FIELD], true)) {
+            $kind = PosTerminal::KIND_POS;
+        }
+
+        $usedLocationIds = PosTerminal::query()
             ->where('branch_id', $branch->id)
-            ->whereNotIn('id', $usedLocationIds)
-            ->orderBy('name')
-            ->get();
+            ->where('kind', PosTerminal::KIND_POS)
+            ->pluck('location_id');
+
+        $locationsQuery = Location::query()
+            ->where('branch_id', $branch->id)
+            ->orderBy('name');
+
+        if ($kind === PosTerminal::KIND_POS) {
+            $locations = $locationsQuery
+                ->whereNotIn('id', $usedLocationIds)
+                ->get();
+        } else {
+            $locations = $locationsQuery->get();
+        }
 
         $eligibleUsers = User::query()
             ->where('branch_id', $branch->id)
@@ -43,39 +60,50 @@ class PosTerminalController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return view('pos_terminals.create', compact('branch', 'locations', 'eligibleUsers'));
+        return view('pos_terminals.create', compact('branch', 'locations', 'eligibleUsers', 'kind'));
     }
 
     public function store(Request $request, Branch $branch): RedirectResponse
     {
         abort_unless(auth()->user()?->isAdmin(), 403);
 
-        $usedLocationIds = PosTerminal::query()->where('branch_id', $branch->id)->pluck('location_id')->all();
+        $kind = $request->input('kind', PosTerminal::KIND_POS);
+        if (! in_array($kind, [PosTerminal::KIND_POS, PosTerminal::KIND_FIELD], true)) {
+            $kind = PosTerminal::KIND_POS;
+        }
+
+        $usedLocationIds = PosTerminal::query()
+            ->where('branch_id', $branch->id)
+            ->where('kind', PosTerminal::KIND_POS)
+            ->pluck('location_id')
+            ->all();
+
+        $locationRule = $kind === PosTerminal::KIND_POS
+            ? ['required', 'integer', Rule::exists('locations', 'id')->where(fn ($q) => $q->where('branch_id', $branch->id)), Rule::notIn($usedLocationIds)]
+            : ['required', 'integer', Rule::exists('locations', 'id')->where(fn ($q) => $q->where('branch_id', $branch->id))];
+
         $data = $request->validate([
+            'kind' => ['required', Rule::in([PosTerminal::KIND_POS, PosTerminal::KIND_FIELD])],
             'name' => ['required', 'string', 'max:255'],
-            'location_id' => [
-                'required',
-                'integer',
-                Rule::exists('locations', 'id')->where(function ($q) use ($branch, $usedLocationIds) {
-                    $q->where('branch_id', $branch->id)
-                        ->whereNotIn('id', $usedLocationIds);
-                }),
-            ],
+            'location_id' => $locationRule,
             'pos_user_ids' => ['nullable', 'array'],
             'pos_user_ids.*' => ['integer', 'exists:users,id'],
         ]);
 
         $terminal = PosTerminal::create([
             'branch_id' => $branch->id,
-            'location_id' => (int) $data['location_id'],
+            'kind' => $data['kind'],
+            'location_id' => filled($data['location_id'] ?? null) ? (int) $data['location_id'] : null,
             'name' => $data['name'],
         ]);
 
         $this->syncPosUsers($terminal, $data['pos_user_ids'] ?? []);
 
+        $label = PosTerminal::kindLabel($terminal->kind);
+
         return redirect()
             ->route('branches.show', $branch)
-            ->with('success', 'Terminal POS créé.');
+            ->with('success', $label.' créé.');
     }
 
     public function edit(Branch $branch, PosTerminal $posTerminal): View

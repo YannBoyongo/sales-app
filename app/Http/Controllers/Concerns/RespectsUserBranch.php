@@ -10,8 +10,10 @@ use App\Models\PosTerminal;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
+use App\Models\Setting;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -514,7 +516,7 @@ trait RespectsUserBranch
      * @param  bool  $forClosedShiftsListing  Caissier avec branche : historique shifts fermés = tous les terminaux de cette branche (comme l’admin sur sa branche). Flux /caisse : pivot utilisateur-terminal.
      * @return Collection<int, PosTerminal>
      */
-    protected function posTerminalsForUser(?Branch $branch = null, bool $forClosedShiftsListing = false): Collection
+    protected function posTerminalsForUser(?Branch $branch = null, bool $forClosedShiftsListing = false, ?string $kind = null): Collection
     {
         $user = auth()->user();
         if (! $user) {
@@ -528,8 +530,17 @@ trait RespectsUserBranch
             return collect();
         }
 
+        $applyKindFilter = function ($q) use ($kind) {
+            if ($kind !== null) {
+                $q->where('kind', $kind);
+            }
+
+            return $q;
+        };
+
         if ($user->canBypassBranchScope()) {
             $q = PosTerminal::query()->with('location', 'branch');
+            $applyKindFilter($q);
             if ($branch !== null) {
                 $q->where('branch_id', $branch->id);
             }
@@ -541,6 +552,7 @@ trait RespectsUserBranch
             $q = PosTerminal::query()
                 ->with('location', 'branch')
                 ->where('branch_id', (int) $user->branch_id);
+            $applyKindFilter($q);
             if ($branch !== null) {
                 $q->where('branch_id', $branch->id);
             }
@@ -550,6 +562,9 @@ trait RespectsUserBranch
 
         if ($user->isPosUser() || $user->isCashier()) {
             $q = $user->posTerminals()->with('location', 'branch');
+            if ($kind !== null) {
+                $q->where('pos_terminals.kind', $kind);
+            }
             if ($branch !== null) {
                 $q->where('pos_terminals.branch_id', $branch->id);
             }
@@ -561,6 +576,7 @@ trait RespectsUserBranch
             $q = PosTerminal::query()
                 ->with('location', 'branch')
                 ->where('branch_id', $user->branch_id);
+            $applyKindFilter($q);
             if ($branch !== null) {
                 $q->where('branch_id', $branch->id);
             }
@@ -601,5 +617,82 @@ trait RespectsUserBranch
     protected function ensurePosTerminalForBranch(PosTerminal $terminal, Branch $branch): void
     {
         abort_unless((int) $terminal->branch_id === (int) $branch->id, 404);
+    }
+
+    protected function ensurePosTerminalKind(PosTerminal $terminal, string $kind): void
+    {
+        abort_unless($terminal->kind === $kind, 404);
+    }
+
+    protected function fieldPosStockLocation(): ?Location
+    {
+        return Setting::resolveFieldPosStockLocation();
+    }
+
+    /**
+     * Branches available when recording a field point-of-sale (mobile seller may sell for any branch).
+     *
+     * @return Collection<int, Branch>
+     */
+    protected function fieldSaleEntryBranches(): Collection
+    {
+        return Branch::query()->orderBy('name')->get(['id', 'name']);
+    }
+
+    protected function ensureFieldSaleEntryBranchAccessible(Branch $branch): void
+    {
+        abort_unless(
+            Branch::query()->whereKey($branch->id)->exists(),
+            404,
+        );
+    }
+
+    protected function ensureFieldPosStockConfigured(): ?RedirectResponse
+    {
+        if ($this->fieldPosStockLocation() !== null) {
+            return null;
+        }
+
+        if (auth()->user()?->isAdmin()) {
+            return redirect()
+                ->route('parametre.edit')
+                ->with('warning', 'Configurez la branche et l’emplacement de déstockage pour le point de vente dans les paramètres.');
+        }
+
+        return redirect()
+            ->route('point-de-vente.entry')
+            ->with('error', 'Le déstockage point de vente n’est pas configuré. Contactez un administrateur.');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function posRouteNames(PosTerminal $terminal): array
+    {
+        if ($terminal->isFieldPointOfSale()) {
+            return [
+                'entry' => 'point-de-vente.entry',
+                'workspace' => 'point-de-vente.workspace',
+                'sales_index' => 'point-de-vente.sales.index',
+                'choose_department' => 'point-de-vente.sale.choose-branch',
+                'create' => 'point-de-vente.sales.create',
+                'store' => 'point-de-vente.sales.store',
+                'shifts_open' => 'point-de-vente.shifts.open',
+                'shifts_close_review' => 'point-de-vente.shifts.close-review',
+                'shifts_close' => 'point-de-vente.shifts.close',
+            ];
+        }
+
+        return [
+            'entry' => 'sales.entry',
+            'workspace' => 'pos-terminal.workspace',
+            'sales_index' => 'pos-terminal.sales.index',
+            'choose_department' => 'sales.choose-department',
+            'create' => 'sales.create',
+            'store' => 'sales.store',
+            'shifts_open' => 'pos-terminal.shifts.open',
+            'shifts_close_review' => 'pos-terminal.shifts.close-review',
+            'shifts_close' => 'pos-terminal.shifts.close',
+        ];
     }
 }

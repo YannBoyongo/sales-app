@@ -9,11 +9,47 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class PosTerminal extends Model
 {
+    public const KIND_POS = 'pos';
+
+    public const KIND_FIELD = 'field';
+
     protected $fillable = [
         'branch_id',
+        'kind',
         'location_id',
         'name',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'branch_id' => 'integer',
+            'location_id' => 'integer',
+        ];
+    }
+
+    public function isFieldPointOfSale(): bool
+    {
+        return $this->kind === self::KIND_FIELD;
+    }
+
+    public function isClassicPos(): bool
+    {
+        return $this->kind === self::KIND_POS;
+    }
+
+    public function hasStockLocation(): bool
+    {
+        return $this->location_id !== null;
+    }
+
+    public static function kindLabel(string $kind): string
+    {
+        return match ($kind) {
+            self::KIND_FIELD => 'Point de vente',
+            default => 'Terminal POS',
+        };
+    }
 
     public function branch(): BelongsTo
     {

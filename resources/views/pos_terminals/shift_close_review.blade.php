@@ -93,7 +93,7 @@
                         </table>
                 </div>
 
-                <form action="{{ route('pos-terminal.shifts.close', [$branch, $posTerminal]) }}" method="POST" class="mt-8 space-y-6 border-t border-neutral-100 pt-8">
+                <form action="{{ route($routes['shifts_close'], [$branch, $posTerminal]) }}" method="POST" class="mt-8 space-y-6 border-t border-neutral-100 pt-8">
                     @csrf
                     <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-neutral-200 bg-neutral-50/50 p-4 transition hover:border-primary/25 hover:bg-primary/[0.03]">
                         <input
@@ -122,7 +122,7 @@
                             Confirmer et fermer la session
                         </button>
                         <a
-                            href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
+                            href="{{ route($routes['workspace'], [$branch, $posTerminal]) }}"
                             class="app-btn-secondary !px-6 !py-3"
                         >
                             Annuler

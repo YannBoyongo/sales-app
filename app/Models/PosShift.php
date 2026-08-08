@@ -11,6 +11,7 @@ class PosShift extends Model
 {
     protected $fillable = [
         'pos_terminal_id',
+        'stock_location_id',
         'opened_by',
         'session_date',
         'closed_by',
@@ -54,6 +55,11 @@ class PosShift extends Model
     public function posTerminal(): BelongsTo
     {
         return $this->belongsTo(PosTerminal::class);
+    }
+
+    public function stockLocation(): BelongsTo
+    {
+        return $this->belongsTo(Location::class, 'stock_location_id');
     }
 
     public function openedByUser(): BelongsTo

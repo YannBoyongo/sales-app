@@ -10,6 +10,9 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PendingActionController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\LocationController;
+use App\Http\Controllers\PointDeVenteEntryController;
+use App\Http\Controllers\PointDeVenteSaleController;
+use App\Http\Controllers\PointDeVenteShiftReportController;
 use App\Http\Controllers\PosShiftController;
 use App\Http\Controllers\PosTerminalController;
 use App\Http\Controllers\PosTerminalWorkspaceController;
@@ -141,6 +144,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('caisse/branches/{branch}/terminaux/{pos_terminal}/departements', [SaleItemController::class, 'chooseDepartment'])->name('sales.choose-department')->whereNumber(['branch', 'pos_terminal']);
     Route::get('caisse/branches/{branch}/terminaux/{pos_terminal}/departements/{department}/nouvelle', [SaleItemController::class, 'create'])->name('sales.create')->whereNumber(['branch', 'pos_terminal', 'department']);
     Route::post('caisse/branches/{branch}/terminaux/{pos_terminal}/departements/{department}/ventes', [SaleItemController::class, 'store'])->name('sales.store')->whereNumber(['branch', 'pos_terminal', 'department']);
+
+    Route::get('point-de-vente', [PointDeVenteEntryController::class, 'create'])->name('point-de-vente.entry');
+    Route::get('point-de-vente/branches/{branch}/terminaux/{pos_terminal}', [PosTerminalWorkspaceController::class, 'show'])->name('point-de-vente.workspace')->whereNumber(['branch', 'pos_terminal']);
+    Route::get('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/ventes', [PosTerminalWorkspaceController::class, 'sales'])->name('point-de-vente.sales.index')->whereNumber(['branch', 'pos_terminal']);
+    Route::post('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/shifts/open', [PosShiftController::class, 'open'])->name('point-de-vente.shifts.open')->whereNumber(['branch', 'pos_terminal']);
+    Route::get('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/shifts/close-review', [PosShiftController::class, 'confirmClose'])->name('point-de-vente.shifts.close-review')->whereNumber(['branch', 'pos_terminal']);
+    Route::post('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/shifts/close', [PosShiftController::class, 'close'])->name('point-de-vente.shifts.close')->whereNumber(['branch', 'pos_terminal']);
+    Route::get('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/vente/branches', [PointDeVenteSaleController::class, 'chooseBranch'])->name('point-de-vente.sale.choose-branch')->whereNumber(['branch', 'pos_terminal']);
+    Route::get('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/vente/branches/{entry_branch}/emplacements', [PointDeVenteSaleController::class, 'chooseLocation'])->name('point-de-vente.sale.choose-location')->whereNumber(['branch', 'pos_terminal', 'entry_branch']);
+    Route::get('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/vente/branches/{entry_branch}/emplacements/{location}/departements', [PointDeVenteSaleController::class, 'chooseDepartment'])->name('point-de-vente.sale.choose-department')->whereNumber(['branch', 'pos_terminal', 'entry_branch', 'location']);
+    Route::get('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/vente/branches/{entry_branch}/emplacements/{location}/departements/{department}/nouvelle', [SaleItemController::class, 'createFieldSale'])->name('point-de-vente.sales.create')->whereNumber(['branch', 'pos_terminal', 'entry_branch', 'location', 'department']);
+    Route::post('point-de-vente/branches/{branch}/terminaux/{pos_terminal}/vente/branches/{entry_branch}/emplacements/{location}/departements/{department}/ventes', [SaleItemController::class, 'storeFieldSale'])->name('point-de-vente.sales.store')->whereNumber(['branch', 'pos_terminal', 'entry_branch', 'location', 'department']);
+    Route::get('point-de-vente/shifts/report', [PointDeVenteShiftReportController::class, 'index'])->name('point-de-vente.shifts.report');
+    Route::delete('point-de-vente/shifts/report/{shift}', [PointDeVenteShiftReportController::class, 'destroy'])->name('point-de-vente.shifts.report.destroy')->whereNumber('shift');
+    Route::get('point-de-vente/shifts/report/{shift}', [PointDeVenteShiftReportController::class, 'show'])->name('point-de-vente.shifts.report.show')->whereNumber('shift');
 
     Route::get('ventes/nouvelle', fn () => redirect()->route('sales.entry', [], 301));
     Route::get('branches/{branch}/sales/create', function (Branch $branch) {

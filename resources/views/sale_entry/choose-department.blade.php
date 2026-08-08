@@ -25,7 +25,7 @@
             <div class="space-y-3">
                 @foreach ($departments as $d)
                     <a
-                        href="{{ route('sales.create', [$branch, $posTerminal, $d]) }}"
+                        href="{{ route($routes['create'], [$branch, $posTerminal, $d]) }}"
                         class="group flex items-center gap-4 rounded-xl border border-neutral-100 bg-gradient-to-br from-white to-neutral-50/80 p-4 transition-all duration-200 hover:border-primary/30 hover:from-primary/[0.04] hover:to-primary/[0.02] hover:shadow-lg hover:shadow-primary/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                     >
                         <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-teal-100 text-teal-800 transition group-hover:bg-teal-200/80">
@@ -47,7 +47,7 @@
 
         <x-slot name="footer">
             <a
-                href="{{ route('pos-terminal.workspace', [$branch, $posTerminal]) }}"
+                href="{{ route($routes['workspace'], [$branch, $posTerminal]) }}"
                 class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-100 hover:text-primary"
             >
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -56,14 +56,14 @@
                 Espace caisse
             </a>
             <a
-                href="{{ route('sales.choose-terminal', $branch) }}"
+                href="{{ route($routes['entry']) }}"
                 class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-100 hover:text-primary"
             >
                 Autre terminal
             </a>
             @if ($canPickAnotherBranch)
                 <a
-                    href="{{ route('sales.entry') }}"
+                    href="{{ route($routes['entry']) }}"
                     class="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition hover:bg-neutral-100 hover:text-primary"
                 >
                     Autre branche

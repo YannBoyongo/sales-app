@@ -147,6 +147,14 @@
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V5.25M2.25 18.75V5.25m0 13.5h15.75m-15.75 0v.75A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25v-.75m-18 0h18M18 12h.008v.008H18V12zm-3 0h.008v.008H15V12zm3-3h.008v.008H18V9zm-3 0h.008v.008H15V9z"/></svg>
                             <span>Terminal POS</span>
                         </a>
+                        <a href="{{ route('point-de-vente.entry') }}" class="app-nav-link {{ request()->routeIs(['point-de-vente.entry', 'point-de-vente.workspace', 'point-de-vente.sale.*', 'point-de-vente.sales.create', 'point-de-vente.sales.store', 'point-de-vente.shifts.open', 'point-de-vente.shifts.close-review', 'point-de-vente.shifts.close']) ? 'app-nav-link-active' : '' }}" title="Point de vente">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" /></svg>
+                            <span>Point de vente</span>
+                        </a>
+                        <a href="{{ route('point-de-vente.shifts.report') }}" class="app-nav-link {{ request()->routeIs('point-de-vente.shifts.report*') ? 'app-nav-link-active' : '' }}" title="Rapport de shift">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-3-13v4m6 13H6a2 2 0 01-2-2V7a2 2 0 012-2h3.5a1 1 0 00.8-.4l.9-1.2a1 1 0 01.8-.4H18a2 2 0 012 2v13a2 2 0 01-2 2z"/></svg>
+                            <span>Rapport de shift</span>
+                        </a>
                     @endif
                     @if (Auth::user()->canAccessPosSales() || Auth::user()->canAccessCashDeskFinanceFeatures())
                         <a href="{{ route('sales.overview') }}" class="app-nav-link {{ request()->routeIs('sales.overview') ? 'app-nav-link-active' : '' }}" title="Toutes les ventes">

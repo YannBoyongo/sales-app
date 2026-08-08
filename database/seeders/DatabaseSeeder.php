@@ -4,10 +4,9 @@ namespace Database\Seeders;
 
 use App\Models\Branch;
 use App\Models\Client;
-use App\Models\Location;
 use App\Models\Product;
 use App\Models\Role;
-use App\Models\Stock;
+use App\Models\Setting;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -21,6 +20,14 @@ class DatabaseSeeder extends Seeder
 
         $branch = Branch::query()->create(['name' => 'Goma']);
         // $branch_1 = Branch::query()->create(['name' => 'Bukavu']);
+
+        $mainLocation = $branch->mainLocation;
+        if ($mainLocation) {
+            Setting::current()->update([
+                'field_pos_stock_branch_id' => $branch->id,
+                'field_pos_stock_location_id' => $mainLocation->id,
+            ]);
+        }
 
         $admin = User::query()->create([
             'name' => 'Administrateur',
@@ -43,14 +50,6 @@ class DatabaseSeeder extends Seeder
             'branch_id' => $branch->id,
         ]);
         $cashier->roles()->sync(Role::query()->whereIn('slug', ['cashier', 'pos_user'])->pluck('id')->all());
-        $location = Location::query()->create([
-            'branch_id' => $branch->id,
-            'name' => 'Goma',
-        ]);
-        // $location_1 = Location::query()->create([
-        //     'branch_id' => $branch_1->id,
-        //     'name' => 'Bukavu',
-        // ]);
 
         $this->call(MotorcycleShopCatalogSeeder::class);
 

@@ -1,5 +1,6 @@
 @props([
     'step' => 1,
+    'totalSteps' => 3,
     'title',
     'description' => null,
     'contextLine' => null,
@@ -7,7 +8,7 @@
 
 <x-caisse-flow :title="$title" :description="$description" :context-line="$contextLine">
     <x-slot name="stepper">
-        <x-flow-sale-stepper :step="$step" />
+        <x-flow-sale-stepper :step="$step" :total-steps="$totalSteps" />
     </x-slot>
 
     {{ $slot }}

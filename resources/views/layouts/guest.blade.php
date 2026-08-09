@@ -15,10 +15,10 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-slate-100">
+    <body class="guest-auth font-sans antialiased bg-slate-100">
         <div class="flex min-h-screen flex-col items-center justify-center px-4 py-8 sm:px-6">
             <a href="{{ route('login') }}" class="mb-8 flex items-center gap-3">
-                <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-lg font-bold text-white shadow-lg shadow-primary/30">
+                <span class="flex h-11 w-11 items-center justify-center rounded-none bg-primary text-lg font-bold text-white shadow-lg shadow-primary/30">
                     {{ strtoupper(substr(config('app.name'), 0, 1)) }}
                 </span>
                 <span class="text-xl font-bold tracking-tight text-slate-900">{{ config('app.name') }}</span>

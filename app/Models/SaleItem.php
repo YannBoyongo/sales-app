@@ -13,6 +13,7 @@ class SaleItem extends Model
         'sale_id',
         'location_id',
         'product_id',
+        'is_addon',
         'stock_batch_id',
         'batch_number',
         'user_id',
@@ -30,6 +31,7 @@ class SaleItem extends Model
     protected function casts(): array
     {
         return [
+            'is_addon' => 'boolean',
             'unit_price' => 'decimal:2',
             'unit_cost' => 'decimal:2',
             'cost_total' => 'decimal:2',

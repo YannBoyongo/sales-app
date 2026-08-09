@@ -5,7 +5,8 @@
         <th class="px-4 py-3">Description</th>
         <th class="px-4 py-3">Type</th>
         <th class="px-4 py-3 text-right">Montant</th>
-        @if (auth()->user()?->isAdmin())
+        <th class="px-4 py-3">Branche</th>
+        @if (auth()->user()?->hasApplicationAdminAccess())
             <th class="px-4 py-3 text-right">Action</th>
         @endif
         @if (auth()->user()?->canAccessAccounting())

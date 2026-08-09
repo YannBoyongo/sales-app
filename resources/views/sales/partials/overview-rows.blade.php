@@ -2,7 +2,7 @@
     @php($terminal = $sale->posShift?->posTerminal)
     <tr @class([
         'hover:bg-neutral-50/80' => ! $sale->isPendingDiscount(),
-        'bg-amber-50/90 hover:bg-amber-100/80' => $sale->isPendingDiscount(),
+        'sales-row-pending-discount bg-amber-50/90 hover:bg-amber-100/80' => $sale->isPendingDiscount(),
     ])>
         <td class="px-4 py-3 font-mono text-neutral-800 whitespace-nowrap">{{ $sale->reference }}</td>
         <td class="px-4 py-3 text-neutral-700">

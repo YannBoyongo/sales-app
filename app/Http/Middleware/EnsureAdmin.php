@@ -10,7 +10,7 @@ class EnsureAdmin
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (! $request->user()?->isAdmin()) {
+        if (! $request->user()?->hasApplicationAdminAccess()) {
             abort(403, 'Accès réservé aux administrateurs.');
         }
 

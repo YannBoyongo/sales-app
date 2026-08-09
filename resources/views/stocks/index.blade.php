@@ -1,5 +1,5 @@
 @php
-    $showStockAdjustment = auth()->user()?->isAdmin()
+    $showStockAdjustment = auth()->user()?->hasApplicationAdminAccess()
         && isset($adjustmentProducts, $adjustmentLocations)
         && $adjustmentProducts->isNotEmpty()
         && $adjustmentLocations->isNotEmpty();
@@ -29,7 +29,7 @@
                             @if (auth()->user()->isPosUser())
                                 <span class="mt-2 block text-neutral-600">Votre branche et les colonnes affichées correspondent à votre affectation : seuls les emplacements liés à vos terminaux POS assignés apparaissent (pas les autres emplacements de la branche).</span>
                             @endif
-                            @if (auth()->user()->isAdmin())
+                            @if (auth()->user()->hasApplicationAdminAccess())
                                 <span class="mt-2 block text-neutral-500">En tant qu’administrateur, double-cliquez une cellule pour modifier la quantité, ou utilisez « Ajuster une quantité » (enregistré dans les mouvements de stock).</span>
                             @endif
                         </p>
@@ -113,7 +113,7 @@
                     Aucun emplacement dans votre périmètre pour la branche sélectionnée.
                 </div>
             @else
-                <div class="stocks-matrix-scroll">
+                <div class="stocks-matrix-scroll stocks-matrix-scroll--10-rows">
                     <table class="stocks-matrix-table text-sm">
                         <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                             <tr>

@@ -523,8 +523,10 @@ trait RespectsUserBranch
         $cashierBranchWideClosedShiftsOnly = $forClosedShiftsListing
             && $user->isCashier()
             && $user->branch_id;
+        $branchManagerClosedShiftsOnly = $forClosedShiftsListing
+            && $user->isBranchManager();
         $accountingMayListClosedShifts = $forClosedShiftsListing && $user->canAccessAccounting();
-        if (! $user->canAccessPosSales() && ! $cashierBranchWideClosedShiftsOnly && ! $accountingMayListClosedShifts) {
+        if (! $user->canAccessPosSales() && ! $cashierBranchWideClosedShiftsOnly && ! $branchManagerClosedShiftsOnly && ! $accountingMayListClosedShifts) {
             return collect();
         }
 
@@ -537,7 +539,7 @@ trait RespectsUserBranch
             return $q->orderBy('branch_id')->orderBy('name')->get();
         }
 
-        if ($cashierBranchWideClosedShiftsOnly) {
+        if ($cashierBranchWideClosedShiftsOnly || $branchManagerClosedShiftsOnly) {
             $q = PosTerminal::query()
                 ->with('location', 'branch')
                 ->where('branch_id', (int) $user->branch_id);
@@ -590,6 +592,10 @@ trait RespectsUserBranch
             return true;
         }
 
+        if ($user->isBranchAdmin() && (int) $user->branch_id === (int) $terminal->branch_id) {
+            return true;
+        }
+
         return false;
     }
 
@@ -601,5 +607,32 @@ trait RespectsUserBranch
     protected function ensurePosTerminalForBranch(PosTerminal $terminal, Branch $branch): void
     {
         abort_unless((int) $terminal->branch_id === (int) $branch->id, 404);
+    }
+
+    protected function resolveBranchIdForMutation(?int $requestedBranchId): int
+    {
+        $ids = $this->branchFilterIds();
+
+        if ($ids === null) {
+            if ($requestedBranchId !== null) {
+                return (int) $requestedBranchId;
+            }
+
+            if (Branch::query()->count() === 1) {
+                return (int) Branch::query()->orderBy('id')->value('id');
+            }
+
+            abort(422, 'La branche est obligatoire.');
+        }
+
+        if ($ids === []) {
+            abort(403, 'Aucune branche autorisée.');
+        }
+
+        if ($requestedBranchId !== null && ! in_array($requestedBranchId, $ids, true)) {
+            abort(403, 'Accès non autorisé pour cette branche.');
+        }
+
+        return (int) ($requestedBranchId ?? $ids[0]);
     }
 }

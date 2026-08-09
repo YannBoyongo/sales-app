@@ -133,7 +133,7 @@ class DiscountListReportController extends Controller
         $this->applyBranchFilter($query, 'sale_items.branch_id');
 
         $user = auth()->user();
-        if (! $user?->isAdmin() && ! $user?->canAccessCashDeskFinanceFeatures()) {
+        if (! $user?->hasApplicationAdminAccess() && ! $user?->canAccessCashDeskFinanceFeatures()) {
             $query->where('sale_items.user_id', $user->id);
         }
 

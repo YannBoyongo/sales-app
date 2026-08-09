@@ -17,7 +17,7 @@ class LocationController extends Controller
 {
     public function create(Branch $branch): View
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
 
         $stockManagerCandidates = User::query()
             ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::StockManager->value))
@@ -29,7 +29,7 @@ class LocationController extends Controller
 
     public function store(Request $request, Branch $branch): RedirectResponse
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -68,7 +68,7 @@ class LocationController extends Controller
 
     public function edit(Branch $branch, Location $location): View
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
         $this->ensureLocationBelongsToBranch($location, $branch);
 
         $stockManagerCandidates = User::query()
@@ -83,7 +83,7 @@ class LocationController extends Controller
 
     public function update(Request $request, Branch $branch, Location $location): RedirectResponse
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
         $this->ensureLocationBelongsToBranch($location, $branch);
 
         $data = $request->validate([
@@ -120,7 +120,7 @@ class LocationController extends Controller
 
     public function destroy(Request $request, Branch $branch, Location $location): RedirectResponse
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
         $this->ensureLocationBelongsToBranch($location, $branch);
 
         if ($location->isMain()) {

@@ -198,7 +198,7 @@
                         </div>
                     @endif
 
-                    @if (! empty($canConvertToPo) && auth()->user()?->isAdmin())
+                    @if (! empty($canConvertToPo) && auth()->user()?->hasApplicationAdminAccess())
                         <div class="rounded-xl border border-primary/20 bg-white/80 p-4 shadow-sm">
                             <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                                 <div>

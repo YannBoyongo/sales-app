@@ -18,34 +18,79 @@ class ClientController extends Controller
 {
     use RespectsUserBranch;
 
-    public function index(): View
+    public function index(Request $request): View
     {
-        $clients = Client::query()
+        $filters = $request->validate([
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+        ]);
+
+        $branchesForFilter = $this->branchesForUser();
+        $showsMultipleBranches = $branchesForFilter->count() > 1;
+
+        if (($filters['branch_id'] ?? null) !== null) {
+            abort_unless($branchesForFilter->contains('id', (int) $filters['branch_id']), 403);
+        }
+
+        $query = Client::query()
+            ->with('branch:id,name')
             ->withSum(['creditSales as total_credit_amount' => fn ($q) => $q], 'line_total')
             ->withSum('payments', 'amount')
-            ->orderBy('name')
-            ->paginate(20);
+            ->when($filters['branch_id'] ?? null, fn ($q, $value) => $q->where('branch_id', (int) $value));
 
-        return view('clients.index', compact('clients'));
+        $this->applyBranchFilter($query);
+
+        $clients = $query->orderBy('name')->paginate(20)->withQueryString();
+
+        return view('clients.index', compact(
+            'clients',
+            'filters',
+            'branchesForFilter',
+            'showsMultipleBranches',
+        ));
     }
 
     public function create(): View
     {
         abort_unless(auth()->user()?->canEditClientProfile(), 403);
 
-        return view('clients.create');
+        $branchesForFilter = $this->branchesForUser();
+        $showsMultipleBranches = $branchesForFilter->count() > 1;
+        $defaultBranch = $branchesForFilter->count() === 1 ? $branchesForFilter->first() : null;
+
+        return view('clients.create', compact('branchesForFilter', 'showsMultipleBranches', 'defaultBranch'));
     }
 
     public function store(Request $request): RedirectResponse
     {
         abort_unless($request->user()?->canEditClientProfile(), 403);
 
+        $branchesForFilter = $this->branchesForUser();
+        $showsMultipleBranches = $branchesForFilter->count() > 1;
+
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:clients,name'],
+            'branch_id' => [
+                Rule::requiredIf($showsMultipleBranches),
+                'nullable',
+                'integer',
+                'exists:branches,id',
+            ],
+            'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $client = Client::create($data);
+        $branchId = $this->resolveBranchIdForMutation($data['branch_id'] ?? null);
+
+        $request->validate([
+            'name' => [
+                Rule::unique('clients', 'name')->where(fn ($q) => $q->where('branch_id', $branchId)),
+            ],
+        ]);
+
+        $client = Client::create([
+            'branch_id' => $branchId,
+            'name' => $data['name'],
+            'phone' => $data['phone'] ?? null,
+        ]);
 
         return redirect()->route('clients.show', $client)->with('success', 'Client créé.');
     }
@@ -53,33 +98,59 @@ class ClientController extends Controller
     public function edit(Client $client): View
     {
         abort_unless(auth()->user()?->canEditClientProfile(), 403);
+        $this->ensureUserCanAccessClient($client);
 
-        return view('clients.edit', compact('client'));
+        $client->loadMissing('branch:id,name');
+        $branchesForFilter = $this->branchesForUser();
+        $showsMultipleBranches = $branchesForFilter->count() > 1;
+
+        return view('clients.edit', compact('client', 'branchesForFilter', 'showsMultipleBranches'));
     }
 
     public function update(Request $request, Client $client): RedirectResponse
     {
         abort_unless($request->user()?->canEditClientProfile(), 403);
+        $this->ensureUserCanAccessClient($client);
+
+        $branchesForFilter = $this->branchesForUser();
+        $showsMultipleBranches = $branchesForFilter->count() > 1;
+        $canChangeBranch = $showsMultipleBranches && auth()->user()?->canBypassBranchScope();
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255', Rule::unique('clients', 'name')->ignore($client->id)],
+            'branch_id' => [
+                Rule::requiredIf($canChangeBranch),
+                'nullable',
+                'integer',
+                'exists:branches,id',
+            ],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('clients', 'name')
+                    ->where(fn ($q) => $q->where('branch_id', $canChangeBranch ? (int) ($request->input('branch_id') ?? $client->branch_id) : $client->branch_id))
+                    ->ignore($client->id),
+            ],
             'phone' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $client->update($data);
+        if ($canChangeBranch) {
+            abort_unless($branchesForFilter->contains('id', (int) $data['branch_id']), 403);
+        }
+
+        $client->update([
+            'branch_id' => $canChangeBranch ? (int) $data['branch_id'] : $client->branch_id,
+            'name' => $data['name'],
+            'phone' => $data['phone'] ?? null,
+        ]);
 
         return redirect()->route('clients.show', $client)->with('success', 'Client mis à jour.');
     }
 
     public function show(Client $client): View
     {
-        $ids = $this->branchFilterIds();
-        if ($ids !== null) {
-            $accessible = $client->creditSales()
-                ->whereIn('branch_id', $ids)
-                ->exists();
-            abort_unless($accessible, 403, 'Accès non autorisé pour ce client.');
-        }
+        $this->ensureUserCanAccessClient($client);
+        $client->loadMissing('branch:id,name');
 
         $showFinanceDetail = auth()->user()?->canViewClientsLedger() ?? false;
 
@@ -120,13 +191,7 @@ class ClientController extends Controller
 
     public function storePayment(Request $request, Client $client): RedirectResponse
     {
-        $ids = $this->branchFilterIds();
-        if ($ids !== null) {
-            $accessible = $client->creditSales()
-                ->whereIn('branch_id', $ids)
-                ->exists();
-            abort_unless($accessible, 403, 'Accès non autorisé pour ce client.');
-        }
+        $this->ensureUserCanAccessClient($client);
 
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -161,6 +226,7 @@ class ClientController extends Controller
             }
 
             CashVoucher::query()->create([
+                'branch_id' => $client->branch_id,
                 'voucher_no' => 'CV-DETTE-'.$payment->id,
                 'date' => optional($payment->paid_at)->toDateString() ?? now()->toDateString(),
                 'description' => mb_substr($description, 0, 2000),
@@ -176,13 +242,7 @@ class ClientController extends Controller
 
     public function storeCautionDeposit(Request $request, Client $client): RedirectResponse
     {
-        $ids = $this->branchFilterIds();
-        if ($ids !== null) {
-            $accessible = $client->creditSales()
-                ->whereIn('branch_id', $ids)
-                ->exists();
-            abort_unless($accessible, 403, 'Accès non autorisé pour ce client.');
-        }
+        $this->ensureUserCanAccessClient($client);
 
         $data = $request->validate([
             'amount' => ['required', 'numeric', 'min:0.01'],
@@ -210,6 +270,7 @@ class ClientController extends Controller
             }
 
             CashVoucher::query()->create([
+                'branch_id' => $client->branch_id,
                 'voucher_no' => 'CV-CAUTION-'.$deposit->id,
                 'date' => optional($deposit->deposited_at)->toDateString() ?? now()->toDateString(),
                 'description' => mb_substr($description, 0, 2000),
@@ -225,11 +286,13 @@ class ClientController extends Controller
 
     public function destroyCautionDeposit(Client $client, ClientCautionDeposit $deposit): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
+        $this->ensureUserCanAccessClient($client);
 
         abort_unless((int) $deposit->client_id === (int) $client->id, 404);
 
         $voucher = CashVoucher::query()
+            ->where('branch_id', $client->branch_id)
             ->where('voucher_no', 'CV-CAUTION-'.$deposit->id)
             ->first();
 
@@ -247,11 +310,13 @@ class ClientController extends Controller
 
     public function destroyPayment(Client $client, Payment $payment): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
+        $this->ensureUserCanAccessClient($client);
 
         abort_unless((int) $payment->client_id === (int) $client->id, 404);
 
         $voucher = CashVoucher::query()
+            ->where('branch_id', $client->branch_id)
             ->where('voucher_no', 'CV-DETTE-'.$payment->id)
             ->first();
 
@@ -266,6 +331,14 @@ class ClientController extends Controller
         });
 
         return back()->with('success', 'Paiement supprimé.');
+    }
+
+    protected function ensureUserCanAccessClient(Client $client): void
+    {
+        $client->loadMissing('branch');
+        if ($client->branch !== null) {
+            $this->ensureUserCanAccessBranchModel($client->branch);
+        }
     }
 
     private function reverseSalePaymentIfApplicable(Payment $payment, Client $client, ?CashVoucher $voucher): void

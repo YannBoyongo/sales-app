@@ -11,6 +11,7 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
+            ['name' => 'Super Admin', 'slug' => UserRole::SuperAdmin->value],
             ['name' => 'Admin', 'slug' => UserRole::Admin->value],
             ['name' => 'Manager', 'slug' => UserRole::Manager->value],
             ['name' => 'Magasinier', 'slug' => UserRole::StockManager->value],

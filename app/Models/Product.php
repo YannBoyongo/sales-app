@@ -8,12 +8,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
-    protected $fillable = ['department_id', 'name', 'sku', 'description', 'unit_price', 'minimum_stock'];
+    protected $fillable = ['department_id', 'name', 'sku', 'description', 'unit_price', 'minimum_stock', 'sellable_as_addon'];
 
     protected function casts(): array
     {
         return [
             'unit_price' => 'decimal:2',
+            'sellable_as_addon' => 'boolean',
         ];
     }
 

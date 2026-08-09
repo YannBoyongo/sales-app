@@ -13,6 +13,25 @@
         <form method="POST" action="{{ route('clients.store') }}" class="space-y-4">
             @csrf
 
+            @if ($showsMultipleBranches)
+                <div>
+                    <x-input-label for="branch_id" value="Branche" />
+                    <select id="branch_id" name="branch_id" required class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
+                        <option value="">Choisir une branche</option>
+                        @foreach ($branchesForFilter as $branch)
+                            <option value="{{ $branch->id }}" @selected((string) old('branch_id', $defaultBranch?->id) === (string) $branch->id)>{{ $branch->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('branch_id')" class="mt-2" />
+                </div>
+            @elseif ($defaultBranch)
+                <div>
+                    <x-input-label value="Branche" />
+                    <input type="hidden" name="branch_id" value="{{ $defaultBranch->id }}" />
+                    <p class="mt-1 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-800">{{ $defaultBranch->name }}</p>
+                </div>
+            @endif
+
             <div>
                 <x-input-label for="name" value="Nom du client" />
                 <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name')" required autofocus />

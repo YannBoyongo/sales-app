@@ -21,7 +21,12 @@
             <div class="mt-5 grid gap-4 sm:grid-cols-2">
                 <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
                     <p class="text-xs uppercase tracking-wide text-neutral-500">Produit</p>
-                    <p class="mt-1 font-semibold text-neutral-900">{{ $saleItem->product->name }}</p>
+                    <p class="mt-1 font-semibold text-neutral-900">
+                        {{ $saleItem->product->name }}
+                        @if ($saleItem->is_addon)
+                            <span class="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-sky-800">Complément</span>
+                        @endif
+                    </p>
                     <p class="mt-1 text-xs text-neutral-600">{{ $saleItem->product->department?->name ?? '-' }}</p>
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
@@ -64,7 +69,16 @@
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
                     <p class="text-xs text-neutral-500">Prix unitaire</p>
-                    <p class="mt-1 font-semibold tabular-nums text-neutral-900">{{ \App\Support\Money::usd($saleItem->unit_price) }}</p>
+                    <p class="mt-1 font-semibold tabular-nums text-neutral-900">
+                        @if ($saleItem->is_addon)
+                            <span class="text-emerald-700">Gratuit</span>
+                            @if ((float) $saleItem->discount_amount > 0)
+                                <span class="ml-1 text-xs font-normal text-neutral-500">(valeur catalogue {{ \App\Support\Money::usd($saleItem->discount_amount) }})</span>
+                            @endif
+                        @else
+                            {{ \App\Support\Money::usd($saleItem->unit_price) }}
+                        @endif
+                    </p>
                 </div>
                 <div class="rounded-xl border border-neutral-200 bg-white px-4 py-3">
                     <p class="text-xs text-neutral-500">Lot</p>
@@ -88,7 +102,13 @@
                 </div>
                 <div class="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
                     <p class="text-xs text-neutral-600">Montant final</p>
-                    <p class="mt-1 text-xl font-semibold tabular-nums text-primary">{{ \App\Support\Money::usd($saleItem->line_total) }}</p>
+                    <p class="mt-1 text-xl font-semibold tabular-nums text-primary">
+                        @if ($saleItem->is_addon)
+                            <span class="text-emerald-700">Gratuit</span>
+                        @else
+                            {{ \App\Support\Money::usd($saleItem->line_total) }}
+                        @endif
+                    </p>
                 </div>
             </div>
         </aside>

@@ -93,7 +93,7 @@
                                     <a href="{{ route('pos-terminal.shifts.closed.show', $shift) }}" class="app-btn-secondary !px-3 !py-1.5 text-xs">
                                         Voir
                                     </a>
-                                    @if (auth()->user()?->isAdmin() && (int) $shift->sales_count === 0 && (int) ($shift->accounting_registered_count ?? 0) === 0)
+                                    @if (auth()->user()?->hasApplicationAdminAccess() && (int) $shift->sales_count === 0 && (int) ($shift->accounting_registered_count ?? 0) === 0)
                                         <form
                                             action="{{ route('pos-terminal.shifts.closed.destroy', $shift) }}"
                                             method="POST"

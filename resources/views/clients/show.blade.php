@@ -7,6 +7,9 @@
             @if ($client->phone)
                 <p class="app-page-desc">{{ $client->phone }}</p>
             @endif
+            @if ($client->branch)
+                <p class="text-sm text-neutral-600">Branche : <span class="font-medium text-neutral-800">{{ $client->branch->name }}</span></p>
+            @endif
             <p class="app-page-desc">
                 @if ($showFinanceDetail)
                     Suivi des ventes à crédit et paiements par échéances.
@@ -202,7 +205,7 @@
                                 <th class="py-3 pr-4">Enregistré par</th>
                                 <th class="py-3 pr-4">Note</th>
                                 <th class="py-3 pr-4 text-right">Montant</th>
-                                @if (auth()->user()?->isAdmin())
+                                @if (auth()->user()?->hasApplicationAdminAccess())
                                     <th class="py-3 text-right">Action</th>
                                 @endif
                             </tr>
@@ -214,7 +217,7 @@
                                     <td class="py-3 pr-4 text-neutral-700">{{ $deposit->user?->name ?? '-' }}</td>
                                     <td class="py-3 pr-4 text-neutral-700">{{ $deposit->note ?? '-' }}</td>
                                     <td class="py-3 pr-4 text-right tabular-nums font-medium text-sky-900">{{ \App\Support\Money::usd($deposit->amount) }}</td>
-                                    @if (auth()->user()?->isAdmin())
+                                    @if (auth()->user()?->hasApplicationAdminAccess())
                                         <td class="py-3 text-right">
                                             <form
                                                 action="{{ route('clients.caution-deposits.destroy', [$client, $deposit]) }}"
@@ -239,7 +242,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="{{ auth()->user()?->isAdmin() ? 5 : 4 }}" class="py-8 text-center text-neutral-500">Aucun dépôt de caution enregistré.</td>
+                                    <td colspan="{{ auth()->user()?->hasApplicationAdminAccess() ? 5 : 4 }}" class="py-8 text-center text-neutral-500">Aucun dépôt de caution enregistré.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -298,7 +301,7 @@
                             <th class="py-3 pr-4">Enregistré par</th>
                             <th class="py-3 pr-4">Note</th>
                             <th class="py-3 pr-4 text-right">Montant</th>
-                            @if (auth()->user()?->isAdmin())
+                            @if (auth()->user()?->hasApplicationAdminAccess())
                                 <th class="py-3 text-right">Action</th>
                             @endif
                         </tr>
@@ -310,7 +313,7 @@
                                 <td class="py-3 pr-4 text-neutral-700">{{ $payment->user?->name ?? '-' }}</td>
                                 <td class="py-3 pr-4 text-neutral-700">{{ $payment->note ?? '-' }}</td>
                                 <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($payment->amount) }}</td>
-                                @if (auth()->user()?->isAdmin())
+                                @if (auth()->user()?->hasApplicationAdminAccess())
                                     <td class="py-3 text-right">
                                         <form
                                             action="{{ route('clients.payments.destroy', [$client, $payment]) }}"
@@ -335,7 +338,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ auth()->user()?->isAdmin() ? 5 : 4 }}" class="py-8 text-center text-neutral-500">Aucun paiement enregistré.</td>
+                                <td colspan="{{ auth()->user()?->hasApplicationAdminAccess() ? 5 : 4 }}" class="py-8 text-center text-neutral-500">Aucun paiement enregistré.</td>
                             </tr>
                         @endforelse
                     </tbody>

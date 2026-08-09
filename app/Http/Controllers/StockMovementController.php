@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Product;
 use App\Models\Stock;
 use App\Models\StockMovement;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,7 @@ class StockMovementController extends Controller
 {
     use RespectsUserBranch;
 
-    public function index(): View
+    public function index(Request $request): View|JsonResponse
     {
         $query = StockMovement::query()
             ->with([
@@ -31,9 +32,34 @@ class StockMovementController extends Controller
 
         $this->applyStockMovementBranchFilter($query);
 
-        $movements = $query->paginate(25);
+        $movements = $query->paginate(20)->withQueryString();
 
-        return view('stock_movements.index', compact('movements'));
+        if ($request->boolean('infinite')) {
+            $nextPageUrl = null;
+            if ($movements->hasMorePages()) {
+                $nextPageUrl = $movements->nextPageUrl();
+                $nextPageUrl .= (str_contains($nextPageUrl, '?') ? '&' : '?').'infinite=1';
+            }
+
+            return response()->json([
+                'html' => view('stock_movements.partials.index-rows', [
+                    'movements' => $movements,
+                ])->render(),
+                'next_page_url' => $nextPageUrl,
+                'from' => $movements->firstItem(),
+                'to' => $movements->lastItem(),
+                'total' => $movements->total(),
+                'has_more' => $movements->hasMorePages(),
+            ]);
+        }
+
+        $infiniteNextPageUrl = null;
+        if ($movements->hasMorePages()) {
+            $infiniteNextPageUrl = $movements->nextPageUrl();
+            $infiniteNextPageUrl .= (str_contains($infiniteNextPageUrl, '?') ? '&' : '?').'infinite=1';
+        }
+
+        return view('stock_movements.index', compact('movements', 'infiniteNextPageUrl'));
     }
 
     public function create(): View

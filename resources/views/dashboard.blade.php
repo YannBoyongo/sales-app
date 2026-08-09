@@ -5,30 +5,45 @@
 
     <x-caisse-flow max-width="max-w-7xl" :with-card="false">
         <x-slot name="header">
-            <div>
-                <p class="app-page-eyebrow">Accueil</p>
-                <h1 class="app-page-title">
-                    Bonjour, {{ auth()->user()->name }}
-                </h1>
-                <p class="app-page-desc max-w-3xl">
-                    @if ($isAdmin)
-                        Vous voyez les indicateurs sur <span class="font-medium text-neutral-800">toutes les branches</span>.
-                        Gérez la structure (branches, départements, utilisateurs), les clients crédit, la comptabilité et les paramètres boutique.
-                        @if ($branchesCount !== null)
-                            <span class="text-neutral-500">- {{ $branchesCount }} branche{{ $branchesCount > 1 ? 's' : '' }}.</span>
-                        @endif
-                    @elseif ($isAccountant)
-                        Vue <span class="font-medium text-neutral-800">finances</span> sur toutes les branches : clients (crédit), comptabilité et indicateurs agrégés.
-                        Les réglages structurels et la gestion des utilisateurs restent réservés aux administrateurs.
-                    @else
-                        Espace <span class="font-medium text-neutral-800">point de vente et stock</span>
-                        @if ($userBranch)
-                            pour <span class="font-medium text-neutral-800">{{ $userBranch->name }}</span>
-                        @endif
-                        : ventes, stocks et produits accessibles à votre branche.
-                        La comptabilité et les clients (dette) sont accessibles aux administrateurs et aux comptables.
+            <div class="dashboard-hero">
+                <div class="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-white/70">Accueil</p>
+                        <h1 class="mt-2 text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                            Bonjour, {{ auth()->user()->name }}
+                        </h1>
+                        <p class="mt-3 max-w-3xl text-sm leading-relaxed text-white/85 sm:text-base">
+                            @if ($isAdmin)
+                                Vous voyez les indicateurs sur <span class="font-semibold text-white">toutes les branches</span>.
+                                Gérez la structure (branches, départements, utilisateurs), les clients crédit, la comptabilité et les paramètres boutique.
+                                @if ($branchesCount !== null)
+                                    <span class="text-white/70">- {{ $branchesCount }} branche{{ $branchesCount > 1 ? 's' : '' }}.</span>
+                                @endif
+                            @elseif ($isAccountant)
+                                Vue <span class="font-semibold text-white">finances</span> sur toutes les branches : clients (crédit), comptabilité et indicateurs agrégés.
+                                Les réglages structurels et la gestion des utilisateurs restent réservés aux administrateurs.
+                            @else
+                                Espace <span class="font-semibold text-white">point de vente et stock</span>
+                                @if ($userBranch)
+                                    pour <span class="font-semibold text-white">{{ $userBranch->name }}</span>
+                                @endif
+                                : ventes, stocks et produits accessibles à votre branche.
+                                La comptabilité et les clients (dette) sont accessibles aux administrateurs et aux comptables.
+                            @endif
+                        </p>
+                    </div>
+                    @if ($userBranch)
+                        <span class="inline-flex shrink-0 items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur-sm">
+                            {{ $userBranch->name }}
+                        </span>
+                    @elseif ($isAdmin && $branchesCount !== null)
+                        <span class="inline-flex shrink-0 items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur-sm">
+                            {{ $branchesCount }} branche{{ $branchesCount > 1 ? 's' : '' }}
+                        </span>
                     @endif
-                </p>
+                </div>
+                <div class="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/10 blur-2xl" aria-hidden="true"></div>
+                <div class="pointer-events-none absolute -bottom-20 left-1/3 h-40 w-40 rounded-full bg-primary-light/35 blur-3xl" aria-hidden="true"></div>
             </div>
         </x-slot>
 
@@ -90,27 +105,27 @@
 
             @if ($isAdmin && $monthlySalesTrend)
                 <div class="space-y-6">
-                    <div class="app-panel overflow-hidden">
-                        <div class="app-panel-header">
+                    <div class="app-panel overflow-hidden border-primary/15">
+                        <div class="dashboard-chart-header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h2 class="font-semibold text-neutral-900">Analyse des ventes</h2>
-                                <p class="mt-0.5 text-xs text-neutral-500">
+                                <h2 class="font-semibold">Analyse des ventes</h2>
+                                <p class="mt-0.5 text-xs text-white/70">
                                     {{ $monthlySalesTrend['month_label'] }} - {{ $monthlySalesTrend['total_count'] }} vente{{ $monthlySalesTrend['total_count'] > 1 ? 's' : '' }}
                                     · {{ \App\Support\Money::usd($monthlySalesTrend['total_amount']) }} (toutes branches)
                                 </p>
                             </div>
                             <form method="GET" action="{{ route('dashboard') }}" class="flex flex-wrap items-end gap-2">
                                 <div>
-                                    <label for="sales_month" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Mois</label>
-                                    <select id="sales_month" name="sales_month" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                                    <label for="sales_month" class="block text-[11px] font-semibold uppercase tracking-wide text-white/70">Mois</label>
+                                    <select id="sales_month" name="sales_month" class="mt-1 block rounded-lg border-white/30 bg-white px-2.5 py-1.5 text-sm text-primary-dark shadow-sm focus:border-white focus:ring-white/40" onchange="this.form.submit()">
                                         @foreach ($salesMonthOptions as $monthNumber => $monthLabel)
                                             <option value="{{ $monthNumber }}" @selected((int) $selectedSalesMonth === (int) $monthNumber)>{{ $monthLabel }}</option>
                                         @endforeach
                                     </select>
                                 </div>
                                 <div>
-                                    <label for="sales_year" class="block text-[11px] font-semibold uppercase tracking-wide text-neutral-500">Année</label>
-                                    <select id="sales_year" name="sales_year" class="mt-1 block rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" onchange="this.form.submit()">
+                                    <label for="sales_year" class="block text-[11px] font-semibold uppercase tracking-wide text-white/70">Année</label>
+                                    <select id="sales_year" name="sales_year" class="mt-1 block rounded-lg border-white/30 bg-white px-2.5 py-1.5 text-sm text-primary-dark shadow-sm focus:border-white focus:ring-white/40" onchange="this.form.submit()">
                                         @foreach ($salesYearOptions as $year)
                                             <option value="{{ $year }}" @selected((int) $selectedSalesYear === (int) $year)>{{ $year }}</option>
                                         @endforeach
@@ -121,22 +136,22 @@
                     </div>
 
                     <div class="grid gap-6 xl:grid-cols-2">
-                        <section class="app-panel overflow-hidden">
-                            <div class="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
-                                <h3 class="font-semibold text-neutral-900">Ventes quotidiennes</h3>
-                                <p class="mt-0.5 text-xs text-neutral-500">Évolution jour par jour sur le mois sélectionné</p>
+                        <section class="app-panel overflow-hidden border-primary/15">
+                            <div class="dashboard-chart-header">
+                                <h3 class="font-semibold">Ventes quotidiennes</h3>
+                                <p class="mt-0.5 text-xs text-white/70">Évolution jour par jour sur le mois sélectionné</p>
                             </div>
                             <div class="app-panel-body space-y-4">
-                                <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-neutral-600">
+                                <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-primary/10 bg-primary-soft/60 px-3 py-2.5 text-xs text-neutral-600">
                                     <div class="flex items-start gap-2">
-                                        <span class="mt-2 h-0.5 w-5 shrink-0 rounded-full bg-[#005EB8]" aria-hidden="true"></span>
+                                        <span class="mt-2 h-0.5 w-5 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
                                         <div>
                                             <p class="font-semibold text-neutral-800">Montant ($)</p>
                                             <p class="text-neutral-500">Total des ventes du jour - échelle à gauche</p>
                                         </div>
                                     </div>
                                     <div class="flex items-start gap-2">
-                                        <span class="mt-2 h-0.5 w-5 shrink-0 border-t-2 border-dashed border-slate-500" aria-hidden="true"></span>
+                                        <span class="mt-2 h-0.5 w-5 shrink-0 border-t-2 border-dashed border-primary-light" aria-hidden="true"></span>
                                         <div>
                                             <p class="font-semibold text-neutral-800">Nombre de ventes</p>
                                             <p class="text-neutral-500">Quantité de tickets du jour - échelle à droite</p>
@@ -160,15 +175,15 @@
                             </div>
                         </section>
 
-                        <section class="app-panel overflow-hidden">
-                            <div class="border-b border-slate-100 bg-slate-50/80 px-4 py-3 sm:px-5">
-                                <h3 class="font-semibold text-neutral-900">Ventes par branche</h3>
-                                <p class="mt-0.5 text-xs text-neutral-500">Répartition des ventes du mois sélectionné</p>
+                        <section class="app-panel overflow-hidden border-primary/15">
+                            <div class="dashboard-chart-header">
+                                <h3 class="font-semibold">Ventes par branche</h3>
+                                <p class="mt-0.5 text-xs text-white/70">Répartition des ventes du mois sélectionné</p>
                             </div>
                             <div class="app-panel-body space-y-4">
-                                <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-xs text-neutral-600">
+                                <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-primary/10 bg-primary-soft/60 px-3 py-2.5 text-xs text-neutral-600">
                                     <div class="flex items-start gap-2">
-                                        <span class="mt-1.5 h-3 w-3 shrink-0 rounded-full bg-[#005EB8]" aria-hidden="true"></span>
+                                        <span class="mt-1.5 h-3 w-3 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
                                         <div>
                                             <p class="font-semibold text-neutral-800">Parts du camembert</p>
                                             <p class="text-neutral-500">Chaque part = une branche, proportionnelle au montant des ventes</p>
@@ -237,7 +252,7 @@
                                             {
                                                 label: 'Nombre de ventes',
                                                 data: trend.counts,
-                                                borderColor: '#64748b',
+                                                borderColor: '#3379C6',
                                                 backgroundColor: 'transparent',
                                                 borderDash: [5, 4],
                                                 tension: 0.35,
@@ -299,8 +314,8 @@
                             if (branchCanvas) {
                                 const branchChart = @json($branchSalesChart);
                                 const palette = [
-                                    '#005EB8', '#0ea5e9', '#0369a1', '#64748b', '#94a3b8',
-                                    '#1d4ed8', '#0284c7', '#475569', '#334155', '#38bdf8',
+                                    '#003D7A', '#005EB8', '#3379C6', '#004E99', '#005EB8',
+                                    '#3379C6', '#003D7A', '#004E99', '#005EB8', '#3379C6',
                                 ];
                                 const entries = (branchChart.labels || []).map((label, index) => ({
                                     label,
@@ -380,22 +395,22 @@
             @endif
 
             <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-                <div class="app-stat-card">
-                    <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Ventes (7 jours)</p>
+                <div class="dashboard-stat-card border-t-4 border-t-primary">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-dark">Ventes (7 jours)</p>
                     <p class="mt-2 text-3xl font-semibold text-primary">{{ $weekSalesCount }}</p>
                     <p class="mt-1 text-sm text-neutral-600">Sur votre périmètre</p>
                 </div>
-                <div class="app-stat-card">
-                    <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Ventes aujourd’hui</p>
+                <div class="dashboard-stat-card dashboard-stat-card--soft border-t-4 border-t-primary-light">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-primary-dark">Ventes aujourd’hui</p>
                     <p class="mt-2 text-2xl font-semibold tabular-nums text-primary">{{ \App\Support\Money::usd($todaySalesTotal) }}</p>
-                    <p class="mt-1 text-xs text-neutral-500">
+                    <p class="mt-1 text-xs text-neutral-600">
                         {{ $todaySalesCount }} vente{{ $todaySalesCount > 1 ? 's' : '' }}
                         · Cash {{ \App\Support\Money::usd($todayCashTotal) }}
                         · Crédit {{ \App\Support\Money::usd($todayCreditTotal) }}
                     </p>
                 </div>
-                <div class="app-stat-card @if ($lowStocksCount > 0) border-red-200/90 bg-red-50/90 @endif">
-                    <p class="text-xs font-medium uppercase tracking-wide @if ($lowStocksCount > 0) text-red-800 @else text-neutral-500 @endif">Alertes stock</p>
+                <div class="dashboard-stat-card @if ($lowStocksCount > 0) border-t-4 border-t-red-500 bg-red-50/90 @else border-t-4 border-t-primary @endif">
+                    <p class="text-xs font-semibold uppercase tracking-wide @if ($lowStocksCount > 0) text-red-800 @else text-primary-dark @endif">Alertes stock</p>
                     <p class="mt-2 text-3xl font-semibold tabular-nums @if ($lowStocksCount > 0) text-red-700 @else text-primary @endif">{{ $lowStocksCount }}</p>
                     <p class="mt-1 text-sm @if ($lowStocksCount > 0) font-medium text-red-900 @else text-neutral-600 @endif">
                         @if ($lowStocksCount > 0)
@@ -407,31 +422,126 @@
                     <a href="{{ route('stocks.index') }}" class="mt-2 inline-block text-sm font-medium @if ($lowStocksCount > 0) text-red-800 underline decoration-red-300 hover:text-red-950 @else text-primary hover:underline @endif">Stocks →</a>
                 </div>
                 @if ($canAccessAccounting)
-                    <div class="app-stat-card border-primary/25 bg-primary/[0.06]">
-                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-600">Caisse comptable (cumul)</p>
-                        <p class="mt-2 text-2xl font-semibold tabular-nums text-primary">{{ \App\Support\Money::usd($accountingCaisse) }}</p>
-                        <p class="mt-1 text-sm text-neutral-600">Débit − crédit (toutes écritures)</p>
-                        <a href="{{ route('accounting.index') }}" class="mt-2 inline-block text-sm font-medium text-primary hover:underline">Comptabilité →</a>
+                    <div class="dashboard-stat-card dashboard-stat-card--dark">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-white/75">Caisse comptable (cumul)</p>
+                        <p class="mt-2 text-2xl font-semibold tabular-nums text-white">{{ \App\Support\Money::usd($accountingCaisse) }}</p>
+                        <p class="mt-1 text-sm text-white/80">Débit − crédit (toutes écritures)</p>
+                        <a href="{{ route('accounting.index') }}" class="mt-2 inline-block text-sm font-medium text-white/90 hover:text-white hover:underline">Comptabilité →</a>
                     </div>
                 @else
-                    <div class="app-stat-card">
-                        <p class="text-xs font-medium uppercase tracking-wide text-neutral-500">Produits (périmètre)</p>
-                        <p class="mt-2 text-3xl font-semibold text-neutral-900">{{ $productsCount }}</p>
+                    <div class="dashboard-stat-card dashboard-stat-card--accent border-t-4 border-t-primary-dark">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-primary-dark">Produits (périmètre)</p>
+                        <p class="mt-2 text-3xl font-semibold text-primary-dark">{{ $productsCount }}</p>
                         <p class="mt-1 text-sm text-neutral-600">{{ $seesAllBranches ? 'Vue agrégée (toutes branches)' : 'Liés à votre branche' }}</p>
                         <a href="{{ route('products.index') }}" class="mt-2 inline-block text-sm font-medium text-primary hover:underline">Produits →</a>
                     </div>
                 @endif
             </div>
 
-            <section class="app-panel overflow-hidden">
-                <div class="app-panel-header">
+            <section
+                class="app-panel overflow-hidden border-primary/15"
+                x-data="dashboardStockByDepartment({
+                    departments: @js($stockByDepartment),
+                    totalProducts: {{ (int) $productsInStockCount }},
+                    previewLimit: 5,
+                })"
+                x-init="init()"
+            >
+                <div class="dashboard-panel-header">
                     <div>
-                        <h2 class="font-semibold text-neutral-900">Ventes crédit - échéances</h2>
-                        <p class="mt-0.5 text-xs text-neutral-500">
+                        <h2 class="font-semibold text-primary-dark">Stocks par produit</h2>
+                        <p class="mt-0.5 text-xs text-neutral-600">
+                            Par département — 5 premiers produits par onglet
+                            @if (! $seesAllBranches)
+                                (votre branche)
+                            @endif
+                            , stock &gt; 0 uniquement.
+                        </p>
+                    </div>
+                    <a href="{{ route('stocks.quantities-by-department') }}" class="text-sm font-medium text-primary hover:text-primary-dark">Voir tout</a>
+                </div>
+
+                @if ($productsInStockCount === 0)
+                    <div class="px-5 py-10 text-center text-sm text-neutral-500">
+                        Aucun produit en stock sur votre périmètre.
+                    </div>
+                @else
+                    <div class="border-b border-neutral-100 bg-neutral-50/60 px-3 pt-2">
+                        <div class="flex gap-1 overflow-x-auto pb-0.5" role="tablist" aria-label="Départements">
+                            <template x-for="dept in departments" :key="dept.id">
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    :id="'stock-dept-tab-' + dept.id"
+                                    :aria-selected="activeDepartmentId === dept.id"
+                                    :aria-controls="'stock-dept-panel-' + dept.id"
+                                    @click="selectDepartment(dept.id)"
+                                    class="shrink-0 rounded-t-lg border border-b-0 px-3 py-2 text-xs font-semibold transition sm:px-4 sm:text-sm"
+                                    :class="activeDepartmentId === dept.id
+                                        ? 'border-primary/30 bg-white text-primary shadow-sm'
+                                        : 'border-transparent bg-transparent text-neutral-600 hover:bg-white/70 hover:text-primary-dark'"
+                                >
+                                    <span x-text="dept.name"></span>
+                                    <span
+                                        class="ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums"
+                                        :class="activeDepartmentId === dept.id ? 'bg-primary/10 text-primary' : 'bg-neutral-200/80 text-neutral-600'"
+                                        x-text="dept.product_count"
+                                    ></span>
+                                </button>
+                            </template>
+                        </div>
+                    </div>
+
+                    <template x-for="dept in departments" :key="'panel-' + dept.id">
+                        <div
+                            x-show="activeDepartmentId === dept.id"
+                            x-cloak
+                            role="tabpanel"
+                            :id="'stock-dept-panel-' + dept.id"
+                            :aria-labelledby="'stock-dept-tab-' + dept.id"
+                        >
+                            <ul class="divide-y divide-neutral-100">
+                                <template x-for="product in visibleProducts(dept)" :key="product.product_id">
+                                    <li class="flex items-center justify-between gap-4 px-5 py-3">
+                                        <div class="min-w-0">
+                                            <p class="font-medium text-neutral-900" x-text="product.product_name"></p>
+                                            <p class="text-xs text-neutral-500" x-text="product.product_sku || '—'"></p>
+                                        </div>
+                                        <p class="shrink-0 tabular-nums font-semibold text-primary-dark" x-text="product.total_quantity"></p>
+                                    </li>
+                                </template>
+                            </ul>
+                            <div class="flex flex-col gap-3 border-t border-neutral-100 bg-neutral-50/80 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                <p class="text-xs text-neutral-600">
+                                    <span x-text="dept.product_count"></span> produit<span x-show="dept.product_count > 1">s</span>
+                                    dans <span x-text="dept.name"></span>
+                                    · <span x-text="dept.total_quantity"></span> unités
+                                    <span x-show="dept.product_count > previewLimit">
+                                        · <span x-text="previewLimit"></span> affichés
+                                    </span>
+                                </p>
+                                <a
+                                    x-show="dept.product_count > previewLimit || totalProducts > previewLimit"
+                                    href="{{ route('stocks.quantities-by-department') }}"
+                                    class="app-btn-secondary !px-3 !py-1.5 !text-xs"
+                                >
+                                    Voir tout par département
+                                </a>
+                            </div>
+                        </div>
+                    </template>
+                @endif
+            </section>
+
+            <section class="app-panel overflow-hidden border-primary/15">
+                <div class="dashboard-panel-header">
+                    <div>
+                        <h2 class="font-semibold text-primary-dark">Ventes crédit - échéances</h2>
+                        <p class="mt-0.5 text-xs text-neutral-600">
                             Échéance atteinte ou dépassée, et échéances dans les {{ $creditDueSoonDays }} prochains jours (solde restant).
                         </p>
                     </div>
-                    <a href="{{ route('reports.credit-sales') }}" class="text-sm font-medium text-neutral-600 hover:text-primary">Rapport crédit</a>
+                    <a href="{{ route('reports.credit-sales') }}" class="text-sm font-medium text-primary hover:text-primary-dark">Rapport crédit</a>
                 </div>
 
                 @if ($creditDueReached->isNotEmpty())
@@ -506,17 +616,17 @@
             </section>
 
             <div class="grid gap-8 lg:grid-cols-2">
-                <section class="app-panel overflow-hidden">
-                    <div class="app-panel-header">
+                <section class="app-panel overflow-hidden border-primary/15">
+                    <div class="dashboard-panel-header">
                         <div>
-                            <h2 class="font-semibold text-neutral-900">Dernières ventes</h2>
-                            <p class="mt-0.5 text-xs text-neutral-500">Les 5 enregistrements les plus récents sur votre périmètre</p>
+                            <h2 class="font-semibold text-primary-dark">Dernières ventes</h2>
+                            <p class="mt-0.5 text-xs text-neutral-600">Les 5 enregistrements les plus récents sur votre périmètre</p>
                         </div>
-                        <a href="{{ route('sales.overview') }}" class="text-sm font-medium text-neutral-600 hover:text-primary">Tout voir</a>
+                        <a href="{{ route('sales.overview') }}" class="text-sm font-medium text-primary hover:text-primary-dark">Tout voir</a>
                     </div>
-                    <ul class="divide-y divide-neutral-100">
+                    <ul class="divide-y divide-primary/5">
                         @forelse ($recentSales as $sale)
-                            <li class="flex items-center justify-between gap-4 px-5 py-3 transition-colors hover:bg-neutral-50/80">
+                            <li class="flex items-center justify-between gap-4 px-5 py-3 transition-colors hover:bg-primary-soft/40">
                                 <div class="min-w-0">
                                     <p class="truncate font-mono font-medium text-neutral-900">{{ $sale->reference }}</p>
                                     @if ($seesAllBranches)
@@ -539,15 +649,17 @@
                     </ul>
                 </section>
 
-                <section class="app-panel overflow-hidden @if ($lowStocksCount > 0) !border-red-200/80 @endif">
-                    <div class="app-panel-header @if ($lowStocksCount > 0) !border-red-100 !bg-red-50/80 @endif">
+                <section class="app-panel overflow-hidden @if ($lowStocksCount > 0) !border-red-200/80 @else border-primary/15 @endif">
+                    <div class="dashboard-panel-header @if ($lowStocksCount > 0) !border-red-100 !from-red-50/80 !to-white @endif">
                         <div>
-                            <h2 class="font-semibold @if ($lowStocksCount > 0) text-red-900 @else text-neutral-900 @endif">Stocks bas</h2>
+                            <h2 class="font-semibold @if ($lowStocksCount > 0) text-red-900 @else text-primary-dark @endif">Stocks bas</h2>
                             @if ($lowStocksCount > 0)
                                 <p class="mt-0.5 text-xs font-medium text-red-800">5 premières lignes sous le seuil (emplacement ou produit) - voir la matrice pour la liste complète</p>
+                            @else
+                                <p class="mt-0.5 text-xs text-neutral-600">Aucune alerte sur votre périmètre</p>
                             @endif
                         </div>
-                        <a href="{{ route('stocks.index') }}" class="text-sm @if ($lowStocksCount > 0) font-medium text-red-800 hover:text-red-950 @else font-medium text-neutral-600 hover:text-primary @endif">Stocks</a>
+                        <a href="{{ route('stocks.index') }}" class="text-sm @if ($lowStocksCount > 0) font-medium text-red-800 hover:text-red-950 @else font-medium text-primary hover:text-primary-dark @endif">Stocks</a>
                     </div>
                     <ul class="divide-y divide-neutral-100">
                         @forelse ($lowStocks as $stock)
@@ -582,4 +694,31 @@
             </div>
         </div>
     </x-caisse-flow>
+
+    @push('scripts')
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('dashboardStockByDepartment', (config) => ({
+                departments: config.departments || [],
+                totalProducts: config.totalProducts || 0,
+                previewLimit: config.previewLimit || 5,
+                activeDepartmentId: null,
+
+                init() {
+                    if (this.departments.length > 0) {
+                        this.activeDepartmentId = this.departments[0].id;
+                    }
+                },
+
+                selectDepartment(id) {
+                    this.activeDepartmentId = id;
+                },
+
+                visibleProducts(dept) {
+                    return (dept?.products || []).slice(0, this.previewLimit);
+                },
+            }));
+        });
+    </script>
+    @endpush
 </x-app-layout>

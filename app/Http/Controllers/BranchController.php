@@ -24,7 +24,7 @@ class BranchController extends Controller
 
     public function show(Branch $branch): View
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
 
         $locations = $branch->locations()
             ->with('stockManagers:id,name')
@@ -42,47 +42,64 @@ class BranchController extends Controller
 
     public function create(): View
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
 
         return view('branches.create');
     }
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'can_sell_on_credit' => ['sometimes', 'boolean'],
+            'can_apply_discount' => ['sometimes', 'boolean'],
         ]);
 
-        Branch::create($data);
+        Branch::create([
+            'name' => $data['name'],
+            'can_sell_on_credit' => $request->user()->isSuperAdmin()
+                && $request->boolean('can_sell_on_credit'),
+            'can_apply_discount' => $request->user()->isSuperAdmin()
+                && $request->boolean('can_apply_discount'),
+        ]);
 
         return redirect()->route('branches.index')->with('success', 'Branche créée.');
     }
 
     public function edit(Branch $branch): View
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
 
         return view('branches.edit', compact('branch'));
     }
 
     public function update(Request $request, Branch $branch): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'can_sell_on_credit' => ['sometimes', 'boolean'],
+            'can_apply_discount' => ['sometimes', 'boolean'],
         ]);
 
-        $branch->update($data);
+        $payload = ['name' => $data['name']];
+
+        if ($request->user()->isSuperAdmin()) {
+            $payload['can_sell_on_credit'] = $request->boolean('can_sell_on_credit');
+            $payload['can_apply_discount'] = $request->boolean('can_apply_discount');
+        }
+
+        $branch->update($payload);
 
         return redirect()->route('branches.show', $branch)->with('success', 'Branche mise à jour.');
     }
 
     public function destroy(Request $request, Branch $branch): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
 
         if ($branch->locations()->exists()) {
             return redirect()->route('branches.index')->withErrors([

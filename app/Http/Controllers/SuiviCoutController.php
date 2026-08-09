@@ -32,7 +32,7 @@ class SuiviCoutController extends Controller
             ->orderByDesc('id')
             ->get();
 
-        return view('suivi-cout.index', [
+        return view('suivi-rentabilite.index', [
             'entries' => $entries,
             'costCenters' => CostCenter::query()->orderBy('name')->get(['id', 'name']),
             'transactionTypes' => CostTransactionType::query()->orderBy('name')->get(['id', 'name']),
@@ -117,7 +117,7 @@ class SuiviCoutController extends Controller
             $selectedCenter = $costCenters->firstWhere('id', (int) $filters['cost_center_id']);
         }
 
-        return view('suivi-cout.centres-report', [
+        return view('suivi-rentabilite.centres-report', [
             'costCenters' => $costCenters,
             'transactionTypes' => $transactionTypes,
             'selectedCenter' => $selectedCenter,
@@ -144,12 +144,12 @@ class SuiviCoutController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('suivi-cout.centres.index', compact('costCenters'));
+        return view('suivi-rentabilite.centres.index', compact('costCenters'));
     }
 
     public function editCostCenter(CostCenter $costCenter): View
     {
-        return view('suivi-cout.centres.edit', compact('costCenter'));
+        return view('suivi-rentabilite.centres.edit', compact('costCenter'));
     }
 
     public function updateCostCenter(Request $request, CostCenter $costCenter): RedirectResponse
@@ -163,7 +163,7 @@ class SuiviCoutController extends Controller
         ]);
 
         return redirect()
-            ->route('suivi-cout.centres.index')
+            ->route('suivi-rentabilite.centres.index')
             ->with('success', 'Centre de coût mis à jour.');
     }
 
@@ -171,7 +171,7 @@ class SuiviCoutController extends Controller
     {
         if ($costCenter->entries()->exists()) {
             return redirect()
-                ->route('suivi-cout.centres.index')
+                ->route('suivi-rentabilite.centres.index')
                 ->withErrors([
                     'cost_center' => 'Impossible de supprimer : des écritures utilisent ce centre de coût.',
                 ]);
@@ -180,7 +180,7 @@ class SuiviCoutController extends Controller
         $costCenter->delete();
 
         return redirect()
-            ->route('suivi-cout.centres.index')
+            ->route('suivi-rentabilite.centres.index')
             ->with('success', 'Centre de coût supprimé.');
     }
 
@@ -191,12 +191,12 @@ class SuiviCoutController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('suivi-cout.types.index', compact('transactionTypes'));
+        return view('suivi-rentabilite.types.index', compact('transactionTypes'));
     }
 
     public function editTransactionType(CostTransactionType $costTransactionType): View
     {
-        return view('suivi-cout.types.edit', compact('costTransactionType'));
+        return view('suivi-rentabilite.types.edit', compact('costTransactionType'));
     }
 
     public function updateTransactionType(Request $request, CostTransactionType $costTransactionType): RedirectResponse
@@ -210,7 +210,7 @@ class SuiviCoutController extends Controller
         ]);
 
         return redirect()
-            ->route('suivi-cout.types.index')
+            ->route('suivi-rentabilite.types.index')
             ->with('success', 'Type de transaction mis à jour.');
     }
 
@@ -218,7 +218,7 @@ class SuiviCoutController extends Controller
     {
         if ($costTransactionType->entries()->exists()) {
             return redirect()
-                ->route('suivi-cout.types.index')
+                ->route('suivi-rentabilite.types.index')
                 ->withErrors([
                     'transaction_type' => 'Impossible de supprimer : des écritures utilisent ce type de transaction.',
                 ]);
@@ -227,7 +227,7 @@ class SuiviCoutController extends Controller
         $costTransactionType->delete();
 
         return redirect()
-            ->route('suivi-cout.types.index')
+            ->route('suivi-rentabilite.types.index')
             ->with('success', 'Type de transaction supprimé.');
     }
 
@@ -304,7 +304,7 @@ class SuiviCoutController extends Controller
         }
 
         return redirect()
-            ->route('suivi-cout.centres.index')
+            ->route('suivi-rentabilite.centres.index')
             ->with('success', 'Centre de coût créé.');
     }
 
@@ -326,7 +326,7 @@ class SuiviCoutController extends Controller
         }
 
         return redirect()
-            ->route('suivi-cout.types.index')
+            ->route('suivi-rentabilite.types.index')
             ->with('success', 'Type de transaction créé.');
     }
 
@@ -355,7 +355,7 @@ class SuiviCoutController extends Controller
         return response()->json([
             'message' => $message,
             'balance' => $this->balanceService->currentBalance(),
-            'rows_html' => view('suivi-cout.partials.entries-body', compact('entries'))->render(),
+            'rows_html' => view('suivi-rentabilite.partials.entries-body', compact('entries'))->render(),
         ]);
     }
 

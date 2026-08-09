@@ -28,7 +28,9 @@
                         <td class="px-4 py-3">
                             <div class="flex flex-wrap gap-1">
                                 @forelse ($user->roles as $role)
-                                    @if ($role->slug === 'admin')
+                                    @if ($role->slug === 'super_admin')
+                                        <span class="rounded bg-violet-700 px-2 py-0.5 text-xs font-medium text-white">{{ $role->name }}</span>
+                                    @elseif ($role->slug === 'admin')
                                         <span class="rounded bg-primary px-2 py-0.5 text-xs font-medium text-white">{{ $role->name }}</span>
                                     @elseif ($role->slug === 'accountant')
                                         <span class="rounded border border-sky-300 bg-sky-50 px-2 py-0.5 text-xs font-semibold text-sky-900">{{ $role->name }}</span>
@@ -52,12 +54,16 @@
                             @endif
                         </td>
                         <td class="px-4 py-3 text-right space-x-2">
-                            <a href="{{ route('users.edit', $user) }}" class="text-neutral-700 underline-offset-2 hover:underline">Modifier</a>
-                            <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline" onsubmit="return confirm('Supprimer cet utilisateur ?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-neutral-600 underline-offset-2 hover:underline">Supprimer</button>
-                            </form>
+                            @if (auth()->user()->isSuperAdmin() || ! $user->isProtectedFromRegularAdmin())
+                                <a href="{{ route('users.edit', $user) }}" class="text-neutral-700 underline-offset-2 hover:underline">Modifier</a>
+                                <form action="{{ route('users.destroy', $user) }}" method="POST" class="inline" onsubmit="return confirm('Supprimer cet utilisateur ?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-neutral-600 underline-offset-2 hover:underline">Supprimer</button>
+                                </form>
+                            @else
+                                <span class="text-xs text-neutral-400">Réservé au super administrateur</span>
+                            @endif
                         </td>
                     </tr>
                 @endforeach

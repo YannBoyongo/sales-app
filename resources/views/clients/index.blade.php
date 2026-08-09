@@ -17,6 +17,24 @@
         @endif
     </div>
 
+    @if ($showsMultipleBranches)
+        <form method="GET" action="{{ route('clients.index') }}" class="app-filter-bar mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+                <label for="branch_id" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Branche</label>
+                <select id="branch_id" name="branch_id" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
+                    <option value="">Toutes</option>
+                    @foreach ($branchesForFilter as $branch)
+                        <option value="{{ $branch->id }}" @selected((string) ($filters['branch_id'] ?? '') === (string) $branch->id)>{{ $branch->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="flex items-end gap-2">
+                <button type="submit" class="app-btn-primary">Filtrer</button>
+                <a href="{{ route('clients.index') }}" class="app-btn-secondary">Réinitialiser</a>
+            </div>
+        </form>
+    @endif
+
     @php
         $showLedgerCols = auth()->user()?->canViewClientsLedger();
     @endphp
@@ -27,6 +45,9 @@
                 <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                     <tr>
                         <th class="py-3 pr-4">Client</th>
+                        @if ($showsMultipleBranches)
+                            <th class="py-3 pr-4">Branche</th>
+                        @endif
                         <th class="py-3 pr-4">Téléphone</th>
                         @if ($showLedgerCols)
                             <th class="py-3 pr-4 text-right">Total crédit</th>
@@ -45,6 +66,9 @@
                         @endphp
                         <tr>
                             <td class="py-3 pr-4 font-medium text-neutral-900">{{ $client->name }}</td>
+                            @if ($showsMultipleBranches)
+                                <td class="py-3 pr-4 text-neutral-700">{{ $client->branch?->name ?? '—' }}</td>
+                            @endif
                             <td class="py-3 pr-4 text-neutral-700">{{ $client->phone ?? '-' }}</td>
                             @if ($showLedgerCols)
                                 <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($totalCredit) }}</td>
@@ -62,7 +86,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $showLedgerCols ? 6 : 3 }}" class="py-8 text-center text-neutral-500">Aucun client pour le moment.</td>
+                            <td colspan="{{ ($showLedgerCols ? 6 : 3) + ($showsMultipleBranches ? 1 : 0) }}" class="py-8 text-center text-neutral-500">Aucun client pour le moment.</td>
                         </tr>
                     @endforelse
                 </tbody>

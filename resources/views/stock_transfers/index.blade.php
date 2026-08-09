@@ -7,7 +7,6 @@
             total: {{ $transfers->total() }},
             loadedTo: {{ $transfers->lastItem() ?? 0 }},
         })"
-        @scroll.window="onScroll()"
     >
         <x-page-header
             title="Transferts de stock"
@@ -22,7 +21,7 @@
         <form
             method="GET"
             action="{{ route('stock-transfers.index') }}"
-            class="app-filter-bar sticky top-16 z-20 mb-6 grid gap-3 border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-md sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8"
+            class="app-filter-bar mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8"
             x-data="stockTransferLocationFilters({
                 optionsByScope: @js($locationFilterOptions),
                 initialScope: @js($filters['transfer_scope'] ?? ''),
@@ -100,8 +99,8 @@
             </div>
         @endif
 
-        <div class="app-table-shell">
-            <table class="min-w-full divide-y divide-neutral-200 text-sm">
+        <div class="app-table-scroll-panel" x-ref="tableScroll" @scroll="onTableScroll()">
+            <table class="app-table-sticky-first-col min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                     <tr>
                         <th class="px-4 py-3">Réf.</th>
@@ -119,6 +118,7 @@
                     @include('stock_transfers.partials.index-rows')
                 </tbody>
             </table>
+            <div x-ref="sentinel" class="h-8 w-full" aria-hidden="true"></div>
         </div>
 
         <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -126,8 +126,6 @@
             <p class="text-sm text-neutral-500" x-show="loading" x-cloak>Chargement…</p>
             <p class="text-sm text-neutral-500" x-show="!loading && !nextPageUrl && total > 0" x-cloak>Fin de la liste</p>
         </div>
-
-        <div x-ref="sentinel" class="h-8 w-full" aria-hidden="true"></div>
 
         <button
             type="button"
@@ -202,7 +200,7 @@
                     observer: null,
 
                     init() {
-                        this.onScroll();
+                        this.onTableScroll();
                         this.$nextTick(() => this.setupObserver());
                     },
 
@@ -213,16 +211,17 @@
                         return `Affichage de 1 à ${this.loadedTo} sur ${this.total} transfert${this.total > 1 ? 's' : ''}`;
                     },
 
-                    onScroll() {
-                        this.showBackToTop = window.scrollY > 400;
+                    onTableScroll() {
+                        const scrollEl = this.$refs.tableScroll;
+                        this.showBackToTop = scrollEl ? scrollEl.scrollTop > 400 : false;
                     },
 
                     scrollToTop() {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.$refs.tableScroll?.scrollTo({ top: 0, behavior: 'smooth' });
                     },
 
                     setupObserver() {
-                        if (! this.$refs.sentinel || ! ('IntersectionObserver' in window)) {
+                        if (! this.$refs.sentinel || ! this.$refs.tableScroll || ! ('IntersectionObserver' in window)) {
                             return;
                         }
 
@@ -230,7 +229,7 @@
                             if (entries.some((entry) => entry.isIntersecting)) {
                                 this.loadMore();
                             }
-                        }, { rootMargin: '240px 0px' });
+                        }, { root: this.$refs.tableScroll, rootMargin: '120px 0px' });
 
                         this.observer.observe(this.$refs.sentinel);
                     },

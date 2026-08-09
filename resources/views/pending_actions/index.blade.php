@@ -87,18 +87,22 @@
                 </div>
                 <ul class="divide-y divide-neutral-100">
                     @foreach ($lowStocks as $stock)
-                        @php($seuil = $stock->minimum_stock ?? $stock->product->minimum_stock)
+                        @php
+                            $product = $stock->product;
+                            $location = $stock->location;
+                            $seuil = $stock->minimum_stock ?? $product?->minimum_stock;
+                        @endphp
                         <li class="border-l-4 border-red-500 bg-red-50/40 px-5 py-3">
-                            <p class="font-medium text-neutral-900">{{ $stock->product->name }}</p>
+                            <p class="font-medium text-neutral-900">{{ $product?->name ?? 'Produit introuvable' }}</p>
                             <p class="text-sm text-neutral-600">
-                                {{ $stock->location->name }}
+                                {{ $location?->name ?? 'Emplacement introuvable' }}
                                 @if ($seesAllBranches)
-                                    <span class="text-neutral-400">({{ $stock->location->branch->name }})</span>
+                                    <span class="text-neutral-400">({{ $location?->branch?->name ?? 'Branche introuvable' }})</span>
                                 @endif
                             </p>
                             <p class="mt-1 text-xs text-red-900/90">
                                 Qté actuelle : <span class="font-semibold tabular-nums">{{ $stock->quantity }}</span>
-                                - Seuil : <span class="font-semibold tabular-nums">{{ $seuil }}</span>
+                                - Seuil : <span class="font-semibold tabular-nums">{{ $seuil ?? '-' }}</span>
                             </p>
                         </li>
                     @endforeach

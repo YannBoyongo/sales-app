@@ -11,7 +11,7 @@
                         Suivez les commandes fournisseurs, réceptionnez les quantités sur l’emplacement choisi et consultez l’historique des réceptions.
                     </p>
                 </div>
-                @if (auth()->user()->isAdmin())
+                @if (auth()->user()->hasApplicationAdminAccess())
                     <a
                         href="{{ route('purchase-orders.create') }}"
                         class="app-btn-primary shrink-0"
@@ -52,7 +52,7 @@
                             <td class="px-4 py-3 text-neutral-700">{{ $po->creator?->name ?? '-' }}</td>
                             <td class="px-4 py-3 text-right">
                                 <div class="inline-flex flex-wrap items-center justify-end gap-2">
-                                    @if (auth()->user()->isAdmin() && ! $po->reception_started)
+                                    @if (auth()->user()->hasApplicationAdminAccess() && ! $po->reception_started)
                                         <a href="{{ route('purchase-orders.edit', $po) }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">Modifier</a>
                                     @endif
                                     <a href="{{ route('purchase-orders.show', $po) }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">Voir</a>

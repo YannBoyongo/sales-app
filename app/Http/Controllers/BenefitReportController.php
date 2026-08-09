@@ -82,7 +82,7 @@ class BenefitReportController extends Controller
     {
         $user = $request->user();
         abort_unless(
-            $user?->isAdmin() || $user?->canAccessCashDeskFinanceFeatures() || $user?->canAccessPosSales(),
+            $user?->hasApplicationAdminAccess() || $user?->canAccessCashDeskFinanceFeatures() || $user?->canAccessPosSales(),
             403
         );
 
@@ -111,7 +111,7 @@ class BenefitReportController extends Controller
 
         $this->applyBranchFilter($query, 'branch_id');
 
-        if (! $user?->isAdmin() && ! $user?->canAccessCashDeskFinanceFeatures()) {
+        if (! $user?->hasApplicationAdminAccess() && ! $user?->canAccessCashDeskFinanceFeatures()) {
             $query->where('user_id', $user->id);
         }
 

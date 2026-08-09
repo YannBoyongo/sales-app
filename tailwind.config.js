@@ -25,8 +25,8 @@ export default {
                 brand,
                 sidebar: {
                     DEFAULT: '#005EB8',
-                    hover: 'rgba(255, 255, 255, 0.12)',
-                    active: 'rgba(255, 255, 255, 0.18)',
+                    hover: '#003D7A',
+                    active: '#003D7A',
                     border: 'rgba(255, 255, 255, 0.15)',
                     muted: 'rgba(255, 255, 255, 0.7)',
                     text: '#FFFFFF',

@@ -1,7 +1,7 @@
 <x-login-layout>
     <div class="mb-8 lg:mb-10">
         <div class="mb-6 flex items-center gap-3 lg:hidden">
-            <span class="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-lg font-bold text-white shadow-md shadow-primary/25">
+            <span class="flex h-11 w-11 items-center justify-center rounded-none bg-primary text-lg font-bold text-white shadow-md shadow-primary/25">
                 {{ mb_strtoupper(mb_substr($appSetting?->shopname ?? config('app.name', 'A'), 0, 1)) }}
             </span>
             <div class="min-w-0">

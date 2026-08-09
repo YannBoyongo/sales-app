@@ -16,25 +16,25 @@
         <x-slot name="header">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <p class="app-page-eyebrow">Suivi de coût</p>
+                    <p class="app-page-eyebrow">Suivi de rentabilité</p>
                     <h1 class="app-page-title">Rapport par centre de coût</h1>
                     <p class="app-page-desc max-w-2xl">
                         Entrées, sorties et solde net pour un centre de coût sur la période choisie.
                     </p>
                 </div>
-                <a href="{{ route('suivi-cout') }}" class="app-btn-secondary shrink-0 self-start">
-                    Retour au suivi
+                <a href="{{ route('suivi-rentabilite') }}" class="app-btn-secondary shrink-0 self-start">
+                    Retour au suivi de rentabilité
                 </a>
             </div>
         </x-slot>
 
-        <form method="GET" action="{{ route('suivi-cout.centres-report') }}" class="app-filter-bar mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+        <form method="GET" action="{{ route('suivi-rentabilite.centres-report') }}" class="app-filter-bar mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <input type="hidden" name="loaded" value="1" />
 
             <div>
                 <label for="cost_center_id" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Centre de coût</label>
                 <select id="cost_center_id" name="cost_center_id" required class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
-                    <option value="">Choisir…</option>
+                    <option value="">Choisir...</option>
                     @foreach ($costCenters as $center)
                         <option value="{{ $center->id }}" @selected((string) ($filters['cost_center_id'] ?? '') === (string) $center->id)>
                             {{ $center->name }}
@@ -67,7 +67,7 @@
 
             <div class="flex items-end gap-2 md:col-span-2 xl:col-span-2">
                 <button type="submit" class="app-btn-primary">Charger</button>
-                <a href="{{ route('suivi-cout.centres-report') }}" class="app-btn-secondary">Réinitialiser</a>
+                <a href="{{ route('suivi-rentabilite.centres-report') }}" class="app-btn-secondary">Réinitialiser</a>
             </div>
         </form>
 
@@ -94,7 +94,7 @@
                                 <td colspan="2" class="px-4 py-3">
                                     <div class="flex items-center gap-2">
                                         <a
-                                            href="{{ route('suivi-cout.centres-report') }}"
+                                            href="{{ route('suivi-rentabilite.centres-report') }}"
                                             class="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-neutral-200 bg-white text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700"
                                             title="Fermer"
                                             aria-label="Fermer"
@@ -120,20 +120,20 @@
                                         {{ $entry->occurred_on->translatedFormat('d/m/Y') }}
                                     </td>
                                     <td class="px-4 py-3 text-neutral-800">
-                                        {{ $entry->description ?: '—' }}
+                                        {{ $entry->description ?: '-' }}
                                     </td>
                                     <td class="px-4 py-3 text-right tabular-nums">
                                         @if ($entry->isEntry())
                                             <span class="font-medium text-emerald-700">{{ \App\Support\Money::usd($entry->amount) }}</span>
                                         @else
-                                            <span class="text-red-400">—</span>
+                                            <span class="text-red-400">-</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-right tabular-nums">
                                         @if (! $entry->isEntry())
                                             <span class="font-medium text-red-700">{{ \App\Support\Money::usd($entry->amount) }}</span>
                                         @else
-                                            <span class="text-red-400">—</span>
+                                            <span class="text-red-400">-</span>
                                         @endif
                                     </td>
                                 </tr>

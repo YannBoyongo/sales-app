@@ -85,7 +85,7 @@ class StockController extends Controller
 
         $adjustmentLocations = collect();
         $adjustmentProducts = collect();
-        if (auth()->user()?->isAdmin()) {
+        if (auth()->user()?->hasApplicationAdminAccess()) {
             $adjustmentLocations = Location::query()
                 ->with('branch:id,name')
                 ->orderBy('name')
@@ -790,5 +790,63 @@ class StockController extends Controller
         }
 
         return $params;
+    }
+
+    public function quantitiesByDepartment(): View
+    {
+        $user = auth()->user();
+        $seesAllBranches = (bool) ($user?->canBypassBranchScope());
+
+        $rows = $this->productsInStockTotalsQuery()->get();
+
+        $departments = $rows
+            ->groupBy('department_id')
+            ->map(function ($products) {
+                $first = $products->first();
+
+                return [
+                    'id' => (int) $first->department_id,
+                    'name' => (string) $first->department_name,
+                    'products' => $products->sortBy('product_name', SORT_NATURAL | SORT_FLAG_CASE)->values(),
+                    'total_quantity' => (int) $products->sum('total_quantity'),
+                ];
+            })
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        $productsInStockCount = $rows->count();
+
+        return view('stocks.quantities_by_department', compact(
+            'departments',
+            'productsInStockCount',
+            'seesAllBranches',
+        ));
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Stock>
+     */
+    private function productsInStockTotalsQuery()
+    {
+        $query = Stock::query()
+            ->join('products', 'products.id', '=', 'stocks.product_id')
+            ->join('departments', 'departments.id', '=', 'products.department_id')
+            ->whereHas('location')
+            ->selectRaw('
+                products.id as product_id,
+                products.name as product_name,
+                products.sku as product_sku,
+                departments.id as department_id,
+                departments.name as department_name,
+                SUM(stocks.quantity) as total_quantity
+            ')
+            ->groupBy('products.id', 'products.name', 'products.sku', 'departments.id', 'departments.name')
+            ->havingRaw('SUM(stocks.quantity) > 0')
+            ->orderBy('departments.name')
+            ->orderBy('products.name');
+
+        $this->applyStockBranchFilter($query);
+
+        return $query;
     }
 }

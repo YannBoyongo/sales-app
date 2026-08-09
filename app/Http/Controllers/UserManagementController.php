@@ -17,20 +17,37 @@ class UserManagementController extends Controller
 {
     public function index(): View
     {
-        $users = User::query()->with(['branch', 'roles'])->orderBy('name')->paginate(20);
+        $this->authorizeUserManagement();
+
+        $query = User::query()->with(['branch', 'roles'])->orderBy('name');
+
+        if (! auth()->user()->isSuperAdmin()) {
+            $query->whereDoesntHave('roles', fn ($q) => $q->where('slug', UserRole::SuperAdmin->value));
+        }
+
+        if (auth()->user()->isBranchAdmin()) {
+            $query->where('branch_id', auth()->user()->branch_id);
+        }
+
+        $users = $query->paginate(20);
 
         return view('users.index', compact('users'));
     }
 
     public function create(): View
     {
-        $branches = Branch::orderBy('name')->get();
+        $this->authorizeUserManagement();
 
-        return view('users.create', compact('branches'));
+        $branches = $this->branchesForUserManagement();
+        $assignableRoles = auth()->user()->assignableRoles();
+
+        return view('users.create', compact('branches', 'assignableRoles'));
     }
 
     public function store(Request $request): RedirectResponse
     {
+        $this->authorizeUserManagement();
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', 'unique:users,username'],
@@ -49,13 +66,14 @@ class UserManagementController extends Controller
             ],
         ]);
 
-        $roleSlugs = collect((array) ($data['roles'] ?? []))
-            ->map(fn ($role) => $role instanceof UserRole ? $role->value : (string) $role)
-            ->values()
-            ->all();
+        $roleSlugs = $this->normalizeRoleSlugs((array) ($data['roles'] ?? []));
+
+        if ($error = $this->validateAssignableRoleSlugs($roleSlugs)) {
+            return back()->withInput()->withErrors(['roles' => $error]);
+        }
 
         $primaryRole = $this->primaryRoleSlug($roleSlugs);
-        $branchId = $this->resolveBranchIdForRoles($roleSlugs, $data['branch_id'] ?? null);
+        $branchId = $this->resolveBranchIdForRoles($roleSlugs, $data['branch_id'] ?? null, auth()->user());
 
         $user = User::create([
             'name' => $data['name'],
@@ -72,13 +90,20 @@ class UserManagementController extends Controller
 
     public function edit(User $user): View
     {
-        $branches = Branch::orderBy('name')->get();
+        $this->authorizeUserManagement();
+        $this->authorizeManageTargetUser($user);
 
-        return view('users.edit', compact('user', 'branches'));
+        $branches = $this->branchesForUserManagement();
+        $assignableRoles = auth()->user()->assignableRoles();
+
+        return view('users.edit', compact('user', 'branches', 'assignableRoles'));
     }
 
     public function update(Request $request, User $user): RedirectResponse
     {
+        $this->authorizeUserManagement();
+        $this->authorizeManageTargetUser($user);
+
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', Rule::unique('users', 'username')->ignore($user->id)],
@@ -97,10 +122,11 @@ class UserManagementController extends Controller
             ],
         ]);
 
-        $newRoleSlugs = collect((array) ($data['roles'] ?? []))
-            ->map(fn ($role) => $role instanceof UserRole ? $role->value : (string) $role)
-            ->values()
-            ->all();
+        $newRoleSlugs = $this->normalizeRoleSlugs((array) ($data['roles'] ?? []));
+
+        if ($error = $this->validateAssignableRoleSlugs($newRoleSlugs)) {
+            return back()->withInput()->withErrors(['roles' => $error]);
+        }
 
         if ($user->isAdmin() && ! in_array(UserRole::Admin->value, $newRoleSlugs, true)) {
             $otherAdmins = User::query()
@@ -110,6 +136,18 @@ class UserManagementController extends Controller
             if (! $otherAdmins) {
                 return back()->withInput()->withErrors([
                     'roles' => 'Au moins un administrateur doit rester actif.',
+                ]);
+            }
+        }
+
+        if ($user->isSuperAdmin() && ! in_array(UserRole::SuperAdmin->value, $newRoleSlugs, true)) {
+            $otherSuperAdmins = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::SuperAdmin->value))
+                ->exists();
+            if (! $otherSuperAdmins) {
+                return back()->withInput()->withErrors([
+                    'roles' => 'Au moins un super administrateur doit rester actif.',
                 ]);
             }
         }
@@ -125,7 +163,7 @@ class UserManagementController extends Controller
         $prevBranchId = $user->branch_id;
         $wasPosOrCashier = $user->isPosUser() || $user->isCashier();
 
-        $newBranchId = $this->resolveBranchIdForRoles($newRoleSlugs, $data['branch_id'] ?? null);
+        $newBranchId = $this->resolveBranchIdForRoles($newRoleSlugs, $data['branch_id'] ?? null, auth()->user());
         $newHasPosOrCashier = in_array(UserRole::PosUser->value, $newRoleSlugs, true)
             || in_array(UserRole::Cashier->value, $newRoleSlugs, true);
 
@@ -149,6 +187,9 @@ class UserManagementController extends Controller
 
     public function destroy(Request $request, User $user): RedirectResponse
     {
+        $this->authorizeUserManagement();
+        $this->authorizeManageTargetUser($user);
+
         if ($user->id === $request->user()->id) {
             return redirect()->route('users.index')->withErrors([
                 'user' => 'Vous ne pouvez pas supprimer votre propre compte.',
@@ -167,9 +208,76 @@ class UserManagementController extends Controller
             }
         }
 
+        if ($user->isSuperAdmin()) {
+            $otherSuperAdmins = User::query()
+                ->where('id', '!=', $user->id)
+                ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::SuperAdmin->value))
+                ->exists();
+            if (! $otherSuperAdmins) {
+                return redirect()->route('users.index')->withErrors([
+                    'user' => 'Impossible de supprimer le dernier super administrateur.',
+                ]);
+            }
+        }
+
         $user->delete();
 
         return redirect()->route('users.index')->with('success', 'Utilisateur supprimé.');
+    }
+
+    private function authorizeUserManagement(): void
+    {
+        abort_unless(auth()->user()?->canManageUsers(), 403);
+    }
+
+    private function authorizeManageTargetUser(User $user): void
+    {
+        $actor = auth()->user();
+
+        if ($actor?->isSuperAdmin()) {
+            return;
+        }
+
+        if ($user->isProtectedFromRegularAdmin()) {
+            abort(403, 'Seul un super administrateur peut modifier ce compte.');
+        }
+
+        if ($actor?->isBranchAdmin()) {
+            if ((int) ($user->branch_id ?? 0) !== (int) $actor->branch_id) {
+                abort(403, 'Vous ne pouvez gérer que les utilisateurs de votre branche.');
+            }
+        }
+    }
+
+    /**
+     * @param  list<string>  $roleSlugs
+     */
+    private function validateAssignableRoleSlugs(array $roleSlugs): ?string
+    {
+        $allowed = collect(auth()->user()->assignableRoles())->map->value->all();
+        $invalid = array_diff($roleSlugs, $allowed);
+
+        if ($invalid !== []) {
+            return 'Vous ne pouvez pas attribuer ces rôles.';
+        }
+
+        if ($roleSlugs === []) {
+            return 'Au moins un rôle est requis.';
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<mixed>  $roles
+     * @return list<string>
+     */
+    private function normalizeRoleSlugs(array $roles): array
+    {
+        return collect($roles)
+            ->map(fn ($role) => $role instanceof UserRole ? $role->value : (string) $role)
+            ->values()
+            ->all();
     }
 
     /**
@@ -178,6 +286,7 @@ class UserManagementController extends Controller
     private function primaryRoleSlug(array $roleSlugs): string
     {
         $priority = [
+            UserRole::SuperAdmin->value,
             UserRole::Admin->value,
             UserRole::Accountant->value,
             UserRole::Manager->value,
@@ -199,8 +308,12 @@ class UserManagementController extends Controller
     /**
      * @param  list<string>  $roleSlugs
      */
-    private function resolveBranchIdForRoles(array $roleSlugs, mixed $branchId): ?int
+    private function resolveBranchIdForRoles(array $roleSlugs, mixed $branchId, ?User $actor = null): ?int
     {
+        if ($actor?->isBranchAdmin()) {
+            return (int) $actor->branch_id;
+        }
+
         if ($this->branchIsOptionalForRoleSlugs($roleSlugs)) {
             return null;
         }
@@ -213,15 +326,32 @@ class UserManagementController extends Controller
      */
     private function branchIsOptionalForRoleSlugs(array $roleSlugs): bool
     {
-        return in_array(UserRole::Admin->value, $roleSlugs, true)
+        return in_array(UserRole::SuperAdmin->value, $roleSlugs, true)
+            || in_array(UserRole::Admin->value, $roleSlugs, true)
             || in_array(UserRole::Accountant->value, $roleSlugs, true)
             || in_array(UserRole::Logistician->value, $roleSlugs, true)
             || in_array(UserRole::StockManager->value, $roleSlugs, true);
     }
 
     /**
+     * @return \Illuminate\Support\Collection<int, Branch>
+     */
+    private function branchesForUserManagement(): \Illuminate\Support\Collection
+    {
+        $actor = auth()->user();
+
+        if ($actor?->isBranchAdmin()) {
+            return Branch::query()
+                ->whereKey($actor->branch_id)
+                ->orderBy('name')
+                ->get();
+        }
+
+        return Branch::orderBy('name')->get();
+    }
+
+    /**
      * @param  list<string>  $roleSlugs
-     * @return list<int>
      */
     private function roleIdsFromSlugs(array $roleSlugs): array
     {

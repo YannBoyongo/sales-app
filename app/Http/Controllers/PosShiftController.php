@@ -24,7 +24,7 @@ class PosShiftController extends Controller
 
     public function closed(Request $request): View
     {
-        abort_unless(auth()->user()?->canAccessCashDeskFinanceFeatures(), 403, 'Vous n’avez pas accès à cet historique.');
+        abort_unless(auth()->user()?->canAccessBranchCashDeskOverview(), 403, 'Vous n’avez pas accès à cet historique.');
 
         $filters = $request->validate([
             'registration' => ['nullable', 'in:registered,unregistered,all'],
@@ -148,14 +148,16 @@ class PosShiftController extends Controller
 
         $closedShiftsDescription = ($user?->isCashier() && ! $user->canAccessAccounting())
             ? 'Toutes les sessions fermées de votre branche (bons de caisse, suivi d’encaissement). Filtrez par enregistrement comptable si besoin.'
-            : 'Liste des sessions de caisse déjà clôturées pour les terminaux auxquels vous avez accès.';
+            : ($user?->isBranchManager() && ! $user->canBypassBranchScope()
+                ? 'Sessions de caisse clôturées de votre branche uniquement.'
+                : 'Liste des sessions de caisse déjà clôturées pour les terminaux auxquels vous avez accès.');
 
         return view('pos_terminals.closed_shifts', compact('shifts', 'filters', 'registrationFilter', 'closedShiftsDescription'));
     }
 
     public function showClosed(PosShift $shift): View
     {
-        abort_unless(auth()->user()?->canAccessCashDeskFinanceFeatures(), 403, 'Vous n’avez pas accès à cet historique.');
+        abort_unless(auth()->user()?->canAccessBranchCashDeskOverview(), 403, 'Vous n’avez pas accès à cet historique.');
         abort_if($shift->closed_at === null, 404);
 
         $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
@@ -183,7 +185,7 @@ class PosShiftController extends Controller
             );
         }
 
-        $canReopen = auth()->user()?->isAdmin()
+        $canReopen = auth()->user()?->hasApplicationAdminAccess()
             && $this->closedShiftCanBeReopened($shift);
 
         return view('pos_terminals.closed_shift_show', compact(
@@ -203,6 +205,10 @@ class PosShiftController extends Controller
         $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
         abort_unless(in_array((int) $shift->pos_terminal_id, $allowedTerminalIds, true), 403, 'Session non autorisée.');
 
+        $shift->loadMissing('posTerminal');
+        $branchId = $shift->posTerminal?->branch_id;
+        abort_unless($branchId !== null, 422, 'Branche du terminal introuvable.');
+
         $request->merge([
             'department_id' => (($v = $request->input('department_id')) !== null && $v !== '')
                 ? (int) $v
@@ -221,7 +227,7 @@ class PosShiftController extends Controller
                 'string',
                 'max:100',
                 'regex:/^[A-Za-zÀ-ÖØ-öø-ÿ0-9_\-. %\/]+$/u',
-                Rule::unique('cash_vouchers', 'voucher_no'),
+                Rule::unique('cash_vouchers', 'voucher_no')->where(fn ($q) => $q->where('branch_id', $branchId)),
             ],
         ]);
 
@@ -266,6 +272,7 @@ class PosShiftController extends Controller
         }
 
         CashVoucher::query()->create([
+            'branch_id' => $branchId,
             'voucher_no' => $voucherNo,
             'pos_shift_id' => $shift->id,
             'department_id' => $selected['department']?->id,
@@ -287,7 +294,7 @@ class PosShiftController extends Controller
 
     public function destroyClosed(Request $request, PosShift $shift): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless($request->user()?->hasApplicationAdminAccess(), 403);
         abort_if($shift->closed_at === null, 404);
 
         $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
@@ -315,7 +322,7 @@ class PosShiftController extends Controller
 
     public function reopenClosed(Request $request, PosShift $shift): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless($request->user()?->hasApplicationAdminAccess(), 403);
         abort_if($shift->closed_at === null, 404);
 
         $allowedTerminalIds = $this->posTerminalsForUser(null, true)->pluck('id')->all();
@@ -639,14 +646,20 @@ class PosShiftController extends Controller
     /** Bon de caisse créé depuis la clôture pour cette ligne département (référence par défaut ou pivot sur le shift). */
     private function departmentRowHasShiftCashVoucher(PosShift $shift, ?int $departmentId): bool
     {
+        $shift->loadMissing('posTerminal');
+        $branchId = $shift->posTerminal?->branch_id;
+
         $suffix = $departmentId === null ? 'ND' : (string) $departmentId;
         $defaultVoucherNo = sprintf('CV-SHIFT-%d-%s', $shift->id, $suffix);
 
-        if (CashVoucher::query()->where('voucher_no', $defaultVoucherNo)->exists()) {
+        $baseQuery = CashVoucher::query()
+            ->when($branchId !== null, fn (Builder $q) => $q->where('branch_id', $branchId));
+
+        if ((clone $baseQuery)->where('voucher_no', $defaultVoucherNo)->exists()) {
             return true;
         }
 
-        return CashVoucher::query()
+        return (clone $baseQuery)
             ->where('pos_shift_id', $shift->id)
             ->when($departmentId === null, fn (Builder $q) => $q->whereNull('department_id'),
                 fn (Builder $q) => $q->where('department_id', $departmentId))

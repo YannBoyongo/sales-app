@@ -1,14 +1,14 @@
 <x-app-layout>
-    <x-slot name="header">Suivi de coût</x-slot>
+    <x-slot name="header">Suivi de rentabilité</x-slot>
 
     <div
         x-data="suiviCoutPage({
             costCenters: @js($costCenters),
             transactionTypes: @js($transactionTypes),
-            storeEntryUrl: @js(route('suivi-cout.entries.store')),
-            updateEntryUrl: @js(url('/suivi-cout/entries')),
-            storeCenterUrl: @js(route('suivi-cout.centres.store')),
-            storeTypeUrl: @js(route('suivi-cout.types.store')),
+            storeEntryUrl: @js(route('suivi-rentabilite.entries.store')),
+            updateEntryUrl: @js(url('/suivi-rentabilite/entries')),
+            storeCenterUrl: @js(route('suivi-rentabilite.centres.store')),
+            storeTypeUrl: @js(route('suivi-rentabilite.types.store')),
             listFilters: @js($filters),
             csrf: @js(csrf_token()),
         })"
@@ -18,19 +18,19 @@
             <x-slot name="header">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                        <p class="app-page-eyebrow">Suivi de coût</p>
-                        <h1 class="app-page-title">Suivi de coût</h1>
+                        <p class="app-page-eyebrow">Suivi de rentabilité</p>
+                        <h1 class="app-page-title">Suivi de rentabilité</h1>
                         <p class="app-page-desc max-w-2xl">
-                            Mouvements financiers par centre de coût et type de transaction.
+                            Suivi des mouvements financiers et analyse de rentabilité par centre et type de transaction.
                         </p>
                         <nav class="mt-4 flex flex-wrap gap-2">
-                            <a href="{{ route('suivi-cout.centres.index') }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">
+                            <a href="{{ route('suivi-rentabilite.centres.index') }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">
                                 Centres de coût
                             </a>
-                            <a href="{{ route('suivi-cout.types.index') }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">
+                            <a href="{{ route('suivi-rentabilite.types.index') }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">
                                 Types de transaction
                             </a>
-                            <a href="{{ route('suivi-cout.centres-report') }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">
+                            <a href="{{ route('suivi-rentabilite.centres-report') }}" class="inline-flex items-center rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 shadow-sm hover:bg-neutral-50">
                                 Rapport par centre
                             </a>
                         </nav>
@@ -52,7 +52,7 @@
                 x-text="flashMessage"
             ></div>
 
-            <form method="GET" action="{{ route('suivi-cout') }}" class="app-filter-bar mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <form method="GET" action="{{ route('suivi-rentabilite') }}" class="app-filter-bar mb-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
                 <div class="xl:col-span-2">
                     <label for="q" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Recherche</label>
                     <input
@@ -82,7 +82,7 @@
                 </div>
                 <div class="flex items-end gap-2 md:col-span-2 xl:col-span-5">
                     <button type="submit" class="app-btn-primary">Filtrer</button>
-                    <a href="{{ route('suivi-cout') }}" class="app-btn-secondary">Réinitialiser</a>
+                    <a href="{{ route('suivi-rentabilite') }}" class="app-btn-secondary">Réinitialiser</a>
                 </div>
             </form>
 
@@ -102,7 +102,7 @@
                             </tr>
                         </thead>
                         <tbody id="cost-tracking-body" class="divide-y divide-neutral-100 bg-white" @click="handleTableClick($event)">
-                            @include('suivi-cout.partials.entries-body', ['entries' => $entries])
+                            @include('suivi-rentabilite.partials.entries-body', ['entries' => $entries])
                         </tbody>
                     </table>
                 </div>

@@ -14,10 +14,10 @@ class PendingActionController extends Controller
 
     public function __invoke(): View
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
 
         $user = auth()->user();
-        $isAdmin = (bool) ($user?->isAdmin());
+        $isAdmin = (bool) ($user?->hasApplicationAdminAccess());
         $seesAllBranches = (bool) ($user?->canBypassBranchScope());
 
         $pendingDiscountCount = 0;
@@ -38,7 +38,9 @@ class PendingActionController extends Controller
         }
 
         $lowStocksQuery = Stock::query()
-            ->with(['product:id,name,department_id', 'location:id,name,branch_id', 'location.branch:id,name'])
+            ->with(['product:id,name,department_id,minimum_stock', 'location:id,name,branch_id', 'location.branch:id,name'])
+            ->whereHas('product')
+            ->whereHas('location')
             ->join('products', 'products.id', '=', 'stocks.product_id')
             ->whereRaw('COALESCE(stocks.minimum_stock, products.minimum_stock) IS NOT NULL')
             ->whereRaw('stocks.quantity < COALESCE(stocks.minimum_stock, products.minimum_stock)')

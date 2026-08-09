@@ -8,7 +8,29 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Branch extends Model
 {
-    protected $fillable = ['name'];
+    protected $fillable = [
+        'name',
+        'can_sell_on_credit',
+        'can_apply_discount',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'can_sell_on_credit' => 'boolean',
+            'can_apply_discount' => 'boolean',
+        ];
+    }
+
+    public function allowsDealerCreditSales(): bool
+    {
+        return (bool) $this->can_sell_on_credit;
+    }
+
+    public function allowsLineDiscount(): bool
+    {
+        return (bool) $this->can_apply_discount;
+    }
 
     public function locations(): HasMany
     {
@@ -40,5 +62,15 @@ class Branch extends Model
     public function posTerminals(): HasMany
     {
         return $this->hasMany(PosTerminal::class)->orderBy('name');
+    }
+
+    public function clients(): HasMany
+    {
+        return $this->hasMany(Client::class);
+    }
+
+    public function cashVouchers(): HasMany
+    {
+        return $this->hasMany(CashVoucher::class);
     }
 }

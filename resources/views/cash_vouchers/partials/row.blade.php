@@ -21,7 +21,8 @@
         @endif
     </td>
     <td class="px-4 py-3 text-right font-medium tabular-nums text-neutral-900">{{ number_format((float) $voucher->amount, 2, ',', ' ') }}</td>
-    @if (auth()->user()?->isAdmin())
+    <td class="px-4 py-3 text-neutral-700">{{ $voucher->branch?->name ?? '—' }}</td>
+    @if (auth()->user()?->hasApplicationAdminAccess())
         <td class="px-4 py-3 text-right">
             <div class="inline-flex items-center justify-end gap-1">
                 @if (! $voucher->approved_at)

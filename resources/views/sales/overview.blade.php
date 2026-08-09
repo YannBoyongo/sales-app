@@ -7,7 +7,6 @@
             total: {{ $sales->total() }},
             loadedTo: {{ $sales->lastItem() ?? 0 }},
         })"
-        @scroll.window="onScroll()"
     >
         <x-page-header title="Toutes les ventes" :action="auth()->user()?->canAccessPosSales() ? 'Nouvelle vente' : null" :action-href="auth()->user()?->canAccessPosSales() ? route('sales.entry') : null" />
 
@@ -23,15 +22,15 @@
                 </p>
                 <div class="flex flex-wrap gap-2">
                     @if (request()->boolean('remise'))
-                        <a href="{{ route('sales.overview', request()->only(['date_from', 'date_to', 'pos_terminal_id', 'payment_type'])) }}" class="inline-flex items-center rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100">Toutes les ventes</a>
+                        <a href="{{ route('sales.overview', request()->only(['date_from', 'date_to', 'branch_id', 'pos_terminal_id', 'payment_type'])) }}" class="inline-flex items-center rounded-md border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium text-amber-900 hover:bg-amber-100">Toutes les ventes</a>
                     @else
-                        <a href="{{ route('sales.overview', array_merge(request()->only(['date_from', 'date_to', 'pos_terminal_id', 'payment_type']), ['remise' => 1])) }}" class="inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15">Voir les remises en attente</a>
+                        <a href="{{ route('sales.overview', array_merge(request()->only(['date_from', 'date_to', 'branch_id', 'pos_terminal_id', 'payment_type']), ['remise' => 1])) }}" class="inline-flex items-center rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/15">Voir les remises en attente</a>
                     @endif
                 </div>
             </div>
         @endif
 
-        <form method="GET" action="{{ route('sales.overview') }}" class="app-filter-bar sticky top-16 z-20 mb-6 grid gap-3 border border-slate-200/80 bg-white/95 shadow-md backdrop-blur-md sm:grid-cols-2 lg:grid-cols-6">
+        <form method="GET" action="{{ route('sales.overview') }}" class="app-filter-bar mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
             @if (request()->boolean('remise'))
                 <input type="hidden" name="remise" value="1" />
             @endif
@@ -43,13 +42,24 @@
                 <label for="date_to" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date au</label>
                 <input id="date_to" name="date_to" type="date" value="{{ old('date_to', $filters['date_to'] ?? '') }}" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" />
             </div>
+            @if ($showsMultipleBranches)
+                <div>
+                    <label for="branch_id" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Branche</label>
+                    <select id="branch_id" name="branch_id" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
+                        <option value="">Toutes</option>
+                        @foreach ($branchesForFilter as $branch)
+                            <option value="{{ $branch->id }}" @selected((string) ($filters['branch_id'] ?? '') === (string) $branch->id)>{{ $branch->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
             <div>
                 <label for="pos_terminal_id" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Point de vente</label>
                 <select id="pos_terminal_id" name="pos_terminal_id" class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
                     <option value="">Tous</option>
                     @foreach ($posTerminals as $terminal)
                         <option value="{{ $terminal->id }}" @selected((string) ($filters['pos_terminal_id'] ?? '') === (string) $terminal->id)>
-                            @if ($showsMultipleBranches)
+                            @if ($showsMultipleTerminalBranches)
                                 {{ $terminal->branch->name }} - {{ $terminal->name }}
                             @else
                                 {{ $terminal->name }}
@@ -78,8 +88,41 @@
             </div>
         @endif
 
-        <div class="app-table-shell">
-            <table class="min-w-full divide-y divide-neutral-200 text-sm">
+        @if (! empty($branchTotals))
+            <div class="mb-6 overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-sm">
+                <div class="border-b border-neutral-100 px-4 py-3">
+                    <h2 class="text-sm font-semibold text-neutral-900">Totaux par branche</h2>
+                    <p class="text-xs text-neutral-500">Répartition des ventes filtrées (hors pagination).</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-neutral-50 text-left text-xs font-semibold uppercase tracking-wide text-neutral-500">
+                            <tr>
+                                <th class="px-4 py-3">Branche</th>
+                                <th class="px-4 py-3 text-right">Ventes</th>
+                                <th class="px-4 py-3 text-right">Total</th>
+                                <th class="px-4 py-3 text-right">Payé</th>
+                                <th class="px-4 py-3 text-right">Solde</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-neutral-100">
+                            @foreach ($branchTotals as $row)
+                                <tr>
+                                    <td class="px-4 py-3 font-medium text-neutral-900">{{ $row['branch_name'] }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ number_format($row['count'], 0, ',', ' ') }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($row['expected']) }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($row['paid']) }}</td>
+                                    <td class="px-4 py-3 text-right tabular-nums">{{ \App\Support\Money::usd($row['remaining']) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
+
+        <div class="app-table-scroll-panel" x-ref="tableScroll" @scroll="onTableScroll()">
+            <table class="app-table-sticky-first-col min-w-full divide-y divide-neutral-200 text-sm">
                 <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                     <tr>
                         <th class="px-4 py-3 whitespace-nowrap">Réf.</th>
@@ -109,6 +152,7 @@
                     </tfoot>
                 @endif
             </table>
+            <div x-ref="sentinel" class="h-8 w-full" aria-hidden="true"></div>
         </div>
 
         <div class="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -116,8 +160,6 @@
             <p class="text-sm text-neutral-500" x-show="loading" x-cloak>Chargement…</p>
             <p class="text-sm text-neutral-500" x-show="!loading && !nextPageUrl && total > 0" x-cloak>Fin de la liste</p>
         </div>
-
-        <div x-ref="sentinel" class="h-8 w-full" aria-hidden="true"></div>
 
         <button
             type="button"
@@ -147,7 +189,7 @@
                     observer: null,
 
                     init() {
-                        this.onScroll();
+                        this.onTableScroll();
                         this.$nextTick(() => this.setupObserver());
                     },
 
@@ -158,16 +200,17 @@
                         return `Affichage de 1 à ${this.loadedTo} sur ${this.total} vente${this.total > 1 ? 's' : ''}`;
                     },
 
-                    onScroll() {
-                        this.showBackToTop = window.scrollY > 400;
+                    onTableScroll() {
+                        const scrollEl = this.$refs.tableScroll;
+                        this.showBackToTop = scrollEl ? scrollEl.scrollTop > 400 : false;
                     },
 
                     scrollToTop() {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        this.$refs.tableScroll?.scrollTo({ top: 0, behavior: 'smooth' });
                     },
 
                     setupObserver() {
-                        if (! this.$refs.sentinel || ! ('IntersectionObserver' in window)) {
+                        if (! this.$refs.sentinel || ! this.$refs.tableScroll || ! ('IntersectionObserver' in window)) {
                             return;
                         }
 
@@ -175,7 +218,7 @@
                             if (entries.some((entry) => entry.isIntersecting)) {
                                 this.loadMore();
                             }
-                        }, { rootMargin: '240px 0px' });
+                        }, { root: this.$refs.tableScroll, rootMargin: '120px 0px' });
 
                         this.observer.observe(this.$refs.sentinel);
                     },

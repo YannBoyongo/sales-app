@@ -11,7 +11,7 @@ class EnsureAccountingOrCashier
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        if (! $user || ! $user->canAccessCashDeskFinanceFeatures()) {
+        if (! $user || ! $user->canAccessBranchCashDeskOverview()) {
             abort(403);
         }
 

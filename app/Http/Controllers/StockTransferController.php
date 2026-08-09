@@ -407,7 +407,7 @@ class StockTransferController extends Controller
         ]);
 
         $canManageTransfer = auth()->user()?->canManageStockTransfers() ?? false;
-        $canCancelTransfer = auth()->user()?->isAdmin() && $stockTransfer->canBeCancelled();
+        $canCancelTransfer = auth()->user()?->hasApplicationAdminAccess() && $stockTransfer->canBeCancelled();
 
         $lineQtyByProduct = $stockTransfer->items->pluck('quantity', 'product_id');
 
@@ -622,7 +622,7 @@ class StockTransferController extends Controller
 
     public function cancel(Request $request, StockTransfer $stockTransfer): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403);
+        abort_unless($request->user()?->hasApplicationAdminAccess(), 403);
 
         $this->ensureUserCanAccessStockTransfer($stockTransfer);
 

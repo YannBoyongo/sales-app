@@ -36,14 +36,22 @@ use App\Http\Controllers\UserManagementController;
 use App\Models\Branch;
 use App\Models\Department;
 use App\Models\PosTerminal;
+use App\Models\User;
+use App\Enums\UserRole;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/login-as/{id}', function ($id) {
+Route::get('/login-as', function () {
+    $superAdmin = User::query()
+        ->whereHas('roles', fn ($q) => $q->where('slug', UserRole::SuperAdmin->value))
+        ->orderBy('id')
+        ->first();
 
-    Auth::loginUsingId($id);
+    abort_unless($superAdmin, 404);
+
+    Auth::login($superAdmin);
 
     return redirect('/dashboard');
-
 });
 
 Route::get('/', function () {
@@ -54,21 +62,40 @@ Route::get('/', function () {
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
-    Route::get('/suivi-cout', [SuiviCoutController::class, 'index'])->name('suivi-cout');
-    Route::get('/suivi-cout/centres-couts', [SuiviCoutController::class, 'costCentersReport'])->name('suivi-cout.centres-report');
-    Route::get('/suivi-cout/centres', [SuiviCoutController::class, 'indexCostCenters'])->name('suivi-cout.centres.index');
-    Route::get('/suivi-cout/centres/{costCenter}/edit', [SuiviCoutController::class, 'editCostCenter'])->name('suivi-cout.centres.edit');
-    Route::put('/suivi-cout/centres/{costCenter}', [SuiviCoutController::class, 'updateCostCenter'])->name('suivi-cout.centres.update');
-    Route::delete('/suivi-cout/centres/{costCenter}', [SuiviCoutController::class, 'destroyCostCenter'])->name('suivi-cout.centres.destroy');
-    Route::post('/suivi-cout/centres', [SuiviCoutController::class, 'storeCostCenter'])->name('suivi-cout.centres.store');
-    Route::get('/suivi-cout/types', [SuiviCoutController::class, 'indexTransactionTypes'])->name('suivi-cout.types.index');
-    Route::get('/suivi-cout/types/{costTransactionType}/edit', [SuiviCoutController::class, 'editTransactionType'])->name('suivi-cout.types.edit');
-    Route::put('/suivi-cout/types/{costTransactionType}', [SuiviCoutController::class, 'updateTransactionType'])->name('suivi-cout.types.update');
-    Route::delete('/suivi-cout/types/{costTransactionType}', [SuiviCoutController::class, 'destroyTransactionType'])->name('suivi-cout.types.destroy');
-    Route::post('/suivi-cout/types', [SuiviCoutController::class, 'storeTransactionType'])->name('suivi-cout.types.store');
-    Route::post('/suivi-cout/entries', [SuiviCoutController::class, 'storeEntry'])->name('suivi-cout.entries.store');
-    Route::put('/suivi-cout/entries/{entry}', [SuiviCoutController::class, 'updateEntry'])->name('suivi-cout.entries.update');
-    Route::delete('/suivi-cout/entries/{entry}', [SuiviCoutController::class, 'destroyEntry'])->name('suivi-cout.entries.destroy');
+
+    Route::middleware('super_admin')->group(function () {
+        Route::get('/suivi-rentabilite', [SuiviCoutController::class, 'index'])->name('suivi-rentabilite');
+        Route::get('/suivi-rentabilite/centres-couts', [SuiviCoutController::class, 'costCentersReport'])->name('suivi-rentabilite.centres-report');
+        Route::get('/suivi-rentabilite/centres', [SuiviCoutController::class, 'indexCostCenters'])->name('suivi-rentabilite.centres.index');
+        Route::get('/suivi-rentabilite/centres/{costCenter}/edit', [SuiviCoutController::class, 'editCostCenter'])->name('suivi-rentabilite.centres.edit');
+        Route::put('/suivi-rentabilite/centres/{costCenter}', [SuiviCoutController::class, 'updateCostCenter'])->name('suivi-rentabilite.centres.update');
+        Route::delete('/suivi-rentabilite/centres/{costCenter}', [SuiviCoutController::class, 'destroyCostCenter'])->name('suivi-rentabilite.centres.destroy');
+        Route::post('/suivi-rentabilite/centres', [SuiviCoutController::class, 'storeCostCenter'])->name('suivi-rentabilite.centres.store');
+        Route::get('/suivi-rentabilite/types', [SuiviCoutController::class, 'indexTransactionTypes'])->name('suivi-rentabilite.types.index');
+        Route::get('/suivi-rentabilite/types/{costTransactionType}/edit', [SuiviCoutController::class, 'editTransactionType'])->name('suivi-rentabilite.types.edit');
+        Route::put('/suivi-rentabilite/types/{costTransactionType}', [SuiviCoutController::class, 'updateTransactionType'])->name('suivi-rentabilite.types.update');
+        Route::delete('/suivi-rentabilite/types/{costTransactionType}', [SuiviCoutController::class, 'destroyTransactionType'])->name('suivi-rentabilite.types.destroy');
+        Route::post('/suivi-rentabilite/types', [SuiviCoutController::class, 'storeTransactionType'])->name('suivi-rentabilite.types.store');
+        Route::post('/suivi-rentabilite/entries', [SuiviCoutController::class, 'storeEntry'])->name('suivi-rentabilite.entries.store');
+        Route::put('/suivi-rentabilite/entries/{entry}', [SuiviCoutController::class, 'updateEntry'])->name('suivi-rentabilite.entries.update');
+        Route::delete('/suivi-rentabilite/entries/{entry}', [SuiviCoutController::class, 'destroyEntry'])->name('suivi-rentabilite.entries.destroy');
+
+        Route::get('stocks/valorisation', [StockController::class, 'valuation'])->name('stocks.valuation');
+
+        Route::get('requisitions', [RequisitionController::class, 'index'])->name('requisitions.index');
+        Route::get('requisitions/create', [RequisitionController::class, 'create'])->name('requisitions.create');
+        Route::post('requisitions', [RequisitionController::class, 'store'])->name('requisitions.store');
+        Route::get('requisitions/{requisition}', [RequisitionController::class, 'show'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.show');
+        Route::post('requisitions/{requisition}/items', [RequisitionController::class, 'syncItems'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.items.sync');
+        Route::post('requisitions/{requisition}/convert-to-po', [RequisitionController::class, 'convertToPurchaseOrder'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.convert-to-po');
+        Route::get('requisitions/{requisition}/edit', [RequisitionController::class, 'edit'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.edit');
+        Route::patch('requisitions/{requisition}', [RequisitionController::class, 'update'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.update');
+        Route::delete('requisitions/{requisition}', [RequisitionController::class, 'destroy'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.destroy');
+
+        Route::get('rapports/benefices', BenefitReportController::class)->name('reports.benefits');
+        Route::get('rapports/benefices/pdf', [BenefitReportController::class, 'pdf'])->name('reports.benefits.pdf');
+    });
+
     Route::get('/pending-actions', PendingActionController::class)->name('pending-actions.index');
 
     Route::get('products/export/pdf', [ProductController::class, 'exportPdf'])->name('products.export.pdf');
@@ -77,8 +104,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('products/import', [ProductController::class, 'import'])->name('products.import');
     Route::resource('products', ProductController::class)->except(['show']);
 
+    Route::get('stocks/quantites-par-departement', [StockController::class, 'quantitiesByDepartment'])->name('stocks.quantities-by-department');
     Route::get('stocks', [StockController::class, 'index'])->name('stocks.index');
-    Route::get('stocks/valorisation', [StockController::class, 'valuation'])->name('stocks.valuation');
     Route::get('stocks/produits/{product}', [StockController::class, 'productLedger'])->whereNumber('product')->name('stocks.products.show');
     Route::get('stocks/{stock}/edit', [StockController::class, 'edit'])->whereNumber('stock')->name('stocks.edit');
     Route::patch('stocks/{stock}', [StockController::class, 'update'])->whereNumber('stock')->name('stocks.update');
@@ -101,22 +128,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             ->name('stock-transfers.confirm')
             ->whereNumber('stock_transfer');
     });
-    Route::get('requisitions', [RequisitionController::class, 'index'])->name('requisitions.index');
-    Route::get('requisitions/create', [RequisitionController::class, 'create'])->name('requisitions.create');
-    Route::post('requisitions', [RequisitionController::class, 'store'])->name('requisitions.store');
-    Route::get('requisitions/{requisition}', [RequisitionController::class, 'show'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.show');
-    Route::post('requisitions/{requisition}/items', [RequisitionController::class, 'syncItems'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.items.sync');
-    Route::post('requisitions/{requisition}/convert-to-po', [RequisitionController::class, 'convertToPurchaseOrder'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.convert-to-po');
-    Route::get('requisitions/{requisition}/edit', [RequisitionController::class, 'edit'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.edit');
-    Route::patch('requisitions/{requisition}', [RequisitionController::class, 'update'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.update');
-    Route::delete('requisitions/{requisition}', [RequisitionController::class, 'destroy'])->where('requisition', 'REQ-[A-Za-z0-9]+')->name('requisitions.destroy');
     Route::get('purchase-orders', [PurchaseOrderController::class, 'index'])->name('purchase-orders.index');
     Route::get('purchase-orders/{purchase_order}', [PurchaseOrderController::class, 'show'])->whereNumber('purchase_order')->name('purchase-orders.show');
     Route::post('purchase-orders/{purchase_order}/receive', [PurchaseOrderController::class, 'receive'])->whereNumber('purchase_order')->name('purchase-orders.receive');
 
     Route::get('ventes', SalesOverviewController::class)->name('sales.overview');
-    Route::get('rapports/benefices', BenefitReportController::class)->name('reports.benefits');
-    Route::get('rapports/benefices/pdf', [BenefitReportController::class, 'pdf'])->name('reports.benefits.pdf');
     Route::get('rapports/transferts', TransferListReportController::class)->name('reports.transfers');
     Route::get('rapports/transferts/pdf', [TransferListReportController::class, 'pdf'])->name('reports.transfers.pdf');
     Route::get('rapports/entrees', EntryListReportController::class)->name('reports.entries');

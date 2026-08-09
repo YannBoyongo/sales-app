@@ -1,9 +1,9 @@
 <x-app-layout>
     <x-slot name="header">Bons de caisse</x-slot>
 
-    @php
-        $voucherTableColspan = 5
-            + (auth()->user()?->isAdmin() ? 1 : 0)
+        @php
+        $voucherTableColspan = 6
+            + (auth()->user()?->hasApplicationAdminAccess() ? 1 : 0)
             + (auth()->user()?->canAccessAccounting() ? 1 : 0);
     @endphp
 
@@ -19,6 +19,11 @@
             totalExits: {{ $totalExits }},
             balance: {{ $balance }},
             tableColspan: @js($voucherTableColspan),
+            approvedNextPageUrl: @js($infiniteNextPageUrl),
+            approvedTotal: {{ $approvedVouchers->total() }},
+            approvedLoadedTo: {{ $approvedVouchers->lastItem() ?? 0 }},
+            approvedLoading: false,
+            approvedObserver: null,
             flashMessage: null,
             flashType: 'success',
             approvingId: null,
@@ -79,6 +84,8 @@
                     this.pendingCount = Math.max(0, this.pendingCount - 1);
                     this.ensurePendingEmptyState(document.getElementById('pending-vouchers-body'));
                     this.ensureApprovedHasRow(document.getElementById('approved-vouchers-body'), data.row_html);
+                    this.approvedTotal += 1;
+                    this.approvedLoadedTo += 1;
 
                     if (data.voucher?.type === 'entry') {
                         this.totalEntries += Number(data.voucher.amount) || 0;
@@ -95,7 +102,58 @@
                     this.approvingId = null;
                 }
             },
+            approvedStatusLabel() {
+                if (this.approvedTotal <= 0) {
+                    return '0 bon approuvé';
+                }
+                return `Affichage de 1 à ${this.approvedLoadedTo} sur ${this.approvedTotal} bon${this.approvedTotal > 1 ? 's' : ''} approuvé${this.approvedTotal > 1 ? 's' : ''}`;
+            },
+            setupApprovedObserver() {
+                if (! this.$refs.approvedSentinel || ! this.$refs.approvedTableScroll || ! ('IntersectionObserver' in window)) {
+                    return;
+                }
+
+                this.approvedObserver = new IntersectionObserver((entries) => {
+                    if (entries.some((entry) => entry.isIntersecting)) {
+                        this.loadMoreApproved();
+                    }
+                }, { root: this.$refs.approvedTableScroll, rootMargin: '120px 0px' });
+
+                this.approvedObserver.observe(this.$refs.approvedSentinel);
+            },
+            async loadMoreApproved() {
+                if (this.approvedLoading || ! this.approvedNextPageUrl) {
+                    return;
+                }
+
+                this.approvedLoading = true;
+                try {
+                    const response = await fetch(this.approvedNextPageUrl, {
+                        headers: {
+                            Accept: 'application/json',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (! response.ok) {
+                        throw new Error('Impossible de charger plus de bons approuvés.');
+                    }
+
+                    const data = await response.json();
+                    if (data.html && this.$refs.approvedTbody) {
+                        this.$refs.approvedTbody.insertAdjacentHTML('beforeend', data.html);
+                    }
+                    this.approvedNextPageUrl = data.next_page_url || null;
+                    this.approvedLoadedTo = data.to || this.approvedLoadedTo;
+                    this.approvedTotal = data.total ?? this.approvedTotal;
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    this.approvedLoading = false;
+                }
+            },
         }"
+        x-init="$nextTick(() => setupApprovedObserver())"
         @keydown.escape.window="open = false; editOpen = false"
     >
         <x-caisse-flow max-width="max-w-7xl" :with-card="false">
@@ -143,10 +201,10 @@
                 </div>
             </div>
             <p class="text-xs text-neutral-500">
-                Totaux et solde : <strong class="font-medium text-neutral-700">bons approuvés uniquement</strong> (avec les filtres date et type ci-dessous). Les bons en attente sont listés en premier.
+                Totaux et solde : <strong class="font-medium text-neutral-700">bons approuvés uniquement</strong> (avec les filtres date, branche et type ci-dessous). Les bons en attente sont listés en premier.
             </p>
 
-            <form method="GET" action="{{ route('cash-vouchers.index') }}" class="app-filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <form method="GET" action="{{ route('cash-vouchers.index') }}" class="app-filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <div class="lg:col-span-1">
                     <label for="date_from" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date du</label>
                     <input id="date_from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" />
@@ -155,6 +213,17 @@
                     <label for="date_to" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date au</label>
                     <input id="date_to" name="date_to" type="date" value="{{ $filters['date_to'] ?? '' }}" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" />
                 </div>
+                @if ($showsBranchFilter)
+                    <div class="lg:col-span-1">
+                        <label for="filter_branch_id" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Branche</label>
+                        <select id="filter_branch_id" name="branch_id" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
+                            <option value="">Toutes</option>
+                            @foreach ($branchesForFilter as $branch)
+                                <option value="{{ $branch->id }}" @selected((string) ($filters['branch_id'] ?? '') === (string) $branch->id)>{{ $branch->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @endif
                 <div class="lg:col-span-1">
                     <label for="type_filter" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Type</label>
                     <select id="type_filter" name="type" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
@@ -192,22 +261,24 @@
 
             <section class="mt-8 space-y-3">
                 <h2 class="text-sm font-semibold text-neutral-900">Approuvés</h2>
-                <div class="app-table-shell">
-                    <table class="min-w-full divide-y divide-neutral-200 text-sm">
+                <div class="app-table-scroll-panel app-table-scroll-panel--20-rows" x-ref="approvedTableScroll">
+                    <table class="app-table-sticky-first-col min-w-full divide-y divide-neutral-200 text-sm">
                         @include('cash_vouchers.partials.table-head')
-                        <tbody id="approved-vouchers-body" class="divide-y divide-neutral-100">
-                            @forelse ($approvedVouchers as $voucher)
-                                @include('cash_vouchers.partials.row', ['voucher' => $voucher])
-                            @empty
-                                <tr data-empty>
-                                    <td colspan="{{ $voucherTableColspan }}" class="px-4 py-10 text-center text-neutral-500">Aucun bon approuvé.</td>
-                                </tr>
-                            @endforelse
+                        <tbody id="approved-vouchers-body" class="divide-y divide-neutral-100" x-ref="approvedTbody">
+                            @include('cash_vouchers.partials.approved-rows', [
+                                'approvedVouchers' => $approvedVouchers,
+                                'voucherTableColspan' => $voucherTableColspan,
+                            ])
                         </tbody>
                     </table>
+                    <div x-ref="approvedSentinel" class="h-8 w-full" aria-hidden="true"></div>
                 </div>
 
-                <div class="mt-4">{{ $approvedVouchers->links() }}</div>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p class="text-sm text-neutral-600" x-text="approvedStatusLabel()"></p>
+                    <p class="text-sm text-neutral-500" x-show="approvedLoading" x-cloak>Chargement…</p>
+                    <p class="text-sm text-neutral-500" x-show="!approvedLoading && !approvedNextPageUrl && approvedTotal > 0" x-cloak>Fin de la liste</p>
+                </div>
             </section>
         </x-caisse-flow>
 
@@ -230,6 +301,19 @@
 
                 <form action="{{ route('cash-vouchers.store') }}" method="POST" class="mt-5 space-y-4">
                     @csrf
+
+                    @if ($showsBranchFilter)
+                        <div>
+                            <label for="create_branch_id" class="block text-xs font-semibold text-neutral-700">Branche</label>
+                            <select id="create_branch_id" name="branch_id" required class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
+                                <option value="">Choisir une branche</option>
+                                @foreach ($branchesForFilter as $branch)
+                                    <option value="{{ $branch->id }}" @selected((string) old('branch_id') === (string) $branch->id)>{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('branch_id')" class="mt-2" />
+                        </div>
+                    @endif
 
                     <div>
                         <label for="voucher_no" class="block text-xs font-semibold text-neutral-700">Numéro du bon</label>

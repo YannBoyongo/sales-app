@@ -21,7 +21,7 @@ class DashboardController extends Controller
         $user = auth()->user();
         $user?->loadMissing('branch');
 
-        $isAdmin = (bool) ($user?->isAdmin());
+        $isAdmin = (bool) ($user?->hasApplicationAdminAccess());
         $isAccountant = (bool) ($user?->isAccountant());
         $seesAllBranches = (bool) ($user?->canBypassBranchScope());
         $canAccessAccounting = (bool) ($user?->canAccessAccounting());
@@ -68,6 +68,49 @@ class DashboardController extends Controller
 
         $lowStocksCount = (clone $lowStocksQuery)->count();
         $lowStocks = (clone $lowStocksQuery)->take(5)->get();
+
+        $productsInStockQuery = Stock::query()
+            ->join('products', 'products.id', '=', 'stocks.product_id')
+            ->join('departments', 'departments.id', '=', 'products.department_id')
+            ->whereHas('location')
+            ->selectRaw('
+                products.id as product_id,
+                products.name as product_name,
+                products.sku as product_sku,
+                departments.id as department_id,
+                departments.name as department_name,
+                SUM(stocks.quantity) as total_quantity
+            ')
+            ->groupBy('products.id', 'products.name', 'products.sku', 'departments.id', 'departments.name')
+            ->havingRaw('SUM(stocks.quantity) > 0')
+            ->orderBy('departments.name')
+            ->orderBy('products.name');
+
+        $this->applyStockBranchFilter($productsInStockQuery);
+        $productsInStockRows = $productsInStockQuery->get();
+        $productsInStockCount = $productsInStockRows->count();
+
+        $stockByDepartment = $productsInStockRows
+            ->groupBy('department_id')
+            ->map(function ($products) {
+                $first = $products->first();
+
+                return [
+                    'id' => (int) $first->department_id,
+                    'name' => (string) $first->department_name,
+                    'product_count' => $products->count(),
+                    'total_quantity' => (int) $products->sum('total_quantity'),
+                    'products' => $products->map(fn ($row) => [
+                        'product_id' => (int) $row->product_id,
+                        'product_name' => (string) $row->product_name,
+                        'product_sku' => $row->product_sku ? (string) $row->product_sku : null,
+                        'total_quantity' => (int) $row->total_quantity,
+                    ])->values()->all(),
+                ];
+            })
+            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values()
+            ->all();
 
         $startOfDay = now()->copy()->startOfDay();
         $endOfDay = now()->copy()->endOfDay();
@@ -279,6 +322,8 @@ class DashboardController extends Controller
             'pendingReceptionBatchCount',
             'lowStocks',
             'lowStocksCount',
+            'stockByDepartment',
+            'productsInStockCount',
             'isAdmin',
             'isAccountant',
             'seesAllBranches',

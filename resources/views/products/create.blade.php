@@ -46,6 +46,22 @@
                 <p class="mt-1 text-xs text-neutral-500">Utilisé quand aucun seuil n’est défini sur la ligne de stock d’un emplacement.</p>
                 <x-input-error :messages="$errors->get('minimum_stock')" class="mt-2" />
             </div>
+            <div class="rounded-lg border border-neutral-200 bg-neutral-50/80 p-4">
+                <label class="flex cursor-pointer items-start gap-3">
+                    <input
+                        type="checkbox"
+                        name="sellable_as_addon"
+                        value="1"
+                        class="mt-0.5 rounded border-neutral-300 text-primary focus:ring-primary"
+                        @checked(old('sellable_as_addon'))
+                    />
+                    <span>
+                        <span class="text-sm font-medium text-neutral-900">Vendable en complément (caisse)</span>
+                        <span class="mt-0.5 block text-xs text-neutral-600">Proposé comme article complémentaire lors d’une vente POS, quel que soit le département principal.</span>
+                    </span>
+                </label>
+                <x-input-error :messages="$errors->get('sellable_as_addon')" class="mt-2" />
+            </div>
             <div class="flex gap-3 border-t border-neutral-100 pt-6">
                 <x-primary-button>Enregistrer</x-primary-button>
                 <a href="{{ route('products.index') }}" class="app-btn-secondary">Annuler</a>

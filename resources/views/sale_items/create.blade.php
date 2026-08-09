@@ -42,6 +42,7 @@
                 customerType: @js($saleEffectiveCustomerType),
                 canChooseDealer: @js($canChooseDealerCustomer),
                 catalog: @js($saleCatalog),
+                addonCatalog: @js($addonCatalog),
                 rows: @js($saleLineRows),
                 posName: @js($pointOfSale->name),
                 apply_sale_discount: @js(filter_var(old('apply_sale_discount'), FILTER_VALIDATE_BOOLEAN)),
@@ -53,11 +54,12 @@
                     'phone' => $c->phone,
                     'caution_balance' => bcsub((string) ($c->caution_total ?? '0'), (string) ($c->caution_used ?? '0'), 2),
                 ])->values()),
-                isAdmin: @js(auth()->user()->isAdmin()),
+                isAdmin: @js(auth()->user()->hasApplicationAdminAccess()),
                 amountPaid: @js(old('amount_paid', '0')),
                 creditDueDate: @js(old('credit_due_date', '')),
                 paymentType: @js(old('payment_type', $saleEffectiveCustomerType === 'dealer' ? 'credit' : 'cash')),
-                allowLineDiscount: @js(filter_var(old('allow_line_discount'), FILTER_VALIDATE_BOOLEAN)),
+                allowLineDiscount: @js($canApplyLineDiscount && filter_var(old('allow_line_discount'), FILTER_VALIDATE_BOOLEAN)),
+                canApplyLineDiscount: @js($canApplyLineDiscount),
             })"
             x-effect="syncPaymentTypeByCustomer()"
             @submit="guardSubmit($event)"
@@ -100,7 +102,7 @@
                                     <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-50 text-base" aria-hidden="true">🏪</span>
                                     <div class="min-w-0">
                                         <span class="text-sm font-semibold text-neutral-900">Revendeur/Client</span>
-                                        <p class="truncate text-[11px] text-neutral-500">Crédit, caution ou remise</p>
+                                        <p class="truncate text-[11px] text-neutral-500">Crédit ou caution</p>
                                     </div>
                                 </div>
                             </label>
@@ -238,6 +240,112 @@
                             <p x-show="addLineError" x-text="addLineError" class="mt-2 text-sm font-medium text-red-600" x-cloak></p>
                         </div>
 
+                        @if (count($addonCatalog) > 0)
+                            <div class="mt-4 rounded-xl border border-sky-200 bg-sky-50/60 p-4">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <div>
+                                        <p class="text-xs font-semibold uppercase tracking-wide text-sky-800">Articles complémentaires</p>
+                                        <p class="mt-0.5 text-xs text-sky-900/80">Offerts gratuitement avec la vente (stock déduit). Vente payante si ajouté via le département principal.</p>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        @click="toggleAddonPicker()"
+                                        class="inline-flex items-center gap-1.5 rounded-lg border border-sky-300 bg-white px-3 py-2 text-sm font-semibold text-sky-900 shadow-sm hover:bg-sky-50"
+                                    >
+                                        + Ajouter un complément
+                                    </button>
+                                </div>
+
+                                <div x-show="addonPickerOpen" x-cloak class="mt-3 space-y-3 border-t border-sky-200/80 pt-3">
+                                    <div x-show="!pendingAddon">
+                                        <div class="relative" @click.outside="addonListOpen = false">
+                                            <label for="sale-addon-search" class="text-xs font-semibold text-sky-900">Rechercher un complément</label>
+                                            <input
+                                                id="sale-addon-search"
+                                                type="search"
+                                                autocomplete="off"
+                                                x-ref="addonSearchInput"
+                                                x-model="addonSearchQuery"
+                                                @focus="addonListOpen = true"
+                                                @input="addonListOpen = true"
+                                                @keydown.escape.prevent="addonListOpen = false"
+                                                placeholder="Tapez le nom du produit complémentaire…"
+                                                class="mt-1 block w-full rounded-xl border-sky-200 bg-white py-2.5 pl-10 shadow-sm focus:border-primary focus:ring-primary"
+                                            />
+                                            <svg class="pointer-events-none absolute left-3 top-[2.15rem] h-5 w-5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                            </svg>
+                                            <div
+                                                x-show="addonListOpen && filteredAddonProducts.length"
+                                                x-cloak
+                                                x-transition
+                                                class="absolute z-30 mt-1 max-h-64 w-full overflow-auto rounded-xl border border-sky-200 bg-white py-1 shadow-xl"
+                                            >
+                                                <template x-for="p in filteredAddonProducts" :key="'addon-' + p.id">
+                                                    <button
+                                                        type="button"
+                                                        class="flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-sm hover:bg-sky-50"
+                                                        @click="pickAddon(p)"
+                                                    >
+                                                        <span>
+                                                            <span class="font-medium text-neutral-900" x-text="p.name || p.label"></span>
+                                                            <span class="mt-0.5 block text-xs text-neutral-500" x-text="(p.department_name ? p.department_name + ' · ' : '') + 'Offert · stock ' + stockRemainingForProduct(p.id)"></span>
+                                                        </span>
+                                                        <span
+                                                            class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
+                                                            :class="stockRemainingForProduct(p.id) <= 0 ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800'"
+                                                            x-text="stockRemainingForProduct(p.id)"
+                                                        ></span>
+                                                    </button>
+                                                </template>
+                                            </div>
+                                        </div>
+                                        <p x-show="addonListOpen && addonSearchQuery && filteredAddonProducts.length === 0" x-cloak class="mt-2 text-sm text-neutral-500">
+                                            Aucun complément trouvé.
+                                        </p>
+                                    </div>
+
+                                    <div x-show="pendingAddon" x-cloak class="rounded-lg border-2 border-sky-400 bg-white p-4 shadow-sm">
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="min-w-0 flex-1">
+                                                <p class="text-xs font-semibold uppercase tracking-wide text-sky-800">Complément sélectionné</p>
+                                                <p class="mt-1 text-base font-semibold text-neutral-900" x-text="pendingAddon?.name || pendingAddon?.label"></p>
+                                                <p class="mt-1 text-sm text-emerald-700 font-medium">Gratuit</p>
+                                                <p class="mt-0.5 text-xs text-neutral-500">
+                                                    <span x-text="pendingAddon?.department_name || '—'"></span>
+                                                    · dispo <span x-text="stockRemainingForProduct(pendingAddon?.id)"></span>
+                                                </p>
+                                            </div>
+                                            <button type="button" @click="clearAddonPick()" class="text-xs font-medium text-neutral-500 hover:text-primary">
+                                                Changer
+                                            </button>
+                                        </div>
+                                        <div class="mt-4 flex flex-wrap items-end gap-3 border-t border-sky-100 pt-4">
+                                            <div class="w-28">
+                                                <label for="sale-addon-qty" class="text-xs font-semibold text-neutral-600">Quantité</label>
+                                                <input
+                                                    id="sale-addon-qty"
+                                                    type="number"
+                                                    min="1"
+                                                    x-ref="addonQtyInput"
+                                                    x-model.number="addonAddQuantity"
+                                                    @keydown.enter.prevent="addAddonLine()"
+                                                    class="mt-1 block w-full rounded-lg border-neutral-200 py-2 text-sm tabular-nums focus:border-primary focus:ring-primary"
+                                                />
+                                            </div>
+                                            <button type="button" @click="addAddonLine()" class="rounded-xl bg-sky-700 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-800">
+                                                Ajouter au panier
+                                            </button>
+                                            <button type="button" @click="clearAddonPick()" class="py-2.5 text-sm font-medium text-neutral-500 hover:text-primary">
+                                                Annuler
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p x-show="addAddonLineError" x-text="addAddonLineError" class="text-sm font-medium text-red-600" x-cloak></p>
+                                </div>
+                            </div>
+                        @endif
+
                         {{-- Panier --}}
                         <div class="mt-5">
                             <div class="flex items-center justify-between">
@@ -257,8 +365,11 @@
                                     <li class="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm">
                                         <div class="flex items-start justify-between gap-2">
                                             <div class="min-w-0">
-                                                <p class="font-semibold text-neutral-900" x-text="rowProductName(row)"></p>
-                                                <p class="mt-0.5 text-xs text-neutral-500" x-text="posName"></p>
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <p class="font-semibold text-neutral-900" x-text="rowProductName(row)"></p>
+                                                    <span x-show="row.is_addon" x-cloak class="rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800">Complément</span>
+                                                </div>
+                                                <p class="mt-0.5 text-xs text-neutral-500" x-text="row.is_addon && row.department_name ? row.department_name + ' · ' + posName : posName"></p>
                                             </div>
                                             <button type="button" @click="removeRow(index)" class="shrink-0 text-xs font-semibold text-red-600 hover:text-red-800">Retirer</button>
                                         </div>
@@ -272,7 +383,7 @@
                                                     class="mt-1 block w-full rounded-lg border-neutral-200 text-sm tabular-nums focus:border-primary focus:ring-primary"
                                                 />
                                             </div>
-                                            <div x-show="allowLineDiscount" x-cloak class="col-span-2 sm:col-span-1">
+                                            <div x-show="allowLineDiscount && !row.is_addon" x-cloak class="col-span-2 sm:col-span-1">
                                                 <label class="text-xs font-semibold text-neutral-600">Prix unit. (USD)</label>
                                                 <div class="mt-1 flex gap-1">
                                                     <input
@@ -292,13 +403,23 @@
                                                     Rétablir <span x-text="formatUsd(row.catalog_unit_price)"></span>
                                                 </button>
                                             </div>
-                                            <div x-show="!allowLineDiscount" x-cloak>
+                                            <div x-show="!allowLineDiscount || row.is_addon" x-cloak>
                                                 <label class="text-xs font-semibold text-neutral-600">Prix unit.</label>
-                                                <p class="mt-2 text-sm tabular-nums text-neutral-800" x-text="formatUsd(catalogUnitPrice(row))"></p>
+                                                <template x-if="row.is_addon">
+                                                    <div class="mt-2">
+                                                        <p class="text-sm font-semibold text-emerald-700">Gratuit</p>
+                                                        <p class="text-[11px] text-neutral-500" x-show="catalogUnitPrice(row) > 0">
+                                                            Valeur catalogue : <span class="tabular-nums line-through" x-text="formatUsd(catalogUnitPrice(row))"></span>
+                                                        </p>
+                                                    </div>
+                                                </template>
+                                                <template x-if="!row.is_addon">
+                                                    <p class="mt-2 text-sm tabular-nums text-neutral-800" x-text="formatUsd(catalogUnitPrice(row))"></p>
+                                                </template>
                                             </div>
                                             <div class="text-right">
                                                 <label class="text-xs font-semibold text-neutral-600">Ligne</label>
-                                                <p class="mt-2 text-sm font-bold tabular-nums text-primary" x-text="formatUsd(lineAmount(row))"></p>
+                                                <p class="mt-2 text-sm font-bold tabular-nums" :class="row.is_addon ? 'text-emerald-700' : 'text-primary'" x-text="row.is_addon ? 'Gratuit' : formatUsd(lineAmount(row))"></p>
                                             </div>
                                         </div>
                                     </li>
@@ -310,6 +431,7 @@
                                     <input type="hidden" :name="`items[${index}][department_id]`" :value="row.department_id" />
                                     <input type="hidden" :name="`items[${index}][product_id]`" :value="row.product_id" />
                                     <input type="hidden" :name="`items[${index}][quantity]`" :value="row.quantity" />
+                                    <input type="hidden" :name="`items[${index}][is_addon]`" :value="row.is_addon ? '1' : '0'" />
                                     <template x-if="allowLineDiscount">
                                         <input type="hidden" :name="`items[${index}][unit_price]`" :value="rowUnitPrice(row)" />
                                     </template>
@@ -351,7 +473,10 @@
                                 <tbody class="divide-y divide-neutral-100">
                                     <template x-for="row in rows" :key="'recap-' + row._key">
                                         <tr>
-                                            <td class="px-3 py-2 font-medium text-neutral-900" x-text="rowProductName(row)"></td>
+                                            <td class="px-3 py-2 font-medium text-neutral-900">
+                                                <span x-text="rowProductName(row)"></span>
+                                                <span x-show="row.is_addon" x-cloak class="ml-1 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-sky-800">+</span>
+                                            </td>
                                             <td class="px-2 py-2 text-right">
                                                 <input
                                                     type="number"
@@ -362,7 +487,7 @@
                                             </td>
                                             <td class="px-2 py-2 text-right">
                                                 <input
-                                                    x-show="allowLineDiscount"
+                                                    x-show="allowLineDiscount && !row.is_addon"
                                                     type="number"
                                                     step="0.01"
                                                     min="0"
@@ -370,12 +495,17 @@
                                                     class="ml-auto block w-24 rounded-md border-amber-200 bg-amber-50/50 py-1 text-right text-sm tabular-nums focus:border-primary focus:ring-primary"
                                                 />
                                                 <span
-                                                    x-show="!allowLineDiscount"
+                                                    x-show="row.is_addon"
+                                                    x-cloak
+                                                    class="font-semibold text-emerald-700"
+                                                >Gratuit</span>
+                                                <span
+                                                    x-show="!allowLineDiscount && !row.is_addon"
                                                     class="tabular-nums text-neutral-700"
                                                     x-text="formatUsd(rowUnitPrice(row))"
                                                 ></span>
                                             </td>
-                                            <td class="px-3 py-2 text-right tabular-nums font-semibold text-neutral-900" x-text="formatUsd(lineAmount(row))"></td>
+                                            <td class="px-3 py-2 text-right tabular-nums font-semibold" :class="row.is_addon ? 'text-emerald-700' : 'text-neutral-900'" x-text="row.is_addon ? 'Gratuit' : formatUsd(lineAmount(row))"></td>
                                         </tr>
                                     </template>
                                 </tbody>
@@ -394,25 +524,27 @@
                         </div>
                     </dl>
 
-                    <div class="border-t border-neutral-100 pt-3">
-                        <label class="flex cursor-pointer items-start gap-2">
-                            <input
-                                type="checkbox"
-                                name="allow_line_discount"
-                                value="1"
-                                x-model="allowLineDiscount"
-                                @change="if (!allowLineDiscount) resetAllRowPricesToCatalog()"
-                                class="mt-0.5 rounded border-neutral-300 text-primary focus:ring-primary"
-                            />
-                            <span>
-                                <span class="text-sm font-medium text-neutral-800">Remise</span>
-                                <span class="mt-0.5 block text-xs text-neutral-600">Cocher pour modifier le prix unitaire dans le tableau.</span>
-                            </span>
-                        </label>
-                        <p x-show="allowLineDiscount && !isAdmin" x-cloak class="mt-2 text-[11px] leading-relaxed text-amber-900">
-                            La vente restera en attente jusqu’à approbation d’un administrateur si les prix sont inférieurs au catalogue.
-                        </p>
-                    </div>
+                    @if ($canApplyLineDiscount)
+                        <div class="border-t border-neutral-100 pt-3">
+                            <label class="flex cursor-pointer items-start gap-2">
+                                <input
+                                    type="checkbox"
+                                    name="allow_line_discount"
+                                    value="1"
+                                    x-model="allowLineDiscount"
+                                    @change="if (!allowLineDiscount) resetAllRowPricesToCatalog()"
+                                    class="mt-0.5 rounded border-neutral-300 text-primary focus:ring-primary"
+                                />
+                                <span>
+                                    <span class="text-sm font-medium text-neutral-800">Remise</span>
+                                    <span class="mt-0.5 block text-xs text-neutral-600">Cocher pour modifier le prix unitaire dans le tableau.</span>
+                                </span>
+                            </label>
+                            <p x-show="allowLineDiscount && !isAdmin" x-cloak class="mt-2 text-[11px] leading-relaxed text-amber-900">
+                                La vente restera en attente jusqu’à approbation d’un administrateur si les prix sont inférieurs au catalogue.
+                            </p>
+                        </div>
+                    @endif
 
                     {{-- Remise globale - désactivée temporairement (réactiver sur demande)
                     <div class="border-t border-neutral-100 pt-3">
@@ -524,6 +656,7 @@
                 customerType: config.customerType,
                 canChooseDealer: config.canChooseDealer,
                 catalog: config.catalog,
+                addonCatalog: config.addonCatalog || [],
                 rows: config.rows,
                 posName: config.posName,
                 searchQuery: '',
@@ -531,6 +664,12 @@
                 pickerOpen: false,
                 addQuantity: 1,
                 addLineError: '',
+                addonSearchQuery: '',
+                pendingAddon: null,
+                addonPickerOpen: false,
+                addonListOpen: false,
+                addonAddQuantity: 1,
+                addAddonLineError: '',
                 apply_sale_discount: config.apply_sale_discount,
                 sale_discount_amount: config.sale_discount_amount,
                 clientName: config.clientName,
@@ -545,7 +684,10 @@
                 submitting: false,
 
                 init() {
-                    this.rows.forEach((row) => this.ensureRowPricing(row));
+                    this.rows.forEach((row) => {
+                        row.is_addon = Boolean(row.is_addon);
+                        this.ensureRowPricing(row);
+                    });
                     this.syncPaymentTypeByCustomer();
                     if (!this.allowLineDiscount) {
                         this.resetAllRowPricesToCatalog();
@@ -563,10 +705,45 @@
                 ensureRowPricing(row) {
                     const catalog = this.catalogUnitPrice(row);
                     if (row.catalog_unit_price == null) row.catalog_unit_price = catalog;
+                    if (row.is_addon) {
+                        row.unit_price = 0;
+                        return;
+                    }
                     if (row.unit_price == null || row.unit_price === '') row.unit_price = catalog;
                 },
 
                 allProductsFlat() {
+                    const list = [];
+                    for (const dept of this.catalog) {
+                        for (const p of (dept.products || [])) {
+                            list.push({
+                                id: p.id,
+                                department_id: dept.id,
+                                department_name: dept.name,
+                                name: p.name,
+                                label: p.label,
+                                unit_price: p.unit_price,
+                                stock_qty: Number(p.stock_qty) || 0,
+                                is_addon: false,
+                            });
+                        }
+                    }
+                    for (const p of (this.addonCatalog || [])) {
+                        list.push({
+                            id: p.id,
+                            department_id: p.department_id,
+                            department_name: p.department_name,
+                            name: p.name,
+                            label: p.label,
+                            unit_price: p.unit_price,
+                            stock_qty: Number(p.stock_qty) || 0,
+                            is_addon: true,
+                        });
+                    }
+                    return list;
+                },
+
+                allMainProductsFlat() {
                     const list = [];
                     for (const dept of this.catalog) {
                         for (const p of (dept.products || [])) {
@@ -584,6 +761,19 @@
                     return list;
                 },
 
+                get filteredAddonProducts() {
+                    const q = String(this.addonSearchQuery || '').trim().toLowerCase();
+                    const all = (this.addonCatalog || []).map((p) => ({
+                        ...p,
+                        department_name: p.department_name || '',
+                    }));
+                    if (q.length < 1) return all.slice(0, 10);
+                    return all.filter((p) => {
+                        const t = (String(p.name || '') + ' ' + String(p.label || '') + ' ' + String(p.department_name || '')).toLowerCase();
+                        return t.includes(q);
+                    }).slice(0, 20);
+                },
+
                 qtyInCartForProduct(productId) {
                     if (!productId) return 0;
                     return this.rows
@@ -599,7 +789,7 @@
 
                 get filteredProducts() {
                     const q = String(this.searchQuery || '').trim().toLowerCase();
-                    const all = this.allProductsFlat();
+                    const all = this.allMainProductsFlat();
                     if (q.length < 1) return all.slice(0, 10);
                     return all.filter((p) => {
                         const t = (String(p.name || '') + ' ' + String(p.label) + ' ' + String(p.department_name)).toLowerCase();
@@ -611,7 +801,18 @@
                     if (!productId) return null;
                     for (const dept of this.catalog) {
                         const p = (dept.products || []).find((x) => String(x.id) === String(productId));
-                        if (p) return p;
+                        if (p) {
+                            return {
+                                ...p,
+                                department_id: dept.id,
+                                department_name: dept.name,
+                                is_addon: false,
+                            };
+                        }
+                    }
+                    const addon = (this.addonCatalog || []).find((x) => String(x.id) === String(productId));
+                    if (addon) {
+                        return { ...addon, is_addon: true };
                     }
                     return null;
                 },
@@ -629,6 +830,9 @@
                 },
 
                 rowUnitPrice(row) {
+                    if (row.is_addon) {
+                        return 0;
+                    }
                     if (this.allowLineDiscount) {
                         const v = Number(row.unit_price);
                         return Number.isFinite(v) && v >= 0 ? v : this.catalogUnitPrice(row);
@@ -638,6 +842,10 @@
 
                 resetAllRowPricesToCatalog() {
                     this.rows.forEach((row) => {
+                        if (row.is_addon) {
+                            row.unit_price = 0;
+                            return;
+                        }
                         row.unit_price = this.catalogUnitPrice(row);
                     });
                 },
@@ -653,6 +861,10 @@
                 },
 
                 resetRowPrice(row) {
+                    if (row.is_addon) {
+                        row.unit_price = 0;
+                        return;
+                    }
                     row.unit_price = this.catalogUnitPrice(row);
                 },
 
@@ -733,6 +945,7 @@
                     this.searchQuery = p.name || p.label;
                     this.pickerOpen = false;
                     this.addLineError = '';
+                    this.addonPickerOpen = false;
                 },
 
                 clearPick() {
@@ -769,10 +982,84 @@
                         quantity: qty,
                         unit_price: catalogPrice,
                         catalog_unit_price: catalogPrice,
+                        is_addon: false,
                     });
                     this.pendingProduct = null;
                     this.searchQuery = '';
                     this.addQuantity = 1;
+                },
+
+                pickAddon(p) {
+                    this.pendingAddon = p;
+                    this.addonSearchQuery = p.name || p.label;
+                    this.addonListOpen = false;
+                    this.addAddonLineError = '';
+                    this.addonAddQuantity = 1;
+                    this.$nextTick(() => {
+                        this.$refs.addonQtyInput?.focus();
+                        this.$refs.addonQtyInput?.select();
+                    });
+                },
+
+                toggleAddonPicker() {
+                    this.addonPickerOpen = !this.addonPickerOpen;
+                    if (this.addonPickerOpen) {
+                        this.pickerOpen = false;
+                        this.clearPick();
+                        this.pendingAddon = null;
+                        this.addonSearchQuery = '';
+                        this.addonListOpen = false;
+                        this.addAddonLineError = '';
+                        this.$nextTick(() => this.$refs.addonSearchInput?.focus());
+                    } else {
+                        this.clearAddonPick();
+                        this.addonListOpen = false;
+                    }
+                },
+
+                clearAddonPick() {
+                    this.pendingAddon = null;
+                    this.addonSearchQuery = '';
+                    this.addonListOpen = true;
+                    this.addAddonLineError = '';
+                    this.$nextTick(() => this.$refs.addonSearchInput?.focus());
+                },
+
+                addAddonLine() {
+                    this.addAddonLineError = '';
+                    if (!this.pendingAddon) {
+                        this.addAddonLineError = 'Choisissez un article complémentaire.';
+                        return;
+                    }
+                    const qty = parseInt(String(this.addonAddQuantity), 10);
+                    if (!Number.isFinite(qty) || qty < 1) {
+                        this.addAddonLineError = 'Quantité invalide (minimum 1).';
+                        return;
+                    }
+                    const avail = this.stockRemainingForProduct(this.pendingAddon.id);
+                    if (qty > avail) {
+                        this.addAddonLineError = avail <= 0
+                            ? 'Stock insuffisant.'
+                            : `Stock disponible : ${avail}.`;
+                        return;
+                    }
+                    const catalogPrice = Number(this.pendingAddon.unit_price) || 0;
+                    this.rows.push({
+                        _key: 'k' + Date.now() + '-' + Math.random().toString(16).slice(2),
+                        department_id: String(this.pendingAddon.department_id),
+                        product_id: String(this.pendingAddon.id),
+                        product_name: this.pendingAddon.name || this.pendingAddon.label,
+                        department_name: this.pendingAddon.department_name || '',
+                        quantity: qty,
+                        unit_price: 0,
+                        catalog_unit_price: catalogPrice,
+                        is_addon: true,
+                    });
+                    this.pendingAddon = null;
+                    this.addonSearchQuery = '';
+                    this.addonAddQuantity = 1;
+                    this.addonListOpen = false;
+                    this.addonPickerOpen = false;
                 },
 
                 removeRow(index) {

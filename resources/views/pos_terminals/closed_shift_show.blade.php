@@ -125,7 +125,7 @@
                                 Rouvrir la session
                             </button>
                         </form>
-                    @elseif (auth()->user()?->isAdmin() && ! ($canReopen ?? true))
+                    @elseif (auth()->user()?->hasApplicationAdminAccess() && ! ($canReopen ?? true))
                         <p class="text-sm text-neutral-500">Session déjà enregistrée en comptabilité - réouverture impossible.</p>
                     @endif
                 </div>

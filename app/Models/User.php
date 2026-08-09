@@ -111,6 +111,50 @@ class User extends Authenticatable
         return $this->hasRole(UserRole::Admin);
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole(UserRole::SuperAdmin);
+    }
+
+    /** Admin ou super administrateur : accès structure, paramètres, PO, etc. */
+    public function hasApplicationAdminAccess(): bool
+    {
+        return $this->isSuperAdmin() || $this->isAdmin();
+    }
+
+    /** Gestion des utilisateurs (admin crée les opérationnels ; super admin crée les admins). */
+    public function canManageUsers(): bool
+    {
+        return $this->hasApplicationAdminAccess();
+    }
+
+    /**
+     * Rôles que l’utilisateur connecté peut attribuer à un autre compte.
+     *
+     * @return list<UserRole>
+     */
+    public function assignableRoles(): array
+    {
+        if ($this->isSuperAdmin()) {
+            return UserRole::cases();
+        }
+
+        if ($this->isAdmin()) {
+            return array_values(array_filter(
+                UserRole::cases(),
+                fn (UserRole $role) => ! in_array($role, [UserRole::SuperAdmin, UserRole::Admin], true)
+            ));
+        }
+
+        return [];
+    }
+
+    /** Compte protégé : seul un super admin peut le modifier ou le supprimer. */
+    public function isProtectedFromRegularAdmin(): bool
+    {
+        return $this->isSuperAdmin() || $this->isAdmin();
+    }
+
     public function isAccountant(): bool
     {
         return $this->hasRole(UserRole::Accountant);
@@ -141,27 +185,85 @@ class User extends Authenticatable
         return $this->hasRole(UserRole::Logistician);
     }
 
-    /** Choisir « Revendeur » (vente avec solde / dette client) sur le formulaire nouvelle vente caisse. */
-    public function canChooseDealerCustomerOnPosSale(): bool
+    /** Cocher « Remise » et modifier les prix unitaires sur le terminal POS. */
+    public function canApplyLineDiscountOnPosSale(?Branch $branch = null): bool
     {
-        return $this->isAdmin() || $this->isLogistician();
+        if (! $this->canAccessPosSales()) {
+            return false;
+        }
+
+        if ($this->canBypassBranchScope()) {
+            return true;
+        }
+
+        return $branch?->allowsLineDiscount() ?? false;
+    }
+
+    /** Choisir « Revendeur » (vente avec solde / dette client) sur le formulaire nouvelle vente caisse. */
+    public function canChooseDealerCustomerOnPosSale(?Branch $branch = null): bool
+    {
+        if (! $this->canAccessPosSales()) {
+            return false;
+        }
+
+        if ($this->canBypassBranchScope()) {
+            return true;
+        }
+
+        return $branch?->allowsDealerCreditSales() ?? false;
+    }
+
+    /** Administrateur rattaché à une branche (gestion locale uniquement). */
+    public function isBranchAdmin(): bool
+    {
+        return $this->isAdmin() && $this->branch_id !== null;
+    }
+
+    /** Siège : super admin ou administrateur sans branche. */
+    public function isHqAdmin(): bool
+    {
+        return $this->isSuperAdmin() || ($this->isAdmin() && $this->branch_id === null);
     }
 
     /** Admin, comptable ou logisticien : vue agrégée multi-branches (filtre désactivé). */
     public function canBypassBranchScope(): bool
     {
-        return $this->isAdmin() || $this->isAccountant() || $this->isLogistician();
+        if ($this->isSuperAdmin()) {
+            return true;
+        }
+
+        if ($this->isAdmin() && $this->branch_id === null) {
+            return true;
+        }
+
+        return $this->isAccountant() || $this->isLogistician();
     }
 
     public function canAccessAccounting(): bool
     {
-        return $this->isAdmin() || $this->isAccountant();
+        return $this->hasApplicationAdminAccess() || $this->isAccountant();
     }
 
     /** Shifts fermés, clients, bons de caisse : comptable/admin ou caissier. */
     public function canAccessCashDeskFinanceFeatures(): bool
     {
         return $this->canAccessAccounting() || $this->isCashier();
+    }
+
+    /** Manager ou admin de branche : shifts fermés et bons de caisse (périmètre branche uniquement). */
+    public function isBranchManager(): bool
+    {
+        return ($this->isManager() || $this->isBranchAdmin()) && $this->branch_id !== null;
+    }
+
+    /** Accès shifts fermés + bons de caisse (compta/caissier HQ, ou responsable de branche). */
+    public function canAccessBranchCashDeskOverview(): bool
+    {
+        if ($this->canAccessCashDeskFinanceFeatures()) {
+            return true;
+        }
+
+        return $this->isBranchManager();
     }
 
     /** Liens Clients dans le menu (logisticien ou profil finances caisse). */
@@ -188,16 +290,16 @@ class User extends Authenticatable
         return $this->canAccessCashDeskFinanceFeatures();
     }
 
-    /** Depuis un shift fermé : créer l’écriture + bon de caisse (caissier responsable ou compta). */
+    /** Depuis un shift fermé : créer l’écriture + bon de caisse (caissier, compta ou responsable de branche). */
     public function canPushClosedShiftCashEntry(): bool
     {
-        return $this->canAccessAccounting() || $this->isCashier();
+        return $this->canAccessAccounting() || $this->isCashier() || $this->isBranchManager();
     }
 
     /** Structure boutique, utilisateurs, paramètres, BC admin, etc. */
     public function canManageApplication(): bool
     {
-        return $this->isAdmin();
+        return $this->hasApplicationAdminAccess();
     }
 
     /**
@@ -206,7 +308,7 @@ class User extends Authenticatable
      */
     public function isInventoryReadOnly(): bool
     {
-        return $this->isAccountant() && ! $this->isAdmin() && ! $this->isStockManager();
+        return $this->isAccountant() && ! $this->hasApplicationAdminAccess() && ! $this->isStockManager();
     }
 
     /** Créer ou enregistrer un transfert de stock (hors caisse / point de vente / comptable en lecture seule). */
@@ -232,13 +334,13 @@ class User extends Authenticatable
     /** Création de fiche produit et import CSV/Excel — admin ou logisticien uniquement. */
     public function canCreateOrImportProducts(): bool
     {
-        return $this->isAdmin() || $this->isLogistician();
+        return $this->hasApplicationAdminAccess() || $this->isLogistician();
     }
 
     /** Enregistrer un mouvement de stock manuel (entrée / sortie / transfert). */
     public function canCreateStockMovement(): bool
     {
-        return $this->isAdmin() || $this->isLogistician();
+        return $this->hasApplicationAdminAccess() || $this->isLogistician();
     }
 
     /** Modifier ou supprimer une fiche produit. */
@@ -267,7 +369,7 @@ class User extends Authenticatable
      */
     public function canAccessPosSales(): bool
     {
-        if ($this->isAdmin()) {
+        if ($this->hasApplicationAdminAccess()) {
             return true;
         }
         if ($this->isLogistician()) {
@@ -286,6 +388,6 @@ class User extends Authenticatable
     /** Approuver ou refuser une remise sur une vente (workflow caisse). */
     public function canApproveSaleDiscounts(): bool
     {
-        return $this->isAdmin();
+        return $this->hasApplicationAdminAccess();
     }
 }

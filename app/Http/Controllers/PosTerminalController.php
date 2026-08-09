@@ -16,7 +16,7 @@ class PosTerminalController extends Controller
 {
     public function index(Branch $branch): View
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
 
         $terminals = $branch->posTerminals()
             ->with('location')
@@ -28,7 +28,7 @@ class PosTerminalController extends Controller
 
     public function create(Branch $branch): View
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
 
         $usedLocationIds = PosTerminal::query()->where('branch_id', $branch->id)->pluck('location_id');
         $locations = Location::query()
@@ -48,7 +48,7 @@ class PosTerminalController extends Controller
 
     public function store(Request $request, Branch $branch): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
 
         $usedLocationIds = PosTerminal::query()->where('branch_id', $branch->id)->pluck('location_id')->all();
         $data = $request->validate([
@@ -80,7 +80,7 @@ class PosTerminalController extends Controller
 
     public function edit(Branch $branch, PosTerminal $posTerminal): View
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
         abort_unless((int) $posTerminal->branch_id === (int) $branch->id, 404);
 
         $posTerminal->load('posUsers');
@@ -95,7 +95,7 @@ class PosTerminalController extends Controller
 
     public function update(Request $request, Branch $branch, PosTerminal $posTerminal): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
         abort_unless((int) $posTerminal->branch_id === (int) $branch->id, 404);
 
         $data = $request->validate([
@@ -128,7 +128,7 @@ class PosTerminalController extends Controller
 
     public function destroy(Branch $branch, PosTerminal $posTerminal): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
         abort_unless((int) $posTerminal->branch_id === (int) $branch->id, 404);
 
         if ($posTerminal->openShift() !== null) {

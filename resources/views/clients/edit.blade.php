@@ -18,6 +18,20 @@
             @method('PATCH')
 
             <div>
+                <x-input-label value="Branche" />
+                @if ($showsMultipleBranches && auth()->user()?->canBypassBranchScope())
+                    <select id="branch_id" name="branch_id" required class="mt-1 block w-full rounded-md border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
+                        @foreach ($branchesForFilter as $branch)
+                            <option value="{{ $branch->id }}" @selected((int) old('branch_id', $client->branch_id) === (int) $branch->id)>{{ $branch->name }}</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('branch_id')" class="mt-2" />
+                @else
+                    <p class="mt-1 rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-medium text-neutral-800">{{ $client->branch?->name ?? '—' }}</p>
+                @endif
+            </div>
+
+            <div>
                 <x-input-label for="name" value="Nom du client" />
                 <x-text-input id="name" name="name" type="text" class="mt-1 block w-full" :value="old('name', $client->name)" required autofocus />
                 <x-input-error :messages="$errors->get('name')" class="mt-2" />

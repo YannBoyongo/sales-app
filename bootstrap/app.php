@@ -6,6 +6,7 @@ use App\Http\Middleware\EnsureAdmin;
 use App\Http\Middleware\EnsureCanManageStockTransfers;
 use App\Http\Middleware\EnsureClientPaymentsAccess;
 use App\Http\Middleware\EnsureClientsModuleAccess;
+use App\Http\Middleware\EnsureSuperAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => EnsureAdmin::class,
+            'super_admin' => EnsureSuperAdmin::class,
             'accounting' => EnsureAccounting::class,
             'accounting_or_cashier' => EnsureAccountingOrCashier::class,
             'clients_module' => EnsureClientsModuleAccess::class,

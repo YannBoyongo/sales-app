@@ -35,6 +35,24 @@
                     <p class="app-page-desc max-w-xl">
                         Gérez les emplacements stock et les terminaux de caisse rattachés à cette branche.
                     </p>
+                    @if (auth()->user()?->isSuperAdmin())
+                        <p class="mt-2 text-sm text-neutral-600">
+                            Ventes à crédit (revendeur/client) :
+                            @if ($branch->can_sell_on_credit)
+                                <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">Activées</span>
+                            @else
+                                <span class="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600">Désactivées</span>
+                            @endif
+                        </p>
+                        <p class="mt-1 text-sm text-neutral-600">
+                            Remise sur vente :
+                            @if ($branch->can_apply_discount)
+                                <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">Activée</span>
+                            @else
+                                <span class="inline-flex rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-semibold text-neutral-600">Désactivée</span>
+                            @endif
+                        </p>
+                    @endif
                 </div>
                 <div class="flex shrink-0 items-center gap-1">
                     <a

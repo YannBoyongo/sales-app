@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Models\Branch;
 use App\Models\PosTerminal;
 use App\Models\Sale;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,15 +24,24 @@ class SalesOverviewController extends Controller
         $filters = $request->validate([
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'pos_terminal_id' => ['nullable', 'integer', 'exists:pos_terminals,id'],
             'payment_type' => ['nullable', 'in:cash,credit,caution'],
         ]);
 
-        $posTerminals = $this->posTerminalsForSalesFilter();
-        $showsMultipleBranches = $posTerminals->pluck('branch_id')->unique()->count() > 1;
+        $branchesForFilter = $this->branchesForUser();
+        $showsMultipleBranches = $branchesForFilter->count() > 1;
+
+        if (($filters['branch_id'] ?? null) !== null) {
+            abort_unless($branchesForFilter->contains('id', (int) $filters['branch_id']), 403);
+        }
+
+        $posTerminals = $this->posTerminalsForSalesFilter($filters['branch_id'] ?? null);
+        $showsMultipleTerminalBranches = $posTerminals->pluck('branch_id')->unique()->count() > 1;
 
         $salesQuery = $this->salesOverviewQuery($request, $filters, $user, $posTerminals);
         $summaryTotals = $this->summarizeSalesOverview($salesQuery);
+        $branchTotals = $this->summarizeSalesByBranch($salesQuery, $branchesForFilter, $filters);
 
         $sales = (clone $salesQuery)
             ->with([
@@ -65,7 +75,7 @@ class SalesOverviewController extends Controller
                 'html' => view('sales.partials.overview-rows', [
                     'sales' => $sales,
                     'filters' => $filters,
-                    'showsMultipleBranches' => $showsMultipleBranches,
+                    'showsMultipleBranches' => $showsMultipleTerminalBranches,
                 ])->render(),
                 'next_page_url' => $nextPageUrl,
                 'from' => $sales->firstItem(),
@@ -89,11 +99,14 @@ class SalesOverviewController extends Controller
             'sales',
             'filters',
             'posTerminals',
+            'branchesForFilter',
             'showsMultipleBranches',
+            'showsMultipleTerminalBranches',
             'canApproveDiscounts',
             'pendingDiscountCount',
             'infiniteNextPageUrl',
             'summaryTotals',
+            'branchTotals',
         ));
     }
 
@@ -111,7 +124,7 @@ class SalesOverviewController extends Controller
 
         $this->applyBranchFilter($query, 'branch_id');
 
-        if (! $user?->isAdmin()) {
+        if (! $user?->hasApplicationAdminAccess()) {
             $query->where('user_id', $user->id);
         }
 
@@ -122,6 +135,7 @@ class SalesOverviewController extends Controller
         return $query
             ->when($filters['date_from'] ?? null, fn ($q, $value) => $q->whereDate('sold_at', '>=', $value))
             ->when($filters['date_to'] ?? null, fn ($q, $value) => $q->whereDate('sold_at', '<=', $value))
+            ->when($filters['branch_id'] ?? null, fn ($q, $value) => $q->where('branch_id', (int) $value))
             ->when($filters['pos_terminal_id'] ?? null, function ($q, $value) use ($posTerminals) {
                 abort_unless($posTerminals->contains('id', (int) $value), 403);
                 $q->whereHas('posShift', fn ($shift) => $shift->where('pos_terminal_id', (int) $value));
@@ -167,16 +181,72 @@ class SalesOverviewController extends Controller
         ];
     }
 
+    /**
+     * @param  Collection<int, Branch>  $branchesForFilter
+     * @param  array<string, mixed>  $filters
+     * @return list<array{branch_id: int, branch_name: string, expected: string, paid: string, remaining: string, count: int}>
+     */
+    private function summarizeSalesByBranch(Builder $query, Collection $branchesForFilter, array $filters): array
+    {
+        if ($branchesForFilter->count() <= 1 || ($filters['branch_id'] ?? null) !== null) {
+            return [];
+        }
+
+        $branchIds = (clone $query)
+            ->select('branch_id')
+            ->distinct()
+            ->pluck('branch_id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        if ($branchIds === []) {
+            return [];
+        }
+
+        $branchNames = Branch::query()
+            ->whereIn('id', $branchIds)
+            ->pluck('name', 'id');
+
+        $rows = [];
+
+        foreach ($branchIds as $branchId) {
+            $branchQuery = (clone $query)->where('branch_id', $branchId);
+            $summary = $this->summarizeSalesOverview($branchQuery);
+
+            if ($summary['count'] === 0) {
+                continue;
+            }
+
+            $rows[] = [
+                'branch_id' => $branchId,
+                'branch_name' => (string) ($branchNames[$branchId] ?? 'Branche #'.$branchId),
+                ...$summary,
+            ];
+        }
+
+        usort($rows, fn (array $a, array $b) => strcmp($a['branch_name'], $b['branch_name']));
+
+        return $rows;
+    }
+
     /** @return Collection<int, PosTerminal> */
-    private function posTerminalsForSalesFilter(): Collection
+    private function posTerminalsForSalesFilter(?int $branchId = null): Collection
     {
         $user = auth()->user();
         if ($user?->isPosUser() || ($user?->isCashier() && $user->posTerminals()->exists())) {
             $assigned = $this->posTerminalsForUser();
             if ($assigned->isNotEmpty()) {
-                return $assigned->loadMissing(['branch:id,name', 'location:id,name'])
+                $terminals = $assigned->loadMissing(['branch:id,name', 'location:id,name'])
                     ->sortBy(fn (PosTerminal $t) => ($t->branch->name ?? '').' '.$t->name)
                     ->values();
+
+                if ($branchId !== null) {
+                    $terminals = $terminals->where('branch_id', $branchId)->values();
+                }
+
+                return $terminals;
             }
         }
 
@@ -184,6 +254,10 @@ class SalesOverviewController extends Controller
             ->with(['branch:id,name', 'location:id,name'])
             ->orderBy('branch_id')
             ->orderBy('name');
+
+        if ($branchId !== null) {
+            $query->where('branch_id', $branchId);
+        }
 
         $this->applyBranchFilter($query, 'branch_id');
 

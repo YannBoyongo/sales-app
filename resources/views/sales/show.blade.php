@@ -21,7 +21,7 @@
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ route('sales.print-large', [$branch, $sale]) }}" target="_blank" class="app-btn-secondary">Imprimer facture A4</a>
             <a href="{{ route('sales.print-small', [$branch, $sale]) }}" target="_blank" class="app-btn-secondary">Imprimer ticket POS</a>
-            @if (auth()->user()?->isAdmin())
+            @if (auth()->user()?->hasApplicationAdminAccess())
                 <form
                     action="{{ route('sales.destroy', [$branch, $sale]) }}"
                     method="POST"

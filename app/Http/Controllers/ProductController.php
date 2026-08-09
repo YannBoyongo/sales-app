@@ -83,9 +83,13 @@ class ProductController extends Controller
             'description' => ['nullable', 'string'],
             'unit_price' => ['required', 'numeric', 'min:0'],
             'minimum_stock' => ['nullable', 'integer', 'min:0'],
+            'sellable_as_addon' => ['sometimes', 'boolean'],
         ]);
 
-        Product::create($data);
+        Product::create([
+            ...$data,
+            'sellable_as_addon' => $request->boolean('sellable_as_addon'),
+        ]);
 
         return redirect()->route('products.index')->with('success', 'Produit créé.');
     }
@@ -114,9 +118,13 @@ class ProductController extends Controller
             'description' => ['nullable', 'string'],
             'unit_price' => ['required', 'numeric', 'min:0'],
             'minimum_stock' => ['nullable', 'integer', 'min:0'],
+            'sellable_as_addon' => ['sometimes', 'boolean'],
         ]);
 
-        $product->update($data);
+        $product->update([
+            ...$data,
+            'sellable_as_addon' => $request->boolean('sellable_as_addon'),
+        ]);
 
         return redirect()->route('products.index')->with('success', 'Produit mis à jour.');
     }

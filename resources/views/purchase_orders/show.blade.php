@@ -30,7 +30,7 @@
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    @if (auth()->user()->isAdmin() && $purchaseOrder->status === 'open' && ! $purchaseOrder->reception_started)
+                    @if (auth()->user()->hasApplicationAdminAccess() && $purchaseOrder->status === 'open' && ! $purchaseOrder->reception_started)
                         <a href="{{ route('purchase-orders.edit', $purchaseOrder) }}" class="app-btn-secondary">Modifier PO</a>
                         <form
                             action="{{ route('purchase-orders.destroy', $purchaseOrder) }}"
@@ -98,7 +98,7 @@
                                     <li>{{ $reception->product->name }} : <span class="tabular-nums font-medium">{{ $reception->quantity }}</span></li>
                                 @endforeach
                             </ul>
-                            @if (auth()->user()->isAdmin())
+                            @if (auth()->user()->hasApplicationAdminAccess())
                                 <div class="mt-4 flex flex-wrap gap-2">
                                     <form action="{{ route('purchase-orders.reception-batches.approve', [$purchaseOrder, $batch]) }}" method="POST" onsubmit="return confirm('Approuver cette réception et mettre à jour le stock ?');">
                                         @csrf
@@ -132,7 +132,7 @@
                             <th class="px-4 py-3 text-right">En attente</th>
                             <th class="px-4 py-3 text-right">Restant</th>
                             <th class="px-4 py-3 text-right">Réceptionner maintenant</th>
-                            @if (auth()->user()?->isAdmin())
+                            @if (auth()->user()?->hasApplicationAdminAccess())
                                 <th class="px-4 py-3 text-right">Action</th>
                             @endif
                         </tr>
@@ -164,7 +164,7 @@
                                         @disabled($remaining === 0)
                                     />
                                 </td>
-                                @if (auth()->user()?->isAdmin())
+                                @if (auth()->user()?->hasApplicationAdminAccess())
                                     <td class="px-4 py-3 text-right">
                                         @if ($canDeleteItem)
                                             <form
@@ -193,7 +193,7 @@
                             </tr>
                         @endforeach
                         <tr>
-                            <td colspan="{{ auth()->user()?->isAdmin() ? 7 : 6 }}" class="px-4 py-4 text-right">
+                            <td colspan="{{ auth()->user()?->hasApplicationAdminAccess() ? 7 : 6 }}" class="px-4 py-4 text-right">
                                 <button form="po-receive-form" type="submit" class="app-btn-primary">
                                     Soumettre pour approbation
                                 </button>
@@ -218,7 +218,7 @@
                             <th class="px-4 py-3 text-right">Qté</th>
                             <th class="px-4 py-3">Soumis par</th>
                             <th class="px-4 py-3">Statut</th>
-                            @if (auth()->user()?->isAdmin())
+                            @if (auth()->user()?->hasApplicationAdminAccess())
                                 <th class="px-4 py-3 text-right">Action</th>
                             @endif
                         </tr>
@@ -246,7 +246,7 @@
                                         @endif
                                     @endif
                                 </td>
-                                @if (auth()->user()?->isAdmin())
+                                @if (auth()->user()?->hasApplicationAdminAccess())
                                     <td class="px-4 py-3 text-right">
                                         @if ($batchStatus === \App\Models\PurchaseOrderReceptionBatch::STATUS_APPROVED)
                                             <form
@@ -279,7 +279,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ auth()->user()?->isAdmin() ? 7 : 6 }}" class="px-4 py-8 text-center text-neutral-500">Aucune réception enregistrée.</td>
+                                <td colspan="{{ auth()->user()?->hasApplicationAdminAccess() ? 7 : 6 }}" class="px-4 py-8 text-center text-neutral-500">Aucune réception enregistrée.</td>
                             </tr>
                         @endforelse
                     </tbody>

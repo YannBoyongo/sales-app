@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\AccountingTransaction;
+use App\Models\Branch;
 use App\Models\CashVoucher;
 use App\Models\ChartOfAccount;
 use Illuminate\Http\JsonResponse;
@@ -14,18 +16,32 @@ use Illuminate\View\View;
 
 class CashVoucherController extends Controller
 {
-    public function index(Request $request): View
+    use RespectsUserBranch;
+
+    public function index(Request $request): View|JsonResponse
     {
         $filters = $request->validate([
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'type' => ['nullable', 'in:entry,exit'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
         ]);
 
+        $branchesForFilter = $this->branchesForUser();
+        $showsBranchFilter = $branchesForFilter->count() > 1;
+
+        if (($filters['branch_id'] ?? null) !== null) {
+            abort_unless($branchesForFilter->contains('id', (int) $filters['branch_id']), 403);
+        }
+
         $baseQuery = CashVoucher::query()
+            ->with('branch:id,name')
             ->when($filters['date_from'] ?? null, fn ($q, $value) => $q->whereDate('date', '>=', $value))
             ->when($filters['date_to'] ?? null, fn ($q, $value) => $q->whereDate('date', '<=', $value))
-            ->when($filters['type'] ?? null, fn ($q, $value) => $q->where('type', $value));
+            ->when($filters['type'] ?? null, fn ($q, $value) => $q->where('type', $value))
+            ->when($filters['branch_id'] ?? null, fn ($q, $value) => $q->where('branch_id', (int) $value));
+
+        $this->applyBranchFilter($baseQuery);
 
         $totals = (clone $baseQuery)
             ->whereNotNull('approved_at')
@@ -44,10 +60,38 @@ class CashVoucherController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        if ($request->boolean('infinite')) {
+            $nextPageUrl = null;
+            if ($approvedVouchers->hasMorePages()) {
+                $nextPageUrl = $approvedVouchers->nextPageUrl();
+                $nextPageUrl .= (str_contains($nextPageUrl, '?') ? '&' : '?').'infinite=1';
+            }
+
+            return response()->json([
+                'html' => view('cash_vouchers.partials.approved-rows', [
+                    'approvedVouchers' => $approvedVouchers,
+                ])->render(),
+                'next_page_url' => $nextPageUrl,
+                'from' => $approvedVouchers->firstItem(),
+                'to' => $approvedVouchers->lastItem(),
+                'total' => $approvedVouchers->total(),
+                'has_more' => $approvedVouchers->hasMorePages(),
+            ]);
+        }
+
+        $infiniteNextPageUrl = null;
+        if ($approvedVouchers->hasMorePages()) {
+            $infiniteNextPageUrl = $approvedVouchers->nextPageUrl();
+            $infiniteNextPageUrl .= (str_contains($infiniteNextPageUrl, '?') ? '&' : '?').'infinite=1';
+        }
+
         return view('cash_vouchers.index', [
             'pendingVouchers' => $pendingVouchers,
             'approvedVouchers' => $approvedVouchers,
             'filters' => $filters,
+            'branchesForFilter' => $branchesForFilter,
+            'showsBranchFilter' => $showsBranchFilter,
+            'infiniteNextPageUrl' => $infiniteNextPageUrl,
             'totalEntries' => (float) ($totals?->total_entries ?? 0),
             'totalExits' => (float) ($totals?->total_exits ?? 0),
             'balance' => (float) (($totals?->total_entries ?? 0) - ($totals?->total_exits ?? 0)),
@@ -56,7 +100,8 @@ class CashVoucherController extends Controller
 
     public function approve(Request $request, CashVoucher $cashVoucher): RedirectResponse|JsonResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403, 'Action non autorisée.');
+        abort_unless($request->user()?->hasApplicationAdminAccess(), 403, 'Action non autorisée.');
+        $this->ensureUserCanAccessCashVoucher($cashVoucher);
 
         if ($cashVoucher->approved_at !== null) {
             if ($request->expectsJson()) {
@@ -75,7 +120,7 @@ class CashVoucherController extends Controller
             'approved_by' => $request->user()->id,
         ]);
 
-        $cashVoucher->refresh();
+        $cashVoucher->refresh()->load('branch:id,name');
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -98,7 +143,8 @@ class CashVoucherController extends Controller
 
     public function update(Request $request, CashVoucher $cashVoucher): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403, 'Action non autorisée.');
+        abort_unless($request->user()?->hasApplicationAdminAccess(), 403, 'Action non autorisée.');
+        $this->ensureUserCanAccessCashVoucher($cashVoucher);
 
         if ($cashVoucher->approved_at !== null) {
             return redirect()
@@ -117,7 +163,9 @@ class CashVoucherController extends Controller
                 'required',
                 'string',
                 'max:100',
-                Rule::unique('cash_vouchers', 'voucher_no')->ignore($cashVoucher->id),
+                Rule::unique('cash_vouchers', 'voucher_no')
+                    ->where(fn ($q) => $q->where('branch_id', $cashVoucher->branch_id))
+                    ->ignore($cashVoucher->id),
             ],
             'edit_voucher_id' => ['nullable', 'integer'],
         ]);
@@ -133,15 +181,35 @@ class CashVoucherController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $branchesForFilter = $this->branchesForUser();
+        $showsBranchFilter = $branchesForFilter->count() > 1;
+
         $data = $request->validate([
-            'voucher_no' => ['required', 'string', 'max:100', 'unique:cash_vouchers,voucher_no'],
+            'branch_id' => [
+                Rule::requiredIf($showsBranchFilter),
+                'nullable',
+                'integer',
+                'exists:branches,id',
+            ],
+            'voucher_no' => ['required', 'string', 'max:100'],
             'date' => ['required', 'date'],
             'description' => ['required', 'string', 'max:2000'],
             'type' => ['required', 'in:entry,exit'],
             'amount' => ['required', 'numeric', 'gt:0'],
         ]);
 
-        CashVoucher::query()->create($data);
+        $branchId = $this->resolveBranchIdForMutation($data['branch_id'] ?? null);
+
+        $request->validate([
+            'voucher_no' => [
+                Rule::unique('cash_vouchers', 'voucher_no')->where(fn ($q) => $q->where('branch_id', $branchId)),
+            ],
+        ]);
+
+        CashVoucher::query()->create([
+            ...$data,
+            'branch_id' => $branchId,
+        ]);
 
         return redirect()
             ->route('cash-vouchers.index')
@@ -151,6 +219,7 @@ class CashVoucherController extends Controller
     public function createAccountingEntry(Request $request, CashVoucher $cashVoucher): View|RedirectResponse
     {
         abort_unless($request->user()?->canAccessAccounting(), 403, 'Action non autorisée.');
+        $this->ensureUserCanAccessCashVoucher($cashVoucher);
 
         if ($cashVoucher->approved_at === null) {
             return redirect()
@@ -175,6 +244,7 @@ class CashVoucherController extends Controller
     public function storeAccountingEntry(Request $request, CashVoucher $cashVoucher): RedirectResponse
     {
         abort_unless($request->user()?->canAccessAccounting(), 403, 'Action non autorisée.');
+        $this->ensureUserCanAccessCashVoucher($cashVoucher);
 
         if ($cashVoucher->approved_at === null) {
             return redirect()
@@ -236,6 +306,7 @@ class CashVoucherController extends Controller
     public function unaccount(Request $request, CashVoucher $cashVoucher): RedirectResponse
     {
         abort_unless($request->user()?->canAccessAccounting(), 403, 'Action non autorisée.');
+        $this->ensureUserCanAccessCashVoucher($cashVoucher);
 
         if ($cashVoucher->accounting_transaction_id === null) {
             return redirect()
@@ -262,7 +333,8 @@ class CashVoucherController extends Controller
 
     public function destroy(Request $request, CashVoucher $cashVoucher): RedirectResponse
     {
-        abort_unless($request->user()?->isAdmin(), 403, 'Action non autorisée.');
+        abort_unless($request->user()?->hasApplicationAdminAccess(), 403, 'Action non autorisée.');
+        $this->ensureUserCanAccessCashVoucher($cashVoucher);
 
         if ($cashVoucher->accounting_transaction_id !== null) {
             return redirect()
@@ -275,5 +347,13 @@ class CashVoucherController extends Controller
         return redirect()
             ->route('cash-vouchers.index')
             ->with('success', 'Bon de caisse supprimé.');
+    }
+
+    protected function ensureUserCanAccessCashVoucher(CashVoucher $cashVoucher): void
+    {
+        $cashVoucher->loadMissing('branch');
+        if ($cashVoucher->branch !== null) {
+            $this->ensureUserCanAccessBranchModel($cashVoucher->branch);
+        }
     }
 }

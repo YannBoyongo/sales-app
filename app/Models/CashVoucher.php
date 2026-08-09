@@ -11,6 +11,7 @@ class CashVoucher extends Model
     use HasFactory;
 
     protected $fillable = [
+        'branch_id',
         'voucher_no',
         'date',
         'description',
@@ -30,6 +31,11 @@ class CashVoucher extends Model
             'amount' => 'decimal:2',
             'approved_at' => 'datetime',
         ];
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
     }
 
     public function approvedBy(): BelongsTo

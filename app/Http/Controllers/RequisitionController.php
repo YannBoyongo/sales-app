@@ -254,7 +254,7 @@ class RequisitionController extends Controller
 
     public function convertToPurchaseOrder(Request $request, Requisition $requisition): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
 
         if (! $requisition->canConvertToPurchaseOrder()) {
             return redirect()

@@ -89,7 +89,7 @@
                         <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6A2.25 2.25 0 016 3.75h3A2.25 2.25 0 0111.25 6v3A2.25 2.25 0 019 11.25H6A2.25 2.25 0 013.75 9V6zM12.75 6A2.25 2.25 0 0115 3.75h3A2.25 2.25 0 0120.25 6v3A2.25 2.25 0 0118 11.25h-3a2.25 2.25 0 01-2.25-2.25V6zM3.75 15A2.25 2.25 0 016 12.75h3a2.25 2.25 0 012.25 2.25v3a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25v-3zM12.75 15a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25v3A2.25 2.25 0 0118 20.25h-3a2.25 2.25 0 01-2.25-2.25v-3z"/></svg>
                         <span>Tableau de bord</span>
                     </a>
-                    @if (Auth::user()->isAdmin())
+                    @if (Auth::user()->hasApplicationAdminAccess())
                         <a href="{{ route('pending-actions.index') }}" class="app-nav-link {{ request()->routeIs('pending-actions.*') ? 'app-nav-link-active' : '' }}" title="Pending actions">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zm9-3.758A9 9 0 1112 3a9 9 0 019 8.242z"/></svg>
                             <span>Pending actions</span>
@@ -116,10 +116,12 @@
                         <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
                         <span>Stocks par emplacement</span>
                     </a>
-                    <a href="{{ route('stocks.valuation') }}" class="app-nav-link {{ request()->routeIs('stocks.valuation') ? 'app-nav-link-active' : '' }}" title="Valorisation stock">
-                        <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 12v-2m9-4a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Valorisation stock</span>
-                    </a>
+                    @if (Auth::user()->isSuperAdmin())
+                        <a href="{{ route('stocks.valuation') }}" class="app-nav-link {{ request()->routeIs('stocks.valuation') ? 'app-nav-link-active' : '' }}" title="Valorisation stock">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 12v-2m9-4a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <span>Valorisation stock</span>
+                        </a>
+                    @endif
                     @if (Auth::user()->canViewStockTransfers())
                         <a href="{{ route('stock-transfers.index') }}" class="app-nav-link {{ request()->routeIs('stock-transfers.*') ? 'app-nav-link-active' : '' }}" title="Transfert de stock">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
@@ -130,16 +132,18 @@
                         <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/></svg>
                         <span>Mouvements de stock</span>
                     </a>
-                    <a href="{{ route('requisitions.index') }}" class="app-nav-link {{ request()->routeIs('requisitions.*') ? 'app-nav-link-active' : '' }}">
-                        <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                        <span>Réquisition</span>
-                    </a>
+                    @if (Auth::user()->isSuperAdmin())
+                        <a href="{{ route('requisitions.index') }}" class="app-nav-link {{ request()->routeIs('requisitions.*') ? 'app-nav-link-active' : '' }}">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Réquisition</span>
+                        </a>
+                    @endif
                     <a href="{{ route('purchase-orders.index') }}" class="app-nav-link {{ request()->routeIs('purchase-orders.*') ? 'app-nav-link-active' : '' }}">
                         <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7.5A1.5 1.5 0 014.5 6h15A1.5 1.5 0 0121 7.5v9A1.5 1.5 0 0119.5 18h-15A1.5 1.5 0 013 16.5v-9zM7.5 10.5h9m-9 3h6"/></svg>
                         <span>Bons de commande</span>
                     </a>
 
-                    @if (Auth::user()->canAccessPosSales() || Auth::user()->canAccessCashDeskFinanceFeatures())
+                    @if (Auth::user()->canAccessPosSales() || Auth::user()->canAccessCashDeskFinanceFeatures() || Auth::user()->isBranchManager())
                         <p class="app-nav-section">Caisse</p>
                     @endif
                     @if (Auth::user()->canAccessPosSales())
@@ -154,14 +158,22 @@
                             <span>Toutes les ventes</span>
                         </a>
                     @endif
-                    @if (Auth::user()->canAccessCashDeskFinanceFeatures())
+                    @if (Auth::user()->canAccessBranchCashDeskOverview())
                         <a href="{{ route('pos-terminal.shifts.closed') }}" class="app-nav-link {{ request()->routeIs('pos-terminal.shifts.closed*') ? 'app-nav-link-active' : '' }}" title="Shifts fermés">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m-3-13v4m6 13H6a2 2 0 01-2-2V7a2 2 0 012-2h3.5a1 1 0 00.8-.4l.9-1.2a1 1 0 01.8-.4H18a2 2 0 012 2v13a2 2 0 01-2 2z"/></svg>
                             <span>Shifts fermés</span>
                         </a>
+                    @endif
+                    @if (Auth::user()->canAccessCashDeskFinanceFeatures())
                         <a href="{{ route('caution.index') }}" class="app-nav-link {{ request()->routeIs('caution.*') ? 'app-nav-link-active' : '' }}" title="Caution">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a2.25 2.25 0 01-2.25 2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 013 12m18 0V8.25A2.25 2.25 0 0018.75 6H5.25A2.25 2.25 0 003 8.25V12m18 0v3.75A2.25 2.25 0 0118.75 18H5.25A2.25 2.25 0 013 15.75V12"/></svg>
                             <span>Caution</span>
+                        </a>
+                    @endif
+                    @if (Auth::user()->canAccessBranchCashDeskOverview() && ! Auth::user()->canAccessCashDeskFinanceFeatures())
+                        <a href="{{ route('cash-vouchers.index') }}" class="app-nav-link {{ request()->routeIs('cash-vouchers.*') ? 'app-nav-link-active' : '' }}" title="Bon de caisse">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.25 7.5h7.5M8.25 11.25h7.5M8.25 15h4.5m6.75-9.75v13.5a2.25 2.25 0 01-2.25 2.25h-10.5a2.25 2.25 0 01-2.25-2.25V5.25A2.25 2.25 0 016.75 3h10.5a2.25 2.25 0 012.25 2.25z"/></svg>
+                            <span>Bon de caisse</span>
                         </a>
                     @endif
                     @if (Auth::user()->canAccessClientsNav() && ! Auth::user()->canAccessCashDeskFinanceFeatures())
@@ -171,12 +183,18 @@
                             <span>Clients</span>
                         </a>
                     @endif
-                    @if (Auth::user()->isAdmin() || Auth::user()->canAccessCashDeskFinanceFeatures() || Auth::user()->canAccessPosSales())
+                    @if (Auth::user()->hasApplicationAdminAccess() || Auth::user()->canAccessCashDeskFinanceFeatures() || Auth::user()->canAccessPosSales())
                         <p class="app-nav-section">Rapports</p>
-                        <a href="{{ route('reports.benefits') }}" class="app-nav-link {{ request()->routeIs('reports.benefits') ? 'app-nav-link-active' : '' }}" title="Bénéfices par article">
-                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
-                            <span>Bénéfices</span>
-                        </a>
+                        @if (Auth::user()->isSuperAdmin())
+                            <a href="{{ route('reports.benefits') }}" class="app-nav-link {{ request()->routeIs('reports.benefits') ? 'app-nav-link-active' : '' }}" title="Bénéfices par article">
+                                <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+                                <span>Bénéfices</span>
+                            </a>
+                            <a href="{{ route('suivi-rentabilite') }}" class="app-nav-link {{ request()->routeIs('suivi-rentabilite*') ? 'app-nav-link-active' : '' }}" title="Suivi de rentabilité">
+                                <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M7 16l3-3 3 3 5-6"/></svg>
+                                <span>Suivi de rentabilité</span>
+                            </a>
+                        @endif
                         <a href="{{ route('reports.transfers') }}" class="app-nav-link {{ request()->routeIs('reports.transfers') ? 'app-nav-link-active' : '' }}" title="Liste de transferts">
                             <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
                             <span>Liste de transferts</span>
@@ -282,9 +300,20 @@
                             </div>
                         @endisset
                     </div>
-                    <div class="hidden items-center gap-2 sm:flex">
+                    <div class="flex items-center gap-2">
+                        @php
+                            $authUser = Auth::user();
+                            $authUser?->loadMissing('branch');
+                            $topbarBranchLabel = $authUser?->branch?->name
+                                ?? ($authUser?->canBypassBranchScope() ? 'Siège' : null);
+                        @endphp
+                        @if ($topbarBranchLabel)
+                            <span class="max-w-[8rem] truncate rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 sm:max-w-[10rem]" title="{{ $topbarBranchLabel }}">
+                                {{ $topbarBranchLabel }}
+                            </span>
+                        @endif
                         <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                            {{ Auth::user()->roles()->pluck('name')->first() ?? 'Utilisateur' }}
+                            {{ $authUser?->roles()->pluck('name')->first() ?? 'Utilisateur' }}
                         </span>
                     </div>
                 </header>

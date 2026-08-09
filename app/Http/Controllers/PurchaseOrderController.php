@@ -44,7 +44,7 @@ class PurchaseOrderController extends Controller
 
     public function create(): View
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
 
         $locations = Location::query()
             ->with('branch')
@@ -58,7 +58,7 @@ class PurchaseOrderController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
 
         $data = $this->validatePurchaseOrderPayload($request);
 
@@ -90,7 +90,7 @@ class PurchaseOrderController extends Controller
 
     public function edit(PurchaseOrder $purchaseOrder): View
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
+        abort_unless(auth()->user()->hasApplicationAdminAccess(), 403);
         $purchaseOrder->load(['location.branch', 'items.product']);
         abort_unless($this->canEdit($purchaseOrder), 403, 'Ce bon de commande ne peut plus être modifié car la réception a déjà commencé.');
 
@@ -106,7 +106,7 @@ class PurchaseOrderController extends Controller
 
     public function update(Request $request, PurchaseOrder $purchaseOrder): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
         $purchaseOrder->load('items');
         if (! $this->canEdit($purchaseOrder)) {
             return redirect()->route('purchase-orders.show', $purchaseOrder)
@@ -142,7 +142,7 @@ class PurchaseOrderController extends Controller
 
     public function destroy(PurchaseOrder $purchaseOrder): RedirectResponse
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
 
         $this->ensureUserCanAccessLocation($purchaseOrder->location);
 
@@ -175,7 +175,7 @@ class PurchaseOrderController extends Controller
 
     public function destroyItem(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderItem $item): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
         abort_unless((int) $item->purchase_order_id === (int) $purchaseOrder->id, 404);
 
         $purchaseOrder->load('location');
@@ -336,7 +336,7 @@ class PurchaseOrderController extends Controller
 
     public function approveReceptionBatch(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderReceptionBatch $batch): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
 
         abort_unless((int) $batch->purchase_order_id === (int) $purchaseOrder->id, 404);
         abort_unless($batch->isPending(), 422, 'Cette réception a déjà été traitée.');
@@ -437,7 +437,7 @@ class PurchaseOrderController extends Controller
 
     public function rejectReceptionBatch(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderReceptionBatch $batch): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
 
         abort_unless((int) $batch->purchase_order_id === (int) $purchaseOrder->id, 404);
         abort_unless($batch->isPending(), 422, 'Cette réception a déjà été traitée.');
@@ -468,7 +468,7 @@ class PurchaseOrderController extends Controller
 
     public function destroyRejectedReception(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderReception $reception): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
         abort_unless((int) $reception->purchase_order_id === (int) $purchaseOrder->id, 404);
 
         $this->ensureUserCanAccessLocation($purchaseOrder->location);
@@ -497,7 +497,7 @@ class PurchaseOrderController extends Controller
 
     public function reverseReception(Request $request, PurchaseOrder $purchaseOrder, PurchaseOrderReception $reception): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
         abort_unless((int) $reception->purchase_order_id === (int) $purchaseOrder->id, 404);
 
         $purchaseOrder->load('location');

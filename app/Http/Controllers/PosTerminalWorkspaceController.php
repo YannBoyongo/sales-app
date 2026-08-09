@@ -70,7 +70,7 @@ class PosTerminalWorkspaceController extends Controller
             ->paginate(25)
             ->withQueryString();
 
-        $canViewClosedShiftDetail = (bool) $request->user()?->canAccessCashDeskFinanceFeatures();
+        $canViewClosedShiftDetail = (bool) $request->user()?->canAccessBranchCashDeskOverview();
 
         return view('pos_terminals.sales', compact(
             'branch',

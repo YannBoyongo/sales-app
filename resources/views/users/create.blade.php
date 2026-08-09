@@ -33,14 +33,14 @@
             <x-input-label value="Rôles" />
             <div id="roles-group" class="mt-2 grid gap-2 rounded-md border border-neutral-200 bg-neutral-50 p-3">
                 @php($oldRoles = collect((array) old('roles', [\App\Enums\UserRole::Manager->value]))->map(fn ($v) => (string) $v)->all())
-                @foreach (\App\Enums\UserRole::cases() as $r)
+                @foreach ($assignableRoles as $r)
                     <label class="inline-flex items-center gap-2 text-sm text-neutral-800">
                         <input type="checkbox" name="roles[]" value="{{ $r->value }}" @checked(in_array($r->value, $oldRoles, true)) class="rounded border-neutral-300 text-primary focus:ring-primary">
                         <span>{{ $r->label() }}</span>
                     </label>
                 @endforeach
             </div>
-            <p class="mt-1 text-xs text-neutral-500">Un utilisateur peut avoir plusieurs rôles. Si Admin, Comptable ou Logisticien est coché, la branche devient optionnelle.</p>
+            <p class="mt-1 text-xs text-neutral-500">Un utilisateur peut avoir plusieurs rôles. Si Super administrateur, Admin, Comptable, Logisticien ou Magasinier est coché, la branche devient optionnelle.</p>
             <x-input-error :messages="$errors->get('roles')" class="mt-2" />
             <x-input-error :messages="$errors->get('roles.*')" class="mt-2" />
         </div>
@@ -67,7 +67,7 @@
             if (!rolesWrap || !branchWrap || !branchSelect) return;
             function sync() {
                 var checked = Array.from(rolesWrap.querySelectorAll('input[name="roles[]"]:checked')).map(function (el) { return el.value; });
-                var noBranch = checked.includes('admin') || checked.includes('accountant') || checked.includes('logistician');
+                var noBranch = checked.includes('super_admin') || checked.includes('admin') || checked.includes('accountant') || checked.includes('logistician') || checked.includes('stock_manager');
                 branchWrap.classList.toggle('hidden', noBranch);
                 branchSelect.disabled = noBranch;
                 branchSelect.required = !noBranch;

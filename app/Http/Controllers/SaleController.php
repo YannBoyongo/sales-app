@@ -49,7 +49,7 @@ class SaleController extends Controller
 
     public function edit(Branch $branch, Sale $sale): View
     {
-        abort_unless(auth()->user()?->isAdmin(), 403);
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
 
@@ -60,7 +60,7 @@ class SaleController extends Controller
 
     public function update(Request $request, Branch $branch, Sale $sale): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
 
@@ -83,7 +83,10 @@ class SaleController extends Controller
             if ($clientName === '') {
                 return back()->withInput()->withErrors(['client_name' => 'Le nom du client est obligatoire pour une vente à crédit.']);
             }
-            $client = Client::query()->firstOrCreate(['name' => $clientName]);
+            $client = Client::query()->firstOrCreate(
+                ['branch_id' => $branch->id, 'name' => $clientName],
+                ['phone' => $clientPhone !== '' ? $clientPhone : null],
+            );
             $clientPhone = trim((string) ($data['client_phone'] ?? ''));
             if ($clientPhone !== '') {
                 $client->update(['phone' => $clientPhone]);
@@ -126,7 +129,7 @@ class SaleController extends Controller
 
     public function destroy(Request $request, Branch $branch, Sale $sale): RedirectResponse
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        abort_unless($request->user()->hasApplicationAdminAccess(), 403);
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
 
@@ -380,6 +383,7 @@ class SaleController extends Controller
                     }
 
                     CashVoucher::query()->create([
+                        'branch_id' => $sale->branch_id,
                         'voucher_no' => 'CV-DETTE-'.$payment->id,
                         'date' => optional($payment->paid_at)->toDateString() ?? now()->toDateString(),
                         'description' => mb_substr($description, 0, 2000),
@@ -487,7 +491,7 @@ class SaleController extends Controller
     private function ensureUserCanViewSale(Sale $sale): void
     {
         $user = auth()->user();
-        if ($user?->isAdmin()) {
+        if ($user?->hasApplicationAdminAccess()) {
             return;
         }
 

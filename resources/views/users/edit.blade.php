@@ -34,7 +34,7 @@
             <x-input-label value="Rôles" />
             <div id="roles-group" class="mt-2 grid gap-2 rounded-md border border-neutral-200 bg-neutral-50 p-3">
                 @php($selectedRoles = collect((array) old('roles', $user->roleSlugs()))->map(fn ($v) => (string) $v)->all())
-                @foreach (\App\Enums\UserRole::cases() as $r)
+                @foreach ($assignableRoles as $r)
                     <label class="inline-flex items-center gap-2 text-sm text-neutral-800">
                         <input type="checkbox" name="roles[]" value="{{ $r->value }}" @checked(in_array($r->value, $selectedRoles, true)) class="rounded border-neutral-300 text-primary focus:ring-primary">
                         <span>{{ $r->label() }}</span>
@@ -67,7 +67,7 @@
             if (!rolesWrap || !branchWrap || !branchSelect) return;
             function sync() {
                 var checked = Array.from(rolesWrap.querySelectorAll('input[name="roles[]"]:checked')).map(function (el) { return el.value; });
-                var noBranch = checked.includes('admin') || checked.includes('accountant') || checked.includes('logistician');
+                var noBranch = checked.includes('super_admin') || checked.includes('admin') || checked.includes('accountant') || checked.includes('logistician') || checked.includes('stock_manager');
                 branchWrap.classList.toggle('hidden', noBranch);
                 branchSelect.disabled = noBranch;
                 branchSelect.required = !noBranch;

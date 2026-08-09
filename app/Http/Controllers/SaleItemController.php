@@ -138,7 +138,35 @@ class SaleItemController extends Controller
 
         $productsCount = $products->count();
 
+        $addonProducts = Product::query()
+            ->where('sellable_as_addon', true)
+            ->with('department:id,name');
+        $this->applyProductBranchScope($addonProducts);
+        $this->applyProductScopeForBranch($addonProducts, $branch);
+        $addonProducts = $addonProducts
+            ->select(['id', 'department_id', 'name', 'unit_price'])
+            ->orderBy('name')
+            ->get();
+
+        $addonStockAtPos = $addonProducts->isEmpty()
+            ? collect()
+            : Stock::query()
+                ->where('location_id', $pointOfSale->id)
+                ->whereIn('product_id', $addonProducts->pluck('id'))
+                ->pluck('quantity', 'product_id');
+
+        $addonCatalog = $addonProducts->map(fn (Product $p) => [
+            'id' => $p->id,
+            'department_id' => $p->department_id,
+            'department_name' => $p->department?->name,
+            'name' => $p->name,
+            'label' => $p->name.' — '.Money::usd($p->unit_price),
+            'unit_price' => (float) $p->unit_price,
+            'stock_qty' => (int) ($addonStockAtPos[$p->id] ?? 0),
+        ])->values()->all();
+
         $clients = Client::query()
+            ->where('branch_id', $branch->id)
             ->withSum('cautionDeposits as caution_total', 'amount')
             ->withSum('cautionUsages as caution_used', 'amount')
             ->orderBy('name')
@@ -150,7 +178,8 @@ class SaleItemController extends Controller
             ->values()
             ->all();
 
-        $canChooseDealerCustomer = auth()->user()?->canChooseDealerCustomerOnPosSale() ?? false;
+        $canChooseDealerCustomer = auth()->user()?->canChooseDealerCustomerOnPosSale($branch) ?? false;
+        $canApplyLineDiscount = auth()->user()?->canApplyLineDiscountOnPosSale($branch) ?? false;
         $saleEffectiveCustomerType = (string) old('customer_type', 'walkin');
         if (! $canChooseDealerCustomer && $saleEffectiveCustomerType === 'dealer') {
             $saleEffectiveCustomerType = 'walkin';
@@ -162,10 +191,12 @@ class SaleItemController extends Controller
             'pointOfSale',
             'department',
             'saleCatalog',
+            'addonCatalog',
             'saleLineRows',
             'productsCount',
             'clients',
             'canChooseDealerCustomer',
+            'canApplyLineDiscount',
             'saleEffectiveCustomerType',
         ));
     }
@@ -187,7 +218,9 @@ class SaleItemController extends Controller
 
         $departmentId = (int) $department->id;
 
-        $allowedCustomerTypes = $request->user()->canChooseDealerCustomerOnPosSale()
+        $allowsDealerSales = $request->user()->canChooseDealerCustomerOnPosSale($branch);
+
+        $allowedCustomerTypes = $allowsDealerSales
             ? ['walkin', 'dealer']
             : ['walkin'];
 
@@ -206,9 +239,10 @@ class SaleItemController extends Controller
                 'after_or_equal:today',
             ],
             'items' => ['required', 'array', 'min:1'],
-            'items.*.department_id' => ['required', 'integer', Rule::in([$departmentId])],
+            'items.*.department_id' => ['required', 'integer', 'exists:departments,id'],
             'items.*.product_id' => ['required', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.is_addon' => ['sometimes', 'boolean'],
             'items.*.unit_price' => [
                 Rule::requiredIf(fn () => $request->has('allow_line_discount')
                     && filter_var($request->input('allow_line_discount'), FILTER_VALIDATE_BOOLEAN)),
@@ -230,6 +264,15 @@ class SaleItemController extends Controller
         ]);
 
         $pendingDiscountAfterSave = false;
+
+        $hasMainLine = collect($data['items'])->contains(
+            fn (array $row) => ! filter_var($row['is_addon'] ?? false, FILTER_VALIDATE_BOOLEAN)
+        );
+        if (! $hasMainLine) {
+            return back()->withInput()->withErrors([
+                'items' => 'Ajoutez au moins un article du département principal avant les compléments.',
+            ]);
+        }
 
         try {
             DB::transaction(function () use ($request, $branch, $departmentId, $pointOfSale, $posTerminal, $openShift, $data, &$pendingDiscountAfterSave) {
@@ -267,7 +310,10 @@ class SaleItemController extends Controller
                         throw new RuntimeException('Le nom du dealer est obligatoire.');
                     }
 
-                    $client = Client::query()->firstOrCreate(['name' => $clientName]);
+                    $client = Client::query()->firstOrCreate(
+                        ['branch_id' => $branch->id, 'name' => $clientName],
+                        ['phone' => $clientPhone !== '' ? $clientPhone : null],
+                    );
                     if ($clientPhone !== '') {
                         $client->update(['phone' => $clientPhone]);
                     }
@@ -295,28 +341,39 @@ class SaleItemController extends Controller
                     'sold_at' => $sessionSoldAt,
                 ]);
 
-                $allowLineDiscount = $request->has('allow_line_discount')
+                $allowLineDiscount = $request->user()->canApplyLineDiscountOnPosSale($branch)
+                    && $request->has('allow_line_discount')
                     && filter_var($request->input('allow_line_discount'), FILTER_VALIDATE_BOOLEAN);
-                $isAdmin = $request->user()->isAdmin();
+                $isAdmin = $request->user()->hasApplicationAdminAccess();
 
                 $catalogSubtotal = '0.00';
                 $saleTotal = '0.00';
                 foreach ($data['items'] as $row) {
-                    $product = Product::query()
+                    $isAddon = filter_var($row['is_addon'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+                    $productQuery = Product::query()
                         ->lockForUpdate()
                         ->whereKey((int) $row['product_id'])
-                        ->where('department_id', $departmentId)
                         ->where(function ($q) use ($branch) {
                             $this->applyProductBranchScope($q);
                             $this->applyProductScopeForBranch($q, $branch);
-                        })
-                        ->firstOrFail();
+                        });
+
+                    if ($isAddon) {
+                        $productQuery->where('sellable_as_addon', true);
+                    } else {
+                        $productQuery->where('department_id', $departmentId);
+                    }
+
+                    $product = $productQuery->firstOrFail();
 
                     $qty = (int) $row['quantity'];
                     Stock::modifyQuantity($product->id, $pointOfSale->id, -$qty);
 
                     $catalogUnit = (string) $product->unit_price;
-                    if ($allowLineDiscount) {
+                    if ($isAddon) {
+                        $unit = '0.00';
+                    } elseif ($allowLineDiscount) {
                         $unit = number_format((float) ($row['unit_price'] ?? 0), 2, '.', '');
                         if (bccomp($unit, '0', 2) <= 0) {
                             throw new RuntimeException('Chaque ligne doit avoir un prix unitaire supérieur à zéro.');
@@ -329,7 +386,9 @@ class SaleItemController extends Controller
 
                     foreach ($chunks as $chunk) {
                         $chunkQty = (int) $chunk['quantity'];
-                        $catalogLineTotal = bcmul($catalogUnit, (string) $chunkQty, 2);
+                        $catalogLineTotal = $isAddon
+                            ? '0.00'
+                            : bcmul($catalogUnit, (string) $chunkQty, 2);
                         $lineTotal = bcmul($unit, (string) $chunkQty, 2);
                         $catalogSubtotal = bcadd($catalogSubtotal, $catalogLineTotal, 2);
                         $saleTotal = bcadd($saleTotal, $lineTotal, 2);
@@ -343,7 +402,9 @@ class SaleItemController extends Controller
                             : null;
 
                         $itemDiscountAmount = '0.00';
-                        if ($allowLineDiscount && bccomp($catalogLineTotal, $lineTotal, 2) === 1) {
+                        if ($isAddon) {
+                            $itemDiscountAmount = bcmul($catalogUnit, (string) $chunkQty, 2);
+                        } elseif ($allowLineDiscount && bccomp($catalogLineTotal, $lineTotal, 2) === 1) {
                             $itemDiscountAmount = bcsub($catalogLineTotal, $lineTotal, 2);
                         }
 
@@ -353,6 +414,7 @@ class SaleItemController extends Controller
                             'branch_id' => $branch->id,
                             'location_id' => $pointOfSale->id,
                             'product_id' => $product->id,
+                            'is_addon' => $isAddon,
                             'stock_batch_id' => $chunk['stock_batch_id'],
                             'batch_number' => $chunk['batch_number'],
                             'user_id' => $request->user()->id,
@@ -607,6 +669,7 @@ class SaleItemController extends Controller
      *     department_id: string,
      *     product_id: string,
      *     quantity: int,
+     *     is_addon?: bool,
      *     product_name?: string|null,
      *     unit_price?: float|null,
      *     catalog_unit_price?: float|null
@@ -641,6 +704,7 @@ class SaleItemController extends Controller
                 'department_id' => $deptId,
                 'product_id' => $hasProductId ? (string) $productIdRaw : '',
                 'quantity' => (int) ($row['quantity'] ?? 1),
+                'is_addon' => filter_var($row['is_addon'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'product_name' => $product?->name,
                 'unit_price' => $unitPrice,
                 'catalog_unit_price' => $catalogPrice,

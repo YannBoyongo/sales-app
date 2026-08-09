@@ -58,7 +58,7 @@
 
     /* ── Panels & cards ── */
     .app-panel {
-        @apply overflow-hidden rounded-xl border border-slate-200/80 bg-white shadow-card;
+        @apply overflow-hidden rounded-none border border-slate-200/80 bg-white shadow-card;
     }
 
     /* Panels with autocomplete / dropdowns inside (avoid clipping the list) */
@@ -75,17 +75,111 @@
     }
 
     .app-stat-card {
-        @apply rounded-xl border border-slate-200/80 bg-white p-5 shadow-card transition hover:shadow-card-lg;
+        @apply rounded-none border border-slate-200/80 bg-white p-5 shadow-card transition hover:shadow-card-lg;
+    }
+
+    .dashboard-hero {
+        @apply relative overflow-hidden rounded-none border border-primary-dark/30 bg-gradient-to-br from-primary-dark via-primary to-primary-light p-6 text-white shadow-card-lg sm:p-8;
+    }
+
+    .dashboard-stat-card {
+        @apply relative overflow-hidden rounded-none border border-primary/10 bg-white p-5 shadow-card transition hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-card-lg;
+    }
+
+    .dashboard-stat-card--soft {
+        @apply border-primary/15 bg-primary-soft;
+    }
+
+    .dashboard-stat-card--accent {
+        @apply border-primary/20 bg-gradient-to-br from-white via-white to-primary-soft/70;
+    }
+
+    .dashboard-stat-card--dark {
+        @apply border-primary-dark/40 bg-gradient-to-br from-primary-dark to-primary text-white;
+    }
+
+    .dashboard-panel-header {
+        @apply flex flex-col gap-3 border-b border-primary/10 bg-gradient-to-r from-primary-soft/90 via-white to-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5;
+    }
+
+    .dashboard-chart-header {
+        @apply border-b border-white/10 bg-primary-dark px-4 py-3.5 text-white sm:px-5;
+    }
+
+    .dashboard-chart-header p,
+    .dashboard-chart-header h3 {
+        @apply text-white;
+    }
+
+    .dashboard-chart-header .text-neutral-500 {
+        @apply text-white/70;
     }
 
     /* ── Filter bar (RUXL-style toolbar) ── */
     .app-filter-bar {
-        @apply mb-6 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-white p-4 shadow-card sm:flex-row sm:flex-wrap sm:items-end;
+        @apply mb-6 flex flex-col gap-3 rounded-none border border-slate-200/80 bg-white p-4 shadow-card sm:flex-row sm:flex-wrap sm:items-end;
     }
 
     /* ── Data tables ── */
     .app-table-shell {
         @apply app-panel overflow-x-auto;
+    }
+
+    .app-table-scroll-panel {
+        max-height: min(75vh, calc(100dvh - 16rem));
+        overflow: auto;
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+        border-radius: 0;
+        border: 1px solid rgb(226 232 240 / 0.8);
+        background-color: #fff;
+        box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 4px 16px -2px rgb(15 23 42 / 0.08);
+    }
+
+    .app-table-scroll-panel--20-rows {
+        max-height: calc(3.5rem + (20 * 3.5rem));
+    }
+
+    .app-table-scroll-panel .app-table-sticky-first-col {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .app-table-scroll-panel .app-table-sticky-first-col thead th {
+        position: sticky;
+        top: 0;
+        z-index: 15;
+        @apply bg-primary;
+        box-shadow: 0 1px 0 rgba(15, 23, 42, 0.15);
+    }
+
+    .app-table-scroll-panel .app-table-sticky-first-col thead th:first-child {
+        left: 0;
+        z-index: 25;
+        @apply bg-primary-dark;
+        box-shadow:
+            1px 0 0 rgba(15, 23, 42, 0.15),
+            0 1px 0 rgba(15, 23, 42, 0.12);
+    }
+
+    .app-table-scroll-panel .app-table-sticky-first-col tbody td:first-child {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        @apply bg-white;
+        box-shadow: 2px 0 4px -2px rgba(0, 0, 0, 0.08);
+    }
+
+    .app-table-scroll-panel .app-table-sticky-first-col tbody tr:hover td:first-child {
+        @apply bg-neutral-50/80;
+    }
+
+    .app-table-scroll-panel .app-table-sticky-first-col tbody tr.sales-row-pending-discount td:first-child {
+        @apply bg-amber-50/90;
+    }
+
+    .app-table-scroll-panel .app-table-sticky-first-col tbody tr.sales-row-pending-discount:hover td:first-child {
+        @apply bg-amber-100/80;
     }
 
     main table.min-w-full,
@@ -219,7 +313,7 @@
 
     /* ── Alerts ── */
     .app-alert {
-        @apply mb-4 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm shadow-sm;
+        @apply mb-4 flex items-start gap-3 rounded-none border px-4 py-3 text-sm shadow-sm;
     }
 
     .app-alert-success {
@@ -249,12 +343,12 @@
 
     /* ── Sidebar nav ── */
     .app-nav-link {
-        @apply flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-white transition
-            hover:bg-sidebar-hover hover:text-white;
+        @apply flex items-center gap-3 px-3 py-2.5 text-sm font-semibold text-white transition
+            hover:bg-primary-dark hover:text-white;
     }
 
     .app-nav-link-active {
-        @apply bg-sidebar-active font-bold text-white;
+        @apply bg-primary-dark font-bold text-white hover:bg-primary-dark;
     }
 
     .app-nav-section {
@@ -327,6 +421,22 @@
     a.inline-flex[class*='rounded-xl'],
     a.inline-flex[class*='rounded-md'] {
         @apply !rounded-none;
+    }
+
+    /* Square corners on page sections (panels, cards, empty states, modals) */
+    main .rounded-xl:not([class*='rounded-full']),
+    main .rounded-2xl:not([class*='rounded-full']),
+    main .rounded-lg:not([class*='rounded-full']),
+    main .rounded-md:not([class*='rounded-full']),
+    main section[class*='rounded-']:not([class*='rounded-full']),
+    main [role='dialog']:not([class*='rounded-full']),
+    .guest-auth .rounded-xl:not([class*='rounded-full']),
+    .guest-auth .rounded-lg:not([class*='rounded-full']),
+    .login-panel .rounded-xl:not([class*='rounded-full']),
+    .login-panel .rounded-lg:not([class*='rounded-full']),
+    .error-panel .rounded-xl:not([class*='rounded-full']),
+    .error-panel .rounded-lg:not([class*='rounded-full']) {
+        border-radius: 0 !important;
     }
 }
 
@@ -413,7 +523,7 @@
 }
 
 .login-hero__mark {
-    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15 text-lg font-bold text-white ring-1 ring-white/25 backdrop-blur;
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-white/15 text-lg font-bold text-white ring-1 ring-white/25 backdrop-blur;
 }
 
 .login-hero__brand-name {
@@ -470,10 +580,14 @@
     overflow: auto;
     overscroll-behavior: contain;
     -webkit-overflow-scrolling: touch;
-    border-radius: 0.75rem;
+    border-radius: 0;
     border: 1px solid rgb(226 232 240 / 0.8);
     background-color: #fff;
     box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.06), 0 4px 16px -2px rgb(15 23 42 / 0.08);
+}
+
+.stocks-matrix-scroll--10-rows {
+    max-height: max(calc(3.5rem + (10 * 3.75rem)), min(80vh, calc(100dvh - 8rem)));
 }
 
 .stocks-matrix-table {
@@ -522,3 +636,99 @@
 .stocks-matrix-table tbody tr:hover th.stocks-matrix-product-col {
     background-color: #e6f0fa;
 }
+
+/* ── Error pages (403, 404, 419, 429, 500, 503) ── */
+.error-split {
+    @apply flex min-h-screen flex-col bg-slate-100 lg:flex-row;
+}
+
+.error-hero {
+    @apply relative hidden min-h-screen w-full overflow-hidden text-white lg:flex lg:w-[46%] xl:w-1/2 lg:flex-col;
+}
+
+.error-hero__media {
+    @apply absolute inset-0 bg-cover bg-center;
+}
+
+.error-hero__overlay {
+    @apply absolute inset-0;
+    background:
+        linear-gradient(160deg, rgb(0 61 122 / 0.9) 0%, rgb(0 94 184 / 0.78) 42%, rgb(15 23 42 / 0.82) 100%);
+}
+
+.error-hero__content {
+    @apply relative z-10 flex h-full flex-col justify-between px-10 py-10 xl:px-14 xl:py-12;
+}
+
+.error-hero__brand {
+    @apply flex items-center gap-3;
+}
+
+.error-hero__mark {
+    @apply flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-white/15 text-lg font-bold text-white ring-1 ring-white/25 backdrop-blur;
+}
+
+.error-hero__brand-name {
+    @apply truncate text-lg font-semibold tracking-tight text-white;
+}
+
+.error-hero__eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-white/70;
+}
+
+.error-hero__copy {
+    @apply max-w-lg;
+}
+
+.error-hero__code {
+    @apply text-7xl font-bold tracking-tight text-white/25 xl:text-8xl;
+}
+
+.error-hero__title {
+    @apply mt-2 text-3xl font-semibold leading-tight tracking-tight text-white xl:text-4xl;
+}
+
+.error-hero__lead {
+    @apply mt-4 text-base leading-relaxed text-white/80;
+}
+
+.error-hero__footer {
+    @apply pt-8 text-xs text-white/55;
+}
+
+.error-panel {
+    @apply flex w-full flex-1 items-center justify-center px-6 py-10 sm:px-10 lg:w-[54%] xl:w-1/2 lg:px-14 xl:px-20;
+}
+
+.error-panel__inner {
+    @apply w-full max-w-md;
+}
+
+.error-card {
+    @apply rounded-none border border-slate-200/80 bg-white p-6 shadow-card sm:p-8;
+}
+
+.error-card__badge {
+    @apply mb-5 inline-flex h-14 w-14 items-center justify-center rounded-none bg-primary-soft ring-1 ring-primary/10;
+}
+
+.error-card__code {
+    @apply text-5xl font-bold tracking-tight text-primary;
+}
+
+.error-card__title {
+    @apply mt-2 text-2xl font-semibold tracking-tight text-slate-900;
+}
+
+.error-card__message {
+    @apply mt-3 text-sm leading-relaxed text-slate-600;
+}
+
+.error-card__hint {
+    @apply mt-4 rounded-none border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-relaxed text-slate-600;
+}
+
+.error-card__actions {
+    @apply mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap;
+}
+

@@ -98,7 +98,7 @@ class TransferListReportController extends Controller
     {
         $user = auth()->user();
         abort_unless(
-            $user?->isAdmin() || $user?->canAccessCashDeskFinanceFeatures() || $user?->canAccessPosSales(),
+            $user?->hasApplicationAdminAccess() || $user?->canAccessCashDeskFinanceFeatures() || $user?->canAccessPosSales(),
             403
         );
     }

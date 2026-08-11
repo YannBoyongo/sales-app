@@ -105,34 +105,31 @@ class RequisitionController extends Controller
 
         $departments = Department::query()->orderBy('name')->get(['id', 'name']);
 
-        $catalogQuery = Stock::query()
-            ->join('products', 'products.id', '=', 'stocks.product_id')
-            ->when($departmentId, fn ($q) => $q->where('products.department_id', $departmentId))
-            ->selectRaw('stocks.product_id, products.name as product_name, SUM(stocks.quantity) as total_quantity')
-            ->groupBy('stocks.product_id', 'products.name')
-            ->orderBy('products.name');
-        $this->applyStockBranchFilter($catalogQuery);
+        $stockTotalsQuery = Stock::query()
+            ->selectRaw('stocks.product_id, SUM(stocks.quantity) as total_quantity')
+            ->groupBy('stocks.product_id');
+        $this->applyStockBranchFilter($stockTotalsQuery);
+        $stockTotalsByProduct = $stockTotalsQuery->pluck('total_quantity', 'product_id');
 
-        if ($stockScope === 'out_of_stock') {
-            $catalogQuery->havingRaw('SUM(stocks.quantity) <= 0');
-        }
-
-        $totals = $catalogQuery->get();
         $products = Product::query()
             ->with('department:id,name')
-            ->whereIn('id', $totals->pluck('product_id'))
-            ->get(['id', 'name', 'sku', 'department_id'])
-            ->keyBy('id');
+            ->when($departmentId, fn ($q) => $q->where('department_id', $departmentId))
+            ->orderBy('name')
+            ->get(['id', 'name', 'sku', 'department_id']);
 
-        $catalogItems = $totals
-            ->map(function ($row) use ($products) {
+        $catalogItems = $products
+            ->map(function (Product $product) use ($stockTotalsByProduct) {
                 return (object) [
-                    'product_id' => (int) $row->product_id,
-                    'total_quantity' => (int) $row->total_quantity,
-                    'product' => $products->get($row->product_id),
+                    'product_id' => (int) $product->id,
+                    'total_quantity' => (int) ($stockTotalsByProduct[$product->id] ?? 0),
+                    'product' => $product,
                 ];
             })
-            ->values();
+            ->when(
+                $stockScope === 'out_of_stock',
+                fn ($items) => $items->filter(fn ($item) => $item->total_quantity <= 0)->values(),
+                fn ($items) => $items->values(),
+            );
 
         $requisitionItems = $this->mapRequisitionItems($requisition);
 

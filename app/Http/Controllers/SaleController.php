@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Branch;
 use App\Models\CashVoucher;
 use App\Models\Client;
+use App\Models\ClientCautionUsage;
 use App\Models\Payment;
 use App\Models\AccountingTransaction;
 use App\Models\Sale;
@@ -173,6 +174,8 @@ class SaleController extends Controller
                     }
                 }
 
+                ClientCautionUsage::query()->where('sale_id', $sale->id)->delete();
+
                 if ($itemIds !== []) {
                     StockMovement::query()->whereIn('sale_item_id', $itemIds)->delete();
                 }
@@ -188,7 +191,7 @@ class SaleController extends Controller
 
         return redirect()
             ->route('sales.overview')
-            ->with('success', 'Vente supprimée et stock réintégré.');
+            ->with('success', 'Vente supprimée, stock réintégré et caution restaurée le cas échéant.');
     }
 
     public function approveDiscount(Request $request, Branch $branch, Sale $sale): RedirectResponse

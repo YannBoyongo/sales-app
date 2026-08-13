@@ -18,6 +18,40 @@
             totalEntries: {{ $totalEntries }},
             totalExits: {{ $totalExits }},
             balance: {{ $balance }},
+            filterBranchId: @js((string) ($filters['branch_id'] ?? '')),
+            filterTerminalId: @js((string) ($filters['pos_terminal_id'] ?? '')),
+            allTerminals: @js($allPosTerminalsForFilter),
+            showsMultipleTerminalBranches: @js($showsMultipleTerminalBranchesAll),
+            filteredTerminals() {
+                if (! this.filterBranchId) {
+                    return this.allTerminals;
+                }
+
+                return this.allTerminals.filter((terminal) => String(terminal.branch_id) === String(this.filterBranchId));
+            },
+            onBranchFilterChange() {
+                const allowedIds = this.filteredTerminals().map((terminal) => String(terminal.id));
+                if (this.filterTerminalId && ! allowedIds.includes(String(this.filterTerminalId))) {
+                    this.filterTerminalId = '';
+                }
+            },
+            onTerminalFilterChange() {
+                if (! this.filterTerminalId) {
+                    return;
+                }
+
+                const terminal = this.allTerminals.find((item) => String(item.id) === String(this.filterTerminalId));
+                if (terminal?.branch_id && this.$refs.filterBranchSelect) {
+                    this.filterBranchId = String(terminal.branch_id);
+                }
+            },
+            terminalOptionLabel(terminal) {
+                if (this.showsMultipleTerminalBranches && ! this.filterBranchId) {
+                    return (terminal.branch_name ? terminal.branch_name + ' — ' : '') + terminal.name;
+                }
+
+                return terminal.name;
+            },
             tableColspan: @js($voucherTableColspan),
             approvedNextPageUrl: @js($infiniteNextPageUrl),
             approvedTotal: {{ $approvedVouchers->total() }},
@@ -201,10 +235,10 @@
                 </div>
             </div>
             <p class="text-xs text-neutral-500">
-                Totaux et solde : <strong class="font-medium text-neutral-700">bons approuvés uniquement</strong> (avec les filtres date, branche et type ci-dessous). Les bons en attente sont listés en premier.
+                Totaux et solde : <strong class="font-medium text-neutral-700">bons approuvés uniquement</strong> (avec les filtres date, branche, terminal et type ci-dessous). Les bons en attente sont listés en premier.
             </p>
 
-            <form method="GET" action="{{ route('cash-vouchers.index') }}" class="app-filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <form method="GET" action="{{ route('cash-vouchers.index') }}" class="app-filter-bar grid gap-3 sm:grid-cols-2 lg:grid-cols-7">
                 <div class="lg:col-span-1">
                     <label for="date_from" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Date du</label>
                     <input id="date_from" name="date_from" type="date" value="{{ $filters['date_from'] ?? '' }}" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary" />
@@ -216,14 +250,36 @@
                 @if ($showsBranchFilter)
                     <div class="lg:col-span-1">
                         <label for="filter_branch_id" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Branche</label>
-                        <select id="filter_branch_id" name="branch_id" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
+                        <select
+                            id="filter_branch_id"
+                            name="branch_id"
+                            x-ref="filterBranchSelect"
+                            x-model="filterBranchId"
+                            @change="onBranchFilterChange()"
+                            class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary"
+                        >
                             <option value="">Toutes</option>
                             @foreach ($branchesForFilter as $branch)
-                                <option value="{{ $branch->id }}" @selected((string) ($filters['branch_id'] ?? '') === (string) $branch->id)>{{ $branch->name }}</option>
+                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
                             @endforeach
                         </select>
                     </div>
                 @endif
+                <div class="lg:col-span-1">
+                    <label for="pos_terminal_id" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Terminal</label>
+                    <select
+                        id="pos_terminal_id"
+                        name="pos_terminal_id"
+                        x-model="filterTerminalId"
+                        @change="onTerminalFilterChange()"
+                        class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary"
+                    >
+                        <option value="">Tous</option>
+                        <template x-for="terminal in filteredTerminals()" :key="terminal.id">
+                            <option :value="String(terminal.id)" x-text="terminalOptionLabel(terminal)"></option>
+                        </template>
+                    </select>
+                </div>
                 <div class="lg:col-span-1">
                     <label for="type_filter" class="block text-xs font-semibold uppercase tracking-wide text-neutral-500">Type</label>
                     <select id="type_filter" name="type" class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary">
@@ -232,7 +288,7 @@
                         <option value="exit" @selected(($filters['type'] ?? '') === 'exit')>Sortie</option>
                     </select>
                 </div>
-                <div class="flex items-end gap-2 lg:col-span-1">
+                <div class="flex items-end gap-2 lg:col-span-2">
                     <button type="submit" class="app-btn-primary">Filtrer</button>
                     <a href="{{ route('cash-vouchers.index') }}" class="app-btn-secondary">Réinitialiser</a>
                 </div>

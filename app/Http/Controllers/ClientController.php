@@ -6,6 +6,7 @@ use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\CashVoucher;
 use App\Models\Client;
 use App\Models\ClientCautionDeposit;
+use App\Models\ClientCautionUsage;
 use App\Models\Payment;
 use App\Models\Sale;
 use Illuminate\Http\RedirectResponse;
@@ -306,6 +307,25 @@ class ClientController extends Controller
         });
 
         return back()->with('success', 'Dépôt de caution supprimé.');
+    }
+
+    public function destroyCautionUsage(Client $client, ClientCautionUsage $usage): RedirectResponse
+    {
+        abort_unless(auth()->user()?->hasApplicationAdminAccess(), 403);
+        $this->ensureUserCanAccessClient($client);
+
+        abort_unless((int) $usage->client_id === (int) $client->id, 404);
+
+        if ($usage->sale_id !== null && Sale::query()->whereKey($usage->sale_id)->exists()) {
+            return back()->with(
+                'danger',
+                'Impossible de supprimer cette utilisation : la vente associée existe encore. Supprimez la vente pour restaurer la caution automatiquement.'
+            );
+        }
+
+        $usage->delete();
+
+        return back()->with('success', 'Utilisation de caution supprimée. Le solde caution du client a été restauré.');
     }
 
     public function destroyPayment(Client $client, Payment $payment): RedirectResponse

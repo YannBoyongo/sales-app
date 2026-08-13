@@ -4,12 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\AccountingTransaction;
-use App\Models\Branch;
 use App\Models\CashVoucher;
 use App\Models\ChartOfAccount;
+use App\Models\PosTerminal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -25,6 +26,7 @@ class CashVoucherController extends Controller
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
             'type' => ['nullable', 'in:entry,exit'],
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'pos_terminal_id' => ['nullable', 'integer', 'exists:pos_terminals,id'],
         ]);
 
         $branchesForFilter = $this->branchesForUser();
@@ -34,12 +36,30 @@ class CashVoucherController extends Controller
             abort_unless($branchesForFilter->contains('id', (int) $filters['branch_id']), 403);
         }
 
+        $posTerminals = $this->posTerminalsForCashVoucherFilter($filters['branch_id'] ?? null);
+        $allPosTerminals = $this->posTerminalsForCashVoucherFilter(null);
+        $showsMultipleTerminalBranches = $posTerminals->pluck('branch_id')->unique()->count() > 1;
+        $showsMultipleTerminalBranchesAll = $allPosTerminals->pluck('branch_id')->unique()->count() > 1;
+        $allPosTerminalsForFilter = $allPosTerminals
+            ->map(fn (PosTerminal $terminal) => [
+                'id' => $terminal->id,
+                'branch_id' => $terminal->branch_id,
+                'name' => $terminal->name,
+                'branch_name' => $terminal->branch?->name ?? '',
+            ])
+            ->values()
+            ->all();
+
         $baseQuery = CashVoucher::query()
             ->with('branch:id,name')
             ->when($filters['date_from'] ?? null, fn ($q, $value) => $q->whereDate('date', '>=', $value))
             ->when($filters['date_to'] ?? null, fn ($q, $value) => $q->whereDate('date', '<=', $value))
             ->when($filters['type'] ?? null, fn ($q, $value) => $q->where('type', $value))
-            ->when($filters['branch_id'] ?? null, fn ($q, $value) => $q->where('branch_id', (int) $value));
+            ->when($filters['branch_id'] ?? null, fn ($q, $value) => $q->where('branch_id', (int) $value))
+            ->when($filters['pos_terminal_id'] ?? null, function ($q, $value) use ($posTerminals) {
+                abort_unless($posTerminals->contains('id', (int) $value), 403);
+                $q->whereHas('posShift', fn ($shift) => $shift->where('pos_terminal_id', (int) $value));
+            });
 
         $this->applyBranchFilter($baseQuery);
 
@@ -91,11 +111,48 @@ class CashVoucherController extends Controller
             'filters' => $filters,
             'branchesForFilter' => $branchesForFilter,
             'showsBranchFilter' => $showsBranchFilter,
+            'posTerminals' => $posTerminals,
+            'showsMultipleTerminalBranches' => $showsMultipleTerminalBranches,
+            'allPosTerminalsForFilter' => $allPosTerminalsForFilter,
+            'showsMultipleTerminalBranchesAll' => $showsMultipleTerminalBranchesAll,
             'infiniteNextPageUrl' => $infiniteNextPageUrl,
             'totalEntries' => (float) ($totals?->total_entries ?? 0),
             'totalExits' => (float) ($totals?->total_exits ?? 0),
             'balance' => (float) (($totals?->total_entries ?? 0) - ($totals?->total_exits ?? 0)),
         ]);
+    }
+
+    /** @return Collection<int, PosTerminal> */
+    private function posTerminalsForCashVoucherFilter(?int $branchId = null): Collection
+    {
+        $user = auth()->user();
+        if ($user?->isPosUser() || ($user?->isCashier() && $user->posTerminals()->exists())) {
+            $assigned = $this->posTerminalsForUser(null, true);
+            if ($assigned->isNotEmpty()) {
+                $terminals = $assigned->loadMissing(['branch:id,name', 'location:id,name'])
+                    ->sortBy(fn (PosTerminal $t) => ($t->branch->name ?? '').' '.$t->name)
+                    ->values();
+
+                if ($branchId !== null) {
+                    $terminals = $terminals->where('branch_id', $branchId)->values();
+                }
+
+                return $terminals;
+            }
+        }
+
+        $query = PosTerminal::query()
+            ->with(['branch:id,name', 'location:id,name'])
+            ->orderBy('branch_id')
+            ->orderBy('name');
+
+        if ($branchId !== null) {
+            $query->where('branch_id', $branchId);
+        }
+
+        $this->applyBranchFilter($query, 'branch_id');
+
+        return $query->get();
     }
 
     public function approve(Request $request, CashVoucher $cashVoucher): RedirectResponse|JsonResponse

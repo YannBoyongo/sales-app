@@ -122,7 +122,7 @@ class User extends Authenticatable
         return $this->isSuperAdmin() || $this->isAdmin();
     }
 
-    /** Gestion des utilisateurs (admin crée les opérationnels ; super admin crée les admins). */
+    /** Gestion des utilisateurs : admin et super admin ; seul le super admin gère les comptes super administrateur. */
     public function canManageUsers(): bool
     {
         return $this->hasApplicationAdminAccess();
@@ -142,7 +142,7 @@ class User extends Authenticatable
         if ($this->isAdmin()) {
             return array_values(array_filter(
                 UserRole::cases(),
-                fn (UserRole $role) => ! in_array($role, [UserRole::SuperAdmin, UserRole::Admin], true)
+                fn (UserRole $role) => $role !== UserRole::SuperAdmin
             ));
         }
 
@@ -152,7 +152,7 @@ class User extends Authenticatable
     /** Compte protégé : seul un super admin peut le modifier ou le supprimer. */
     public function isProtectedFromRegularAdmin(): bool
     {
-        return $this->isSuperAdmin() || $this->isAdmin();
+        return $this->isSuperAdmin();
     }
 
     public function isAccountant(): bool

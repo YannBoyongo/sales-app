@@ -644,9 +644,9 @@ class StockController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $productId = (int) $data['product_id'];
-        $locationId = (int) $data['location_id'];
-        $newQty = (int) $data['quantity'];
+                $productId = (int) $data['product_id'];
+                $locationId = (int) $data['location_id'];
+                $newQty = (int) $data['quantity'];
         $wantsJson = $request->expectsJson();
 
         try {

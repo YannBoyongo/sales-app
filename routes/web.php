@@ -222,6 +222,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('clients/{client}/caution-deposits/{deposit}', [ClientController::class, 'destroyCautionDeposit'])
             ->name('clients.caution-deposits.destroy')
             ->whereNumber(['client', 'deposit']);
+        Route::delete('clients/{client}/caution-usages/{usage}', [ClientController::class, 'destroyCautionUsage'])
+            ->name('clients.caution-usages.destroy')
+            ->whereNumber(['client', 'usage']);
         Route::delete('clients/{client}/payments/{payment}', [ClientController::class, 'destroyPayment'])
             ->name('clients.payments.destroy')
             ->whereNumber(['client', 'payment']);

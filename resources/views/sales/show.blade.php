@@ -26,7 +26,7 @@
                     action="{{ route('sales.destroy', [$branch, $sale]) }}"
                     method="POST"
                     class="inline-flex"
-                    onsubmit="return confirm('Supprimer définitivement cette vente ? Le stock sera réintégré sur les emplacements concernés.');"
+                    onsubmit="return confirm('Supprimer définitivement cette vente ? Le stock sera réintégré et la caution utilisée sera restaurée le cas échéant.');"
                 >
                     @csrf
                     @method('DELETE')

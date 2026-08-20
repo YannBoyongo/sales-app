@@ -213,6 +213,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('branches/{branch}/sales/{sale}/edit', [SaleController::class, 'edit'])->name('sales.edit')->whereNumber('sale');
         Route::patch('branches/{branch}/sales/{sale}', [SaleController::class, 'update'])->name('sales.update')->whereNumber('sale');
         Route::delete('branches/{branch}/sales/{sale}', [SaleController::class, 'destroy'])->name('sales.destroy')->whereNumber('sale');
+        Route::patch('bons-de-caisse/bulk-assignment', [CashVoucherController::class, 'bulkUpdateAssignment'])->name('cash-vouchers.bulk-assignment');
         Route::post('bons-de-caisse/{cashVoucher}/approve', [CashVoucherController::class, 'approve'])->name('cash-vouchers.approve');
         Route::patch('bons-de-caisse/{cashVoucher}', [CashVoucherController::class, 'update'])->name('cash-vouchers.update');
         Route::delete('bons-de-caisse/{cashVoucher}', [CashVoucherController::class, 'destroy'])->name('cash-vouchers.destroy');

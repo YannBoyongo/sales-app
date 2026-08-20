@@ -2,9 +2,11 @@
     <x-slot name="header">Bons de caisse</x-slot>
 
         @php
-        $voucherTableColspan = 6
+        $voucherTableColspan = 7
             + (auth()->user()?->hasApplicationAdminAccess() ? 1 : 0)
             + (auth()->user()?->canAccessAccounting() ? 1 : 0);
+        $canBulkAssignCashVouchers = auth()->user()?->hasApplicationAdminAccess() ?? false;
+        $approvedVoucherTableColspan = $voucherTableColspan + ($canBulkAssignCashVouchers ? 1 : 0);
     @endphp
 
     <div
@@ -14,6 +16,12 @@
             editVoucherId: @js(old('edit_voucher_id')),
             editVoucherNo: @js(old('voucher_no', '')),
             editAction: @js(old('edit_voucher_id') ? route('cash-vouchers.update', old('edit_voucher_id')) : ''),
+            bulkOpen: false,
+            bulkBranchId: '',
+            bulkTerminalId: '',
+            bulkSubmitting: false,
+            bulkError: null,
+            selectedVoucherIds: [],
             pendingCount: {{ $pendingVouchers->count() }},
             totalEntries: {{ $totalEntries }},
             totalExits: {{ $totalExits }},
@@ -51,6 +59,90 @@
                 }
 
                 return terminal.name;
+            },
+            approvedCheckboxes() {
+                return Array.from(this.$refs.approvedTbody?.querySelectorAll('.approved-voucher-checkbox:not(:disabled)') ?? []);
+            },
+            isVoucherSelected(id) {
+                return this.selectedVoucherIds.includes(Number(id));
+            },
+            toggleVoucher(id, checked) {
+                const voucherId = Number(id);
+                if (checked && ! this.isVoucherSelected(voucherId)) {
+                    this.selectedVoucherIds.push(voucherId);
+                } else if (! checked) {
+                    this.selectedVoucherIds = this.selectedVoucherIds.filter((item) => item !== voucherId);
+                }
+            },
+            allLoadedApprovedSelected() {
+                const checkboxes = this.approvedCheckboxes();
+                return checkboxes.length > 0 && checkboxes.every((checkbox) => this.isVoucherSelected(checkbox.value));
+            },
+            toggleAllLoadedApproved(checked) {
+                this.approvedCheckboxes().forEach((checkbox) => {
+                    checkbox.checked = checked;
+                    this.toggleVoucher(checkbox.value, checked);
+                });
+            },
+            bulkFilteredTerminals() {
+                if (! this.bulkBranchId) {
+                    return [];
+                }
+
+                return this.allTerminals.filter((terminal) => String(terminal.branch_id) === String(this.bulkBranchId));
+            },
+            openBulkAssignment() {
+                if (this.selectedVoucherIds.length === 0) {
+                    return;
+                }
+
+                this.bulkError = null;
+                this.bulkBranchId = this.filterBranchId || '';
+                this.bulkTerminalId = '';
+                this.bulkOpen = true;
+            },
+            onBulkBranchChange() {
+                this.bulkTerminalId = '';
+                this.bulkError = null;
+            },
+            async submitBulkAssignment() {
+                if (! this.bulkBranchId || ! this.bulkTerminalId || this.selectedVoucherIds.length === 0) {
+                    this.bulkError = 'Choisissez une branche et un terminal.';
+                    return;
+                }
+
+                this.bulkSubmitting = true;
+                this.bulkError = null;
+
+                try {
+                    const response = await fetch(@js(route('cash-vouchers.bulk-assignment')), {
+                        method: 'PATCH',
+                        headers: {
+                            Accept: 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content ?? '',
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({
+                            voucher_ids: this.selectedVoucherIds,
+                            branch_id: this.bulkBranchId,
+                            pos_terminal_id: this.bulkTerminalId,
+                        }),
+                    });
+
+                    const data = await response.json().catch(() => ({}));
+                    if (! response.ok) {
+                        const firstValidationError = Object.values(data.errors ?? {}).flat()[0];
+                        throw new Error(firstValidationError || data.message || 'Réaffectation impossible.');
+                    }
+
+                    window.location.reload();
+                } catch (error) {
+                    this.bulkError = error.message || 'Réaffectation impossible.';
+                } finally {
+                    this.bulkSubmitting = false;
+                }
             },
             tableColspan: @js($voucherTableColspan),
             approvedNextPageUrl: @js($infiniteNextPageUrl),
@@ -188,7 +280,7 @@
             },
         }"
         x-init="$nextTick(() => setupApprovedObserver())"
-        @keydown.escape.window="open = false; editOpen = false"
+        @keydown.escape.window="open = false; editOpen = false; bulkOpen = false"
     >
         <x-caisse-flow max-width="max-w-7xl" :with-card="false">
             <x-slot name="header">
@@ -301,7 +393,7 @@
                 </div>
                 <div class="app-table-shell border-amber-200/80 ring-1 ring-amber-100">
                     <table class="min-w-full divide-y divide-neutral-200 text-sm">
-                        @include('cash_vouchers.partials.table-head')
+                        @include('cash_vouchers.partials.table-head', ['selectable' => false])
                         <tbody id="pending-vouchers-body" class="divide-y divide-neutral-100">
                             @forelse ($pendingVouchers as $voucher)
                                 @include('cash_vouchers.partials.row', ['voucher' => $voucher])
@@ -316,14 +408,35 @@
             </section>
 
             <section class="mt-8 space-y-3">
-                <h2 class="text-sm font-semibold text-neutral-900">Approuvés</h2>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-sm font-semibold text-neutral-900">Approuvés</h2>
+                        <span
+                            x-show="selectedVoucherIds.length > 0"
+                            x-cloak
+                            class="inline-flex rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary"
+                            x-text="selectedVoucherIds.length + ' sélectionné' + (selectedVoucherIds.length > 1 ? 's' : '')"
+                        ></span>
+                    </div>
+                    @if (auth()->user()?->hasApplicationAdminAccess())
+                        <button
+                            type="button"
+                            class="app-btn-secondary disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="selectedVoucherIds.length === 0"
+                            @click="openBulkAssignment()"
+                        >
+                            Changer branche / terminal
+                        </button>
+                    @endif
+                </div>
                 <div class="app-table-scroll-panel app-table-scroll-panel--20-rows" x-ref="approvedTableScroll">
                     <table class="app-table-sticky-first-col min-w-full divide-y divide-neutral-200 text-sm">
-                        @include('cash_vouchers.partials.table-head')
+                        @include('cash_vouchers.partials.table-head', ['selectable' => $canBulkAssignCashVouchers])
                         <tbody id="approved-vouchers-body" class="divide-y divide-neutral-100" x-ref="approvedTbody">
                             @include('cash_vouchers.partials.approved-rows', [
                                 'approvedVouchers' => $approvedVouchers,
-                                'voucherTableColspan' => $voucherTableColspan,
+                                'voucherTableColspan' => $approvedVoucherTableColspan,
+                                'selectable' => $canBulkAssignCashVouchers,
                             ])
                         </tbody>
                     </table>
@@ -337,6 +450,87 @@
                 </div>
             </section>
         </x-caisse-flow>
+
+        <div
+            x-show="bulkOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4"
+            x-transition.opacity
+        >
+            <div class="absolute inset-0 bg-black/50" @click="bulkOpen = false" aria-hidden="true"></div>
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cash-voucher-bulk-title"
+                class="relative z-10 w-full max-w-md rounded-2xl border border-neutral-200/90 bg-white p-6 shadow-xl ring-1 ring-neutral-900/5"
+                @click.stop
+            >
+                <h2 id="cash-voucher-bulk-title" class="text-lg font-semibold text-neutral-900">Changer la branche et le terminal</h2>
+                <p class="mt-1 text-sm text-neutral-600">
+                    <span x-text="selectedVoucherIds.length"></span>
+                    bon<span x-show="selectedVoucherIds.length > 1">s</span> approuvé<span x-show="selectedVoucherIds.length > 1">s</span> seront réaffectés.
+                </p>
+
+                <div class="mt-5 space-y-4">
+                    <div>
+                        <label for="bulk_branch_id" class="block text-xs font-semibold text-neutral-700">Branche cible</label>
+                        <select
+                            id="bulk_branch_id"
+                            x-model="bulkBranchId"
+                            @change="onBulkBranchChange()"
+                            class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary"
+                            required
+                        >
+                            <option value="">Choisir une branche</option>
+                            @foreach ($branchesForFilter as $branch)
+                                <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="bulk_pos_terminal_id" class="block text-xs font-semibold text-neutral-700">Terminal cible</label>
+                        <select
+                            id="bulk_pos_terminal_id"
+                            x-model="bulkTerminalId"
+                            :disabled="! bulkBranchId"
+                            class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary disabled:bg-neutral-100"
+                            required
+                        >
+                            <option value="">Choisir un terminal</option>
+                            <template x-for="terminal in bulkFilteredTerminals()" :key="terminal.id">
+                                <option :value="String(terminal.id)" x-text="terminal.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <p
+                        x-show="bulkError"
+                        x-cloak
+                        class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-900"
+                        role="alert"
+                        x-text="bulkError"
+                    ></p>
+
+                    <p class="text-xs text-neutral-500">Les bons déjà comptabilisés ne peuvent pas être sélectionnés.</p>
+
+                    <div class="flex flex-col-reverse gap-2 border-t border-neutral-100 pt-4 sm:flex-row sm:justify-end">
+                        <button type="button" class="app-btn-secondary" :disabled="bulkSubmitting" @click="bulkOpen = false">
+                            Annuler
+                        </button>
+                        <button
+                            type="button"
+                            class="app-btn-primary disabled:cursor-not-allowed disabled:opacity-50"
+                            :disabled="bulkSubmitting || ! bulkBranchId || ! bulkTerminalId"
+                            @click="submitBulkAssignment()"
+                        >
+                            <span x-show="! bulkSubmitting">Confirmer la réaffectation</span>
+                            <span x-show="bulkSubmitting" x-cloak>Traitement…</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div
             x-show="open"

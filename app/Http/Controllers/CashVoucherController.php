@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class CashVoucherController extends Controller
@@ -51,14 +52,27 @@ class CashVoucherController extends Controller
             ->all();
 
         $baseQuery = CashVoucher::query()
-            ->with('branch:id,name')
+            ->with([
+                'branch:id,name',
+                'posTerminal:id,branch_id,name',
+                'posShift.posTerminal:id,branch_id,name',
+            ])
             ->when($filters['date_from'] ?? null, fn ($q, $value) => $q->whereDate('date', '>=', $value))
             ->when($filters['date_to'] ?? null, fn ($q, $value) => $q->whereDate('date', '<=', $value))
             ->when($filters['type'] ?? null, fn ($q, $value) => $q->where('type', $value))
             ->when($filters['branch_id'] ?? null, fn ($q, $value) => $q->where('branch_id', (int) $value))
             ->when($filters['pos_terminal_id'] ?? null, function ($q, $value) use ($posTerminals) {
                 abort_unless($posTerminals->contains('id', (int) $value), 403);
-                $q->whereHas('posShift', fn ($shift) => $shift->where('pos_terminal_id', (int) $value));
+                $terminalId = (int) $value;
+                $q->where(function ($terminalQuery) use ($terminalId) {
+                    $terminalQuery
+                        ->where('pos_terminal_id', $terminalId)
+                        ->orWhere(function ($shiftFallback) use ($terminalId) {
+                            $shiftFallback
+                                ->whereNull('pos_terminal_id')
+                                ->whereHas('posShift', fn ($shift) => $shift->where('pos_terminal_id', $terminalId));
+                        });
+                });
             });
 
         $this->applyBranchFilter($baseQuery);
@@ -90,6 +104,7 @@ class CashVoucherController extends Controller
             return response()->json([
                 'html' => view('cash_vouchers.partials.approved-rows', [
                     'approvedVouchers' => $approvedVouchers,
+                    'selectable' => $request->user()?->hasApplicationAdminAccess() ?? false,
                 ])->render(),
                 'next_page_url' => $nextPageUrl,
                 'from' => $approvedVouchers->firstItem(),
@@ -177,7 +192,11 @@ class CashVoucherController extends Controller
             'approved_by' => $request->user()->id,
         ]);
 
-        $cashVoucher->refresh()->load('branch:id,name');
+        $cashVoucher->refresh()->load([
+            'branch:id,name',
+            'posTerminal:id,branch_id,name',
+            'posShift.posTerminal:id,branch_id,name',
+        ]);
 
         if ($request->expectsJson()) {
             return response()->json([
@@ -189,6 +208,7 @@ class CashVoucherController extends Controller
                 ],
                 'row_html' => view('cash_vouchers.partials.row', [
                     'voucher' => $cashVoucher,
+                    'selectable' => true,
                 ])->render(),
             ]);
         }
@@ -234,6 +254,82 @@ class CashVoucherController extends Controller
         return redirect()
             ->route('cash-vouchers.index')
             ->with('success', 'Numéro du bon mis à jour.');
+    }
+
+    public function bulkUpdateAssignment(Request $request): JsonResponse
+    {
+        abort_unless($request->user()?->hasApplicationAdminAccess(), 403, 'Action non autorisÃ©e.');
+
+        $data = $request->validate([
+            'voucher_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'voucher_ids.*' => ['required', 'integer', 'distinct', 'exists:cash_vouchers,id'],
+            'branch_id' => ['required', 'integer', 'exists:branches,id'],
+            'pos_terminal_id' => ['required', 'integer', 'exists:pos_terminals,id'],
+        ]);
+
+        $voucherIds = collect($data['voucher_ids'])->map(fn ($id) => (int) $id)->values()->all();
+        $branchId = $this->resolveBranchIdForMutation((int) $data['branch_id']);
+        $terminal = PosTerminal::query()->findOrFail((int) $data['pos_terminal_id']);
+
+        if ((int) $terminal->branch_id !== $branchId) {
+            throw ValidationException::withMessages([
+                'pos_terminal_id' => 'Le terminal sÃ©lectionnÃ© nâ€™appartient pas Ã  la branche choisie.',
+            ]);
+        }
+
+        DB::transaction(function () use ($voucherIds, $branchId, $terminal): void {
+            $query = CashVoucher::query()->whereKey($voucherIds);
+            $this->applyBranchFilter($query);
+            $vouchers = $query->lockForUpdate()->get();
+
+            abort_unless($vouchers->count() === count($voucherIds), 403, 'Un ou plusieurs bons ne sont pas accessibles.');
+
+            if ($vouchers->contains(fn (CashVoucher $voucher) => $voucher->approved_at === null)) {
+                throw ValidationException::withMessages([
+                    'voucher_ids' => 'Seuls les bons approuvÃ©s peuvent Ãªtre rÃ©affectÃ©s.',
+                ]);
+            }
+
+            if ($vouchers->contains(fn (CashVoucher $voucher) => $voucher->accounting_transaction_id !== null)) {
+                throw ValidationException::withMessages([
+                    'voucher_ids' => 'Les bons dÃ©jÃ  comptabilisÃ©s ne peuvent pas Ãªtre rÃ©affectÃ©s.',
+                ]);
+            }
+
+            $duplicateNumbers = $vouchers
+                ->groupBy('voucher_no')
+                ->filter(fn (Collection $group) => $group->count() > 1)
+                ->keys();
+
+            $existingNumbers = CashVoucher::query()
+                ->where('branch_id', $branchId)
+                ->whereNotIn('id', $voucherIds)
+                ->whereIn('voucher_no', $vouchers->pluck('voucher_no'))
+                ->pluck('voucher_no');
+
+            $conflicts = $duplicateNumbers->merge($existingNumbers)->unique()->values();
+            if ($conflicts->isNotEmpty()) {
+                throw ValidationException::withMessages([
+                    'voucher_ids' => 'NumÃ©ro(s) de bon dÃ©jÃ  utilisÃ©(s) dans la branche cible : '.$conflicts->implode(', ').'.',
+                ]);
+            }
+
+            CashVoucher::query()
+                ->whereKey($voucherIds)
+                ->update([
+                    'branch_id' => $branchId,
+                    'pos_terminal_id' => $terminal->id,
+                    'updated_at' => now(),
+                ]);
+        });
+
+        $message = count($voucherIds).' bon'.(count($voucherIds) > 1 ? 's' : '').' réaffecté'.(count($voucherIds) > 1 ? 's' : '').' avec succès.';
+        $request->session()->flash('success', $message);
+
+        return response()->json([
+            'message' => $message,
+            'updated_count' => count($voucherIds),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse

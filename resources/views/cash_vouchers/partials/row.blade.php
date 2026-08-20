@@ -1,4 +1,26 @@
 <tr class="transition-colors hover:bg-neutral-50/80" data-voucher-id="{{ $voucher->id }}">
+    @if ($selectable ?? false)
+        <td class="px-4 py-3 text-center">
+            @if (! $voucher->accounting_transaction_id)
+                <input
+                    type="checkbox"
+                    class="approved-voucher-checkbox rounded border-neutral-300 text-primary focus:ring-primary"
+                    value="{{ $voucher->id }}"
+                    aria-label="Sélectionner le bon {{ $voucher->voucher_no }}"
+                    :checked="isVoucherSelected({{ $voucher->id }})"
+                    @change="toggleVoucher({{ $voucher->id }}, $event.target.checked)"
+                />
+            @else
+                <input
+                    type="checkbox"
+                    disabled
+                    class="rounded border-neutral-300 opacity-40"
+                    title="Un bon comptabilisé ne peut pas être réaffecté"
+                    aria-label="Bon comptabilisé non modifiable"
+                />
+            @endif
+        </td>
+    @endif
     <td class="px-4 py-3">
         <div class="flex flex-wrap items-center gap-2">
             <span class="font-semibold text-neutral-900">{{ $voucher->voucher_no }}</span>
@@ -22,6 +44,7 @@
     </td>
     <td class="px-4 py-3 text-right font-medium tabular-nums text-neutral-900">{{ number_format((float) $voucher->amount, 2, ',', ' ') }}</td>
     <td class="px-4 py-3 text-neutral-700">{{ $voucher->branch?->name ?? '—' }}</td>
+    <td class="px-4 py-3 text-neutral-700">{{ $voucher->posTerminal?->name ?? $voucher->posShift?->posTerminal?->name ?? '—' }}</td>
     @if (auth()->user()?->hasApplicationAdminAccess())
         <td class="px-4 py-3 text-right">
             <div class="inline-flex items-center justify-end gap-1">

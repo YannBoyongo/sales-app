@@ -21,6 +21,7 @@ class CashVoucher extends Model
         'approved_by',
         'accounting_transaction_id',
         'pos_shift_id',
+        'pos_terminal_id',
         'department_id',
     ];
 
@@ -51,6 +52,11 @@ class CashVoucher extends Model
     public function posShift(): BelongsTo
     {
         return $this->belongsTo(PosShift::class);
+    }
+
+    public function posTerminal(): BelongsTo
+    {
+        return $this->belongsTo(PosTerminal::class);
     }
 
     public function department(): BelongsTo

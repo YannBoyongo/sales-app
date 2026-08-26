@@ -10,6 +10,7 @@ class ClientCautionUsage extends Model
     protected $fillable = [
         'client_id',
         'sale_id',
+        'payment_id',
         'user_id',
         'amount',
         'used_at',
@@ -37,5 +38,10 @@ class ClientCautionUsage extends Model
     public function sale(): BelongsTo
     {
         return $this->belongsTo(Sale::class);
+    }
+
+    public function payment(): BelongsTo
+    {
+        return $this->belongsTo(Payment::class);
     }
 }

@@ -165,7 +165,7 @@ class ClientController extends Controller
         if ($showFinanceDetail) {
             $client->load([
                 'creditSales' => fn ($q) => $q->latest()->with(['branch', 'product', 'sale']),
-                'payments' => fn ($q) => $q->latest()->with('user'),
+                'payments' => fn ($q) => $q->latest()->with(['user', 'cautionUsage']),
                 'cautionDeposits' => fn ($q) => $q->latest('deposited_at')->with('user'),
                 'cautionUsages' => fn ($q) => $q->latest('used_at')->with(['user', 'sale.branch']),
             ]);
@@ -195,50 +195,91 @@ class ClientController extends Controller
         $this->ensureUserCanAccessClient($client);
 
         $data = $request->validate([
+            'payment_method' => ['required', Rule::in(['cash', 'caution'])],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'note' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $currentDebt = (float) $client->debtBalance();
-        $amount = (float) $data['amount'];
+        $paymentMethod = (string) $data['payment_method'];
+        $amountStr = number_format((float) $data['amount'], 2, '.', '');
 
-        if ($amount > $currentDebt) {
+        $successMessage = $paymentMethod === 'caution'
+            ? 'Paiement enregistré par caution. Le solde caution du client a été réduit (aucun bon de caisse créé).'
+            : 'Paiement enregistré. Un bon de caisse (entrée) a été créé — validez-le puis enregistrez-le en comptabilité depuis Bons de caisse.';
+
+        try {
+            DB::transaction(function () use ($request, $client, $paymentMethod, $amountStr, $data): void {
+                $lockedClient = Client::query()->whereKey($client->id)->lockForUpdate()->firstOrFail();
+
+                $currentDebt = (float) $lockedClient->debtBalance();
+                $amount = (float) $amountStr;
+
+                if ($amount > $currentDebt) {
+                    throw new \RuntimeException('Le montant dépasse la dette actuelle du client.');
+                }
+
+                if ($paymentMethod === 'caution') {
+                    $availableCaution = (float) $lockedClient->cautionBalance();
+                    if ($amount > $availableCaution) {
+                        throw new \RuntimeException('Caution insuffisante pour ce montant.');
+                    }
+                }
+
+                $paymentNote = filled($data['note'] ?? null)
+                    ? (string) $data['note']
+                    : ($paymentMethod === 'caution'
+                        ? 'Paiement dette par caution'
+                        : null);
+
+                $payment = Payment::create([
+                    'client_id' => $lockedClient->id,
+                    'user_id' => $request->user()->id,
+                    'amount' => $amountStr,
+                    'paid_at' => now(),
+                    'note' => $paymentNote,
+                ]);
+
+                if ($paymentMethod === 'caution') {
+                    ClientCautionUsage::create([
+                        'client_id' => $lockedClient->id,
+                        'payment_id' => $payment->id,
+                        'user_id' => $request->user()->id,
+                        'amount' => $amountStr,
+                        'used_at' => now(),
+                        'note' => filled($data['note'] ?? null)
+                            ? 'Paiement dette — '.mb_substr((string) $data['note'], 0, 400)
+                            : 'Paiement dette (paiement #'.$payment->id.')',
+                    ]);
+
+                    return;
+                }
+
+                $description = sprintf(
+                    'Entrée caisse issue du paiement dette — %s',
+                    $lockedClient->name
+                );
+                if (filled($data['note'] ?? null)) {
+                    $description .= ' — '.mb_substr((string) $data['note'], 0, 500);
+                }
+
+                CashVoucher::query()->create([
+                    'branch_id' => $lockedClient->branch_id,
+                    'voucher_no' => 'CV-DETTE-'.$payment->id,
+                    'date' => optional($payment->paid_at)->toDateString() ?? now()->toDateString(),
+                    'description' => mb_substr($description, 0, 2000),
+                    'type' => 'entry',
+                    'amount' => $amountStr,
+                ]);
+            });
+        } catch (\RuntimeException $e) {
             return back()->withInput()->withErrors([
-                'amount' => 'Le montant dépasse la dette actuelle du client.',
+                'amount' => $e->getMessage(),
             ]);
         }
 
-        DB::transaction(function () use ($request, $client, $amount, $data) {
-            $payment = Payment::create([
-                'client_id' => $client->id,
-                'user_id' => $request->user()->id,
-                'amount' => number_format($amount, 2, '.', ''),
-                'paid_at' => now(),
-                'note' => $data['note'] ?? null,
-            ]);
-
-            $amountStr = number_format($amount, 2, '.', '');
-            $description = sprintf(
-                'Entrée caisse issue du paiement dette — %s',
-                $client->name
-            );
-            if (filled($data['note'] ?? null)) {
-                $description .= ' — '.mb_substr((string) $data['note'], 0, 500);
-            }
-
-            CashVoucher::query()->create([
-                'branch_id' => $client->branch_id,
-                'voucher_no' => 'CV-DETTE-'.$payment->id,
-                'date' => optional($payment->paid_at)->toDateString() ?? now()->toDateString(),
-                'description' => mb_substr($description, 0, 2000),
-                'type' => 'entry',
-                'amount' => $amountStr,
-            ]);
-        });
-
         return redirect()
             ->route('clients.show', $client)
-            ->with('success', 'Paiement enregistré. Un bon de caisse (entrée) a été créé — validez-le puis enregistrez-le en comptabilité depuis Bons de caisse.');
+            ->with('success', $successMessage);
     }
 
     public function storeCautionDeposit(Request $request, Client $client): RedirectResponse
@@ -316,6 +357,13 @@ class ClientController extends Controller
 
         abort_unless((int) $usage->client_id === (int) $client->id, 404);
 
+        if ($usage->payment_id !== null && Payment::query()->whereKey($usage->payment_id)->exists()) {
+            return back()->with(
+                'danger',
+                'Impossible de supprimer cette utilisation : supprimez le paiement associé depuis la section Paiements.'
+            );
+        }
+
         if ($usage->sale_id !== null && Sale::query()->whereKey($usage->sale_id)->exists()) {
             return back()->with(
                 'danger',
@@ -335,22 +383,34 @@ class ClientController extends Controller
 
         abort_unless((int) $payment->client_id === (int) $client->id, 404);
 
-        $voucher = CashVoucher::query()
-            ->where('branch_id', $client->branch_id)
-            ->where('voucher_no', 'CV-DETTE-'.$payment->id)
-            ->first();
+        $payment->loadMissing('cautionUsage');
+        $paidWithCaution = $payment->paidWithCaution();
 
-        if ($voucher?->accounting_transaction_id) {
-            return back()->with('danger', 'Impossible de supprimer ce paiement : le bon de caisse associé a déjà été comptabilisé.');
+        $voucher = null;
+        if (! $paidWithCaution) {
+            $voucher = CashVoucher::query()
+                ->where('branch_id', $client->branch_id)
+                ->where('voucher_no', 'CV-DETTE-'.$payment->id)
+                ->first();
+
+            if ($voucher?->accounting_transaction_id) {
+                return back()->with('danger', 'Impossible de supprimer ce paiement : le bon de caisse associé a déjà été comptabilisé.');
+            }
         }
 
-        DB::transaction(function () use ($client, $payment, $voucher) {
+        DB::transaction(function () use ($client, $payment, $voucher, $paidWithCaution) {
             $this->reverseSalePaymentIfApplicable($payment, $client, $voucher);
-            $voucher?->delete();
+            if ($paidWithCaution) {
+                $payment->cautionUsage?->delete();
+            } else {
+                $voucher?->delete();
+            }
             $payment->delete();
         });
 
-        return back()->with('success', 'Paiement supprimé.');
+        return back()->with('success', $paidWithCaution
+            ? 'Paiement supprimé. La caution utilisée a été restaurée.'
+            : 'Paiement supprimé.');
     }
 
     protected function ensureUserCanAccessClient(Client $client): void

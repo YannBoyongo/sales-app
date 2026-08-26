@@ -102,7 +102,7 @@
                                     <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-amber-50 text-base" aria-hidden="true">🏪</span>
                                     <div class="min-w-0">
                                         <span class="text-sm font-semibold text-neutral-900">Revendeur/Client</span>
-                                        <p class="truncate text-[11px] text-neutral-500">Crédit ou caution</p>
+                                        <p class="truncate text-[11px] text-neutral-500">Crédit ou cash</p>
                                     </div>
                                 </div>
                             </label>
@@ -897,7 +897,6 @@
                         return [
                             { value: 'cash', label: 'Cash' },
                             { value: 'credit', label: 'Crédit' },
-                            { value: 'caution', label: 'Caution' },
                         ];
                     }
                     return [

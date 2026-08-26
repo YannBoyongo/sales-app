@@ -47,10 +47,33 @@
             </div>
         </div>
 
-        <section class="app-panel app-panel-body mb-6 max-w-xl">
+        <section class="app-panel app-panel-body mb-6 max-w-xl" x-data="{ paymentMethod: @js(old('payment_method', 'cash')) }">
             <h2 class="text-lg font-semibold text-neutral-900">Enregistrer un paiement (échéance)</h2>
+            <p class="mt-1 text-sm text-neutral-600">
+                Dette restante : <span class="font-semibold tabular-nums text-primary">{{ \App\Support\Money::usd($balance) }}</span>
+                · Caution disponible : <span class="font-semibold tabular-nums text-sky-900">{{ \App\Support\Money::usd($cautionBalance) }}</span>
+            </p>
             <form action="{{ route('clients.payments.store', $client) }}" method="POST" class="mt-4 space-y-4">
                 @csrf
+                <div>
+                    <x-input-label for="payment_method" value="Mode de paiement" />
+                    <select
+                        id="payment_method"
+                        name="payment_method"
+                        x-model="paymentMethod"
+                        class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                        <option value="cash" @selected(old('payment_method', 'cash') === 'cash')>Cash (bon de caisse)</option>
+                        <option value="caution" @selected(old('payment_method') === 'caution')>Caution</option>
+                    </select>
+                    <p x-show="paymentMethod === 'cash'" x-cloak class="mt-1 text-xs text-neutral-500">
+                        Un bon de caisse (entrée) sera créé à valider depuis Bons de caisse.
+                    </p>
+                    <p x-show="paymentMethod === 'caution'" x-cloak class="mt-1 text-xs text-amber-900">
+                        Le montant sera déduit de la caution du client. Aucun bon de caisse (déjà encaissé au dépôt caution).
+                    </p>
+                    <x-input-error class="mt-2" :messages="$errors->get('payment_method')" />
+                </div>
                 <div>
                     <x-input-label for="amount" value="Montant payé" />
                     <x-text-input id="amount" name="amount" type="number" step="0.01" min="0.01" class="mt-1 block w-full" :value="old('amount')" required />
@@ -323,6 +346,7 @@
                     <thead class="text-left text-xs font-semibold uppercase tracking-wide">
                         <tr>
                             <th class="py-3 pr-4">Date</th>
+                            <th class="py-3 pr-4">Mode</th>
                             <th class="py-3 pr-4">Enregistré par</th>
                             <th class="py-3 pr-4">Note</th>
                             <th class="py-3 pr-4 text-right">Montant</th>
@@ -335,6 +359,13 @@
                         @forelse ($client->payments as $payment)
                             <tr>
                                 <td class="py-3 pr-4 text-neutral-600">{{ $payment->paid_at->translatedFormat('d/m/Y H:i') }}</td>
+                                <td class="py-3 pr-4">
+                                    @if ($payment->paidWithCaution())
+                                        <span class="inline-flex rounded-md bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-900">Caution</span>
+                                    @else
+                                        <span class="inline-flex rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-900">Cash</span>
+                                    @endif
+                                </td>
                                 <td class="py-3 pr-4 text-neutral-700">{{ $payment->user?->name ?? '-' }}</td>
                                 <td class="py-3 pr-4 text-neutral-700">{{ $payment->note ?? '-' }}</td>
                                 <td class="py-3 pr-4 text-right tabular-nums">{{ \App\Support\Money::usd($payment->amount) }}</td>
@@ -343,7 +374,9 @@
                                         <form
                                             action="{{ route('clients.payments.destroy', [$client, $payment]) }}"
                                             method="POST"
-                                            onsubmit="return confirm('Supprimer ce paiement ? Le bon de caisse associé sera aussi retiré s’il n’a pas été comptabilisé.');"
+                                            onsubmit="return confirm(@js($payment->paidWithCaution()
+                                                ? 'Supprimer ce paiement ? La caution utilisée sera restaurée.'
+                                                : 'Supprimer ce paiement ? Le bon de caisse associé sera aussi retiré s’il n’a pas été comptabilisé.'));"
                                         >
                                             @csrf
                                             @method('DELETE')
@@ -363,7 +396,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ auth()->user()?->hasApplicationAdminAccess() ? 5 : 4 }}" class="py-8 text-center text-neutral-500">Aucun paiement enregistré.</td>
+                                <td colspan="{{ auth()->user()?->hasApplicationAdminAccess() ? 6 : 5 }}" class="py-8 text-center text-neutral-500">Aucun paiement enregistré.</td>
                             </tr>
                         @endforelse
                     </tbody>

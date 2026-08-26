@@ -288,7 +288,7 @@ class SaleItemController extends Controller
                 $customerType = $data['customer_type'];
                 $paymentType = (string) $data['payment_type'];
                 $allowedPaymentTypes = $customerType === 'dealer'
-                    ? ['cash', 'credit', 'caution']
+                    ? ['cash', 'credit']
                     : ['cash'];
                 if (! in_array($paymentType, $allowedPaymentTypes, true)) {
                     throw new RuntimeException('Type de paiement invalide pour ce type de client.');

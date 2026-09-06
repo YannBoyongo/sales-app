@@ -15,6 +15,7 @@ class AccountingJournal
 
         AccountingTransaction::create([
             'user_id' => $user->id,
+            'branch_id' => $client->branch_id,
             'transaction_date' => $date,
             'reference' => mb_substr(sprintf(
                 'Paiement dette client : %s (paiement #%d)%s',

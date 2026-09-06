@@ -47,6 +47,35 @@
                         </select>
                         <x-input-error :messages="$errors->get('account_code')" class="mt-2" />
                     </div>
+                    @if ($showsBranchFilter)
+                        <div class="sm:col-span-2">
+                            <x-input-label for="branch_id" value="Branche" />
+                            <select id="branch_id" name="branch_id" required class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                                <option value="">- Choisir une branche -</option>
+                                @foreach ($branchesForFilter as $branch)
+                                    <option value="{{ $branch->id }}" @selected((string) old('branch_id') === (string) $branch->id)>{{ $branch->name }}</option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('branch_id')" class="mt-2" />
+                        </div>
+                    @endif
+                    @if ($showsTerminalFilter)
+                        <div class="sm:col-span-2">
+                            <x-input-label for="pos_terminal_id" value="Terminal" />
+                            <select id="pos_terminal_id" name="pos_terminal_id" class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary">
+                                <option value="">- Aucun -</option>
+                                @foreach ($allPosTerminals as $terminal)
+                                    <option value="{{ $terminal->id }}" @selected((string) old('pos_terminal_id') === (string) $terminal->id)>
+                                        @if ($showsMultipleTerminalBranches)
+                                            {{ $terminal->branch?->name }} —
+                                        @endif
+                                        {{ $terminal->name }}
+                                    </option>
+                                @endforeach
+                            </select>
+                            <x-input-error :messages="$errors->get('pos_terminal_id')" class="mt-2" />
+                        </div>
+                    @endif
                     <div class="sm:col-span-2">
                         <x-input-label value="Type d'écriture" />
                         <div class="mt-2 flex flex-wrap gap-4">
@@ -85,8 +114,46 @@
         </div>
     </div>
 
-    <section class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-        <form method="GET" action="{{ route('accounting.index') }}" class="grid gap-3 sm:grid-cols-[220px_220px_auto_auto] sm:items-end">
+    <section
+        class="mb-6 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
+        x-data="{
+            filterBranchId: @js((string) ($filters['branch_id'] ?? '')),
+            filterTerminalId: @js((string) ($filters['pos_terminal_id'] ?? '')),
+            allTerminals: @js($allPosTerminalsForFilter),
+            showsMultipleTerminalBranches: @js($showsMultipleTerminalBranches),
+            filteredTerminals() {
+                if (! this.filterBranchId) {
+                    return this.allTerminals;
+                }
+
+                return this.allTerminals.filter((terminal) => String(terminal.branch_id) === String(this.filterBranchId));
+            },
+            onBranchFilterChange() {
+                const allowedIds = this.filteredTerminals().map((terminal) => String(terminal.id));
+                if (this.filterTerminalId && ! allowedIds.includes(String(this.filterTerminalId))) {
+                    this.filterTerminalId = '';
+                }
+            },
+            onTerminalFilterChange() {
+                if (! this.filterTerminalId) {
+                    return;
+                }
+
+                const terminal = this.allTerminals.find((item) => String(item.id) === String(this.filterTerminalId));
+                if (terminal?.branch_id) {
+                    this.filterBranchId = String(terminal.branch_id);
+                }
+            },
+            terminalOptionLabel(terminal) {
+                if (this.showsMultipleTerminalBranches && ! this.filterBranchId) {
+                    return `${terminal.branch_name} — ${terminal.name}`;
+                }
+
+                return terminal.name;
+            },
+        }"
+    >
+        <form method="GET" action="{{ route('accounting.index') }}" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-[220px_220px_220px_220px_auto] sm:items-end">
             <div>
                 <x-input-label for="start_date" value="Date début" />
                 <x-text-input id="start_date" name="start_date" type="date" class="mt-1 block w-full" :value="$filters['start_date'] ?? ''" />
@@ -95,6 +162,40 @@
                 <x-input-label for="end_date" value="Date fin" />
                 <x-text-input id="end_date" name="end_date" type="date" class="mt-1 block w-full" :value="$filters['end_date'] ?? ''" />
             </div>
+            @if ($showsBranchFilter)
+                <div>
+                    <x-input-label for="filter_branch_id" value="Branche" />
+                    <select
+                        id="filter_branch_id"
+                        name="branch_id"
+                        x-model="filterBranchId"
+                        @change="onBranchFilterChange()"
+                        class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                        <option value="">Toutes</option>
+                        @foreach ($branchesForFilter as $branch)
+                            <option value="{{ $branch->id }}">{{ $branch->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            @endif
+            @if ($showsTerminalFilter)
+                <div>
+                    <x-input-label for="filter_pos_terminal_id" value="Terminal" />
+                    <select
+                        id="filter_pos_terminal_id"
+                        name="pos_terminal_id"
+                        x-model="filterTerminalId"
+                        @change="onTerminalFilterChange()"
+                        class="mt-1 block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                        <option value="">Tous</option>
+                        <template x-for="terminal in filteredTerminals()" :key="terminal.id">
+                            <option :value="String(terminal.id)" x-text="terminalOptionLabel(terminal)"></option>
+                        </template>
+                    </select>
+                </div>
+            @endif
             <div class="flex gap-2">
                 <x-primary-button>Filtrer</x-primary-button>
                 <a href="{{ route('accounting.index') }}" class="inline-flex items-center rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-50">Réinitialiser</a>
@@ -108,17 +209,29 @@
                 <thead class="border-b border-neutral-200 text-left text-xs font-semibold uppercase tracking-wide text-neutral-600">
                     <tr>
                         <th class="py-3 pr-4">Date</th>
+                        @if ($showsBranchFilter)
+                            <th class="py-3 pr-4">Branche</th>
+                        @endif
+                        @if ($showsTerminalFilter)
+                            <th class="py-3 pr-4">Terminal</th>
+                        @endif
                         <th class="py-3 pr-4">Compte</th>
                         <th class="py-3 pr-4">Référence / Description</th>
                         <th class="py-3 pr-4 text-right">Débit</th>
                         <th class="py-3 pr-4 text-right">Crédit</th>
-                                    <th class="py-3 text-right">Solde</th>
+                        <th class="py-3 text-right">Solde</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-neutral-100">
                     @forelse ($rows as $row)
                         <tr>
                             <td class="py-3 pr-4 whitespace-nowrap text-neutral-700">{{ \Illuminate\Support\Carbon::parse($row->transaction_date)->translatedFormat('d/m/Y') }}</td>
+                            @if ($showsBranchFilter)
+                                <td class="py-3 pr-4 whitespace-nowrap text-neutral-700">{{ $row->branch_name ?? '-' }}</td>
+                            @endif
+                            @if ($showsTerminalFilter)
+                                <td class="py-3 pr-4 whitespace-nowrap text-neutral-700">{{ $row->pos_terminal_name ?? '-' }}</td>
+                            @endif
                             <td class="py-3 pr-4 whitespace-nowrap font-mono text-xs text-neutral-700">{{ $row->account_code ?: '-' }}</td>
                             <td class="py-3 pr-4 text-neutral-900">{{ $row->reference }}</td>
                             <td class="py-3 pr-4 text-right tabular-nums text-emerald-700">{{ (float) $row->debit_amount > 0 ? \App\Support\Money::usd($row->debit_amount) : '-' }}</td>
@@ -127,7 +240,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="py-8 text-center text-neutral-500">Aucune écriture enregistrée.</td>
+                            <td colspan="{{ 6 + ($showsBranchFilter ? 1 : 0) + ($showsTerminalFilter ? 1 : 0) }}" class="py-8 text-center text-neutral-500">Aucune écriture enregistrée.</td>
                         </tr>
                     @endforelse
                 </tbody>

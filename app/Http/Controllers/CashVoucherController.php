@@ -435,10 +435,14 @@ class CashVoucherController extends Controller
         }
 
         DB::transaction(function () use ($request, $cashVoucher, $accountCode): void {
+            $cashVoucher->loadMissing('posShift');
             $entryType = $cashVoucher->type === 'entry' ? 'debit' : 'credit';
+            $terminalId = $cashVoucher->pos_terminal_id ?? $cashVoucher->posShift?->pos_terminal_id;
 
             $transaction = AccountingTransaction::query()->create([
                 'user_id' => $request->user()->id,
+                'branch_id' => $cashVoucher->branch_id,
+                'pos_terminal_id' => $terminalId,
                 'transaction_date' => optional($cashVoucher->date)->toDateString() ?? now()->toDateString(),
                 'reference' => sprintf('Bon de caisse %s - %s', $cashVoucher->voucher_no, $cashVoucher->description),
                 'amount' => number_format((float) $cashVoucher->amount, 2, '.', ''),

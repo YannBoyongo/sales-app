@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\AccountingTransaction;
-use App\Models\Branch;
+use App\Support\ActiveBranch;
 use App\Models\Product;
 use App\Models\PurchaseOrderReceptionBatch;
 use App\Models\Sale;
@@ -25,7 +25,7 @@ class DashboardController extends Controller
         $isAccountant = (bool) ($user?->isAccountant());
         $seesAllBranches = (bool) ($user?->canBypassBranchScope());
         $canAccessAccounting = (bool) ($user?->canAccessAccounting());
-        $userBranch = (! $seesAllBranches && $user?->branch) ? $user->branch : null;
+        $userBranch = ActiveBranch::branch() ?? ($user?->branch);
 
         $weekStart = now()->copy()->subDays(7)->startOfDay();
         $weekSalesQuery = Sale::query()->where('sold_at', '>=', $weekStart);
@@ -52,7 +52,7 @@ class DashboardController extends Controller
         $this->applyBranchFilter($recentSales, 'branch_id');
         $recentSales = $recentSales->take(5)->get();
 
-        $branchesCount = $isAdmin ? Branch::query()->count() : null;
+        $branchesCount = $isAdmin ? $this->selectableBranchesForUser()->count() : null;
 
         $lowStocksQuery = Stock::query()
             ->with(['product.department', 'location.branch'])
@@ -138,7 +138,9 @@ class DashboardController extends Controller
 
         $accountingCaisse = null;
         if ($canAccessAccounting) {
-            $ledger = AccountingTransaction::query()
+            $ledger = AccountingTransaction::query();
+            $this->applyBranchFilter($ledger, 'accounting_transactions.branch_id');
+            $ledger = $ledger
                 ->selectRaw("
                     COALESCE(SUM(CASE WHEN entry_type = 'debit' THEN amount ELSE 0 END), 0) as total_debit,
                     COALESCE(SUM(CASE WHEN entry_type = 'credit' THEN amount ELSE 0 END), 0) as total_credit
@@ -168,7 +170,9 @@ class DashboardController extends Controller
         $selectedSalesMonth = (int) now()->month;
 
         if ($isAdmin) {
-            $yearBounds = Sale::query()
+            $yearBoundsQuery = Sale::query();
+            $this->applyBranchFilter($yearBoundsQuery, 'branch_id');
+            $yearBounds = $yearBoundsQuery
                 ->selectRaw('MIN(YEAR(sold_at)) as min_year, MAX(YEAR(sold_at)) as max_year')
                 ->first();
 
@@ -200,8 +204,10 @@ class DashboardController extends Controller
             $monthEnd = $monthStart->copy()->endOfMonth();
             $daysInMonth = (int) $monthStart->daysInMonth;
 
-            $dailyRows = Sale::query()
-                ->whereBetween('sold_at', [$monthStart, $monthEnd])
+            $dailyRowsQuery = Sale::query()
+                ->whereBetween('sold_at', [$monthStart, $monthEnd]);
+            $this->applyBranchFilter($dailyRowsQuery, 'branch_id');
+            $dailyRows = $dailyRowsQuery
                 ->selectRaw('DATE(sold_at) as sale_date, COUNT(*) as sale_count, COALESCE(SUM(total_amount), 0) as total_amount')
                 ->groupByRaw('DATE(sold_at)')
                 ->orderBy('sale_date')
@@ -237,39 +243,49 @@ class DashboardController extends Controller
                 'total_count' => $monthTotalCount,
             ];
 
-            $branchSalesRows = Sale::query()
-                ->whereBetween('sold_at', [$monthStart, $monthEnd])
-                ->selectRaw('branch_id, COUNT(*) as sale_count, COALESCE(SUM(total_amount), 0) as total_amount')
-                ->groupBy('branch_id')
-                ->get()
-                ->keyBy(fn ($row) => (int) $row->branch_id);
+            $paymentTypeLabels = [
+                'cash' => 'Espèces',
+                'credit' => 'Crédit',
+                'caution' => 'Caution',
+            ];
 
-            $branches = Branch::query()->orderBy('name')->get(['id', 'name']);
+            $paymentRowsQuery = Sale::query()
+                ->whereBetween('sold_at', [$monthStart, $monthEnd]);
+            $this->applyBranchFilter($paymentRowsQuery, 'branch_id');
+            $paymentRows = $paymentRowsQuery
+                ->selectRaw('payment_type, COUNT(*) as sale_count, COALESCE(SUM(total_amount), 0) as total_amount')
+                ->groupBy('payment_type')
+                ->get()
+                ->keyBy(fn ($row) => (string) $row->payment_type);
+
             $branchLabels = [];
             $branchAmounts = [];
             $branchCounts = [];
-            $knownBranchIds = [];
 
-            foreach ($branches as $branch) {
-                $knownBranchIds[] = (int) $branch->id;
-                $row = $branchSalesRows->get((int) $branch->id);
-                $branchLabels[] = $branch->name;
-                $branchAmounts[] = round((float) ($row->total_amount ?? 0), 2);
-                $branchCounts[] = (int) ($row->sale_count ?? 0);
-            }
-
-            $orphanAmount = 0.0;
-            $orphanCount = 0;
-            foreach ($branchSalesRows as $branchId => $row) {
-                if (! in_array((int) $branchId, $knownBranchIds, true)) {
-                    $orphanAmount += (float) ($row->total_amount ?? 0);
-                    $orphanCount += (int) ($row->sale_count ?? 0);
+            foreach ($paymentTypeLabels as $type => $label) {
+                $row = $paymentRows->get($type);
+                $amount = round((float) ($row->total_amount ?? 0), 2);
+                $count = (int) ($row->sale_count ?? 0);
+                if ($amount <= 0 && $count <= 0) {
+                    continue;
                 }
+                $branchLabels[] = $label;
+                $branchAmounts[] = $amount;
+                $branchCounts[] = $count;
             }
-            if ($orphanCount > 0 || $orphanAmount > 0) {
-                $branchLabels[] = 'Branche introuvable';
-                $branchAmounts[] = round($orphanAmount, 2);
-                $branchCounts[] = $orphanCount;
+
+            foreach ($paymentRows as $type => $row) {
+                if (isset($paymentTypeLabels[(string) $type])) {
+                    continue;
+                }
+                $amount = round((float) ($row->total_amount ?? 0), 2);
+                $count = (int) ($row->sale_count ?? 0);
+                if ($amount <= 0 && $count <= 0) {
+                    continue;
+                }
+                $branchLabels[] = ucfirst((string) $type);
+                $branchAmounts[] = $amount;
+                $branchCounts[] = $count;
             }
 
             $branchSalesChart = [

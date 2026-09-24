@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Support\ActiveBranch;
 use App\Models\AccountingTransaction;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
@@ -172,6 +173,10 @@ class AccountingController extends Controller
     /** @return Collection<int, PosTerminal> */
     private function posTerminalsForAccountingFilter(?int $branchId = null): Collection
     {
+        if ($branchId === null) {
+            $branchId = ActiveBranch::id();
+        }
+
         $branch = $branchId !== null ? Branch::query()->find($branchId) : null;
 
         return $this->posTerminalsForUser($branch, true);

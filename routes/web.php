@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActiveBranchController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\BranchController;
 use App\Http\Controllers\CashVoucherController;
@@ -61,6 +62,10 @@ Route::get('/', function () {
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/choix-branche', [ActiveBranchController::class, 'select'])->name('active-branch.select');
+    Route::post('/choix-branche', [ActiveBranchController::class, 'store'])->name('active-branch.store');
+
+    Route::middleware('active_branch')->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::middleware('super_admin')->group(function () {
@@ -266,6 +271,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('comptabilite', [AccountingController::class, 'index'])->name('accounting.index');
         Route::post('comptabilite/ecritures', [AccountingController::class, 'store'])->name('accounting.store');
     });
+
+    }); // active_branch
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

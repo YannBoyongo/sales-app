@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\Branch;
+use App\Support\ActiveBranch;
 use App\Models\Department;
 use App\Models\Location;
 use App\Models\PosShift;
@@ -29,39 +30,50 @@ trait RespectsUserBranch
             return null;
         }
 
-        return DB::table('location_stock_manager')
+        $ids = DB::table('location_stock_manager')
             ->where('user_id', $user->id)
             ->pluck('location_id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $branchIds = ActiveBranch::filterIds();
+        if ($branchIds === [] || $ids === []) {
+            return $ids;
+        }
+
+        return Location::query()
+            ->whereIn('id', $ids)
+            ->whereIn('branch_id', $branchIds)
+            ->pluck('id')
             ->map(fn ($id) => (int) $id)
             ->values()
             ->all();
     }
 
     /**
-     * @return null|array<int> null = pas de filtre (admin), [] = aucune branche autorisée, [id] = une branche
+     * @return list<int> Branche active en session (ou unique branche autorisée). [] = aucune / choix requis.
      */
-    protected function branchFilterIds(): ?array
+    protected function branchFilterIds(): array
     {
-        $user = auth()->user();
-        if (! $user || $user->canBypassBranchScope()) {
-            return null;
-        }
-
-        return $user->branch_id ? [$user->branch_id] : [];
+        return ActiveBranch::filterIds();
     }
 
+    /** Branches autorisées pour l’utilisateur (liste complète, ex. choix de branche). */
+    protected function selectableBranchesForUser(): Collection
+    {
+        return ActiveBranch::selectableBranches();
+    }
+
+    /** Branche(s) du contexte courant (session active). */
     protected function branchesForUser(): Collection
     {
         $ids = $this->branchFilterIds();
-        $query = Branch::query()->orderBy('name');
-        if ($ids !== null) {
-            if ($ids === []) {
-                return collect();
-            }
-            $query->whereIn('id', $ids);
+        if ($ids === []) {
+            return collect();
         }
 
-        return $query->get();
+        return Branch::query()->whereIn('id', $ids)->orderBy('name')->get();
     }
 
     /**
@@ -71,47 +83,14 @@ trait RespectsUserBranch
      */
     protected function stockBranchesForMatrix(): Collection
     {
-        $user = auth()->user();
-        if (! $user) {
-            return collect();
+        $activeId = ActiveBranch::id();
+        if ($activeId !== null) {
+            $branch = Branch::query()->whereKey($activeId)->first(['id', 'name']);
+
+            return $branch ? collect([$branch]) : collect();
         }
 
-        if ($user->canBypassBranchScope()) {
-            return Branch::query()->orderBy('name')->get(['id', 'name']);
-        }
-
-        if ($user->isStockManager()) {
-            $locIds = $this->managedLocationIdsForUser();
-            if ($locIds === []) {
-                return collect();
-            }
-            $branchIds = Location::query()->whereIn('id', $locIds)->pluck('branch_id')->unique()->filter()->values()->all();
-            if ($branchIds === []) {
-                return collect();
-            }
-
-            return Branch::query()->whereIn('id', $branchIds)->orderBy('name')->get(['id', 'name']);
-        }
-
-        if ($user->isPosUser()) {
-            $terminals = $user->posTerminals()->get(['branch_id']);
-            if ($terminals->isEmpty()) {
-                return collect();
-            }
-
-            $terminalBranchIds = $terminals->pluck('branch_id')->unique()->filter()->values()->all();
-            $userBranchId = $user->branch_id ? (int) $user->branch_id : null;
-
-            if ($userBranchId !== null && $terminals->every(fn ($t) => (int) $t->branch_id === $userBranchId)) {
-                $branch = Branch::query()->whereKey($userBranchId)->first(['id', 'name']);
-
-                return $branch ? collect([$branch]) : collect();
-            }
-
-            return Branch::query()->whereIn('id', $terminalBranchIds)->orderBy('name')->get(['id', 'name']);
-        }
-
-        return $this->branchesForUser();
+        return ActiveBranch::selectableBranches();
     }
 
     /**
@@ -168,13 +147,11 @@ trait RespectsUserBranch
         }
 
         $ids = $this->branchFilterIds();
-        $query = Location::query()->with('branch')->orderBy('name');
-        if ($ids !== null) {
-            if ($ids === []) {
-                return collect();
-            }
-            $query->whereIn('branch_id', $ids);
+        if ($ids === []) {
+            return collect();
         }
+        $query = Location::query()->with('branch')->orderBy('name');
+        $query->whereIn('branch_id', $ids);
 
         return $query->get();
     }
@@ -217,9 +194,6 @@ trait RespectsUserBranch
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             $query->whereRaw('1 = 0');
 
@@ -261,9 +235,6 @@ trait RespectsUserBranch
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             $query->whereRaw('1 = 0');
 
@@ -311,9 +282,6 @@ trait RespectsUserBranch
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             $query->whereRaw('1 = 0');
 
@@ -348,9 +316,6 @@ trait RespectsUserBranch
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === [] || ! in_array((int) $location->branch_id, $ids, true)) {
             abort(403, 'Accès non autorisé pour cet emplacement.');
         }
@@ -359,9 +324,6 @@ trait RespectsUserBranch
     protected function ensureUserCanAccessBranchModel(Branch $branch): void
     {
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === [] || ! in_array((int) $branch->id, $ids, true)) {
             abort(403, 'Accès non autorisé pour cette branche.');
         }
@@ -399,9 +361,6 @@ trait RespectsUserBranch
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             $builder->whereRaw('1 = 0');
 
@@ -453,9 +412,6 @@ trait RespectsUserBranch
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             $query->whereRaw('1 = 0');
 
@@ -471,8 +427,7 @@ trait RespectsUserBranch
 
     protected function ensureProductAccessibleForBranchUser(Product $product): void
     {
-        $ids = $this->branchFilterIds();
-        if ($ids === null) {
+        if ($this->branchFilterIds() === []) {
             return;
         }
         $query = Product::query()->whereKey($product->getKey());
@@ -482,8 +437,7 @@ trait RespectsUserBranch
 
     protected function ensureDepartmentAccessibleForBranchUser(Department $department): void
     {
-        $ids = $this->branchFilterIds();
-        if ($ids === null) {
+        if ($this->branchFilterIds() === []) {
             return;
         }
         $query = Department::query()->whereKey($department->getKey());
@@ -613,20 +567,8 @@ trait RespectsUserBranch
     {
         $ids = $this->branchFilterIds();
 
-        if ($ids === null) {
-            if ($requestedBranchId !== null) {
-                return (int) $requestedBranchId;
-            }
-
-            if (Branch::query()->count() === 1) {
-                return (int) Branch::query()->orderBy('id')->value('id');
-            }
-
-            abort(422, 'La branche est obligatoire.');
-        }
-
         if ($ids === []) {
-            abort(403, 'Aucune branche autorisée.');
+            abort(403, 'Aucune branche active. Choisissez une branche pour continuer.');
         }
 
         if ($requestedBranchId !== null && ! in_array($requestedBranchId, $ids, true)) {

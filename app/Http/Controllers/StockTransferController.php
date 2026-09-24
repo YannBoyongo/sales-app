@@ -117,7 +117,7 @@ class StockTransferController extends Controller
             $distinctBranches = $user->managedLocations()->get()->pluck('branch_id')->unique()->filter()->count();
             $picksBranchForTransfer = $distinctBranches > 1;
         } else {
-            $picksBranchForTransfer = $this->branchFilterIds() === null;
+            $picksBranchForTransfer = false;
         }
 
         if ($user->isStockManager()) {
@@ -126,7 +126,9 @@ class StockTransferController extends Controller
                 ->values()
                 ->all();
         } else {
+            $branchIds = $this->branchFilterIds();
             $branchesForTransfer = Branch::query()
+                ->when($branchIds !== [], fn ($q) => $q->whereIn('id', $branchIds))
                 ->orderBy('name')
                 ->get(['id', 'name'])
                 ->map(fn (Branch $b) => ['id' => $b->id, 'name' => $b->name])
@@ -188,13 +190,6 @@ class StockTransferController extends Controller
             $externalToLocations = [];
             $managedDistinctBranches = $user->managedLocations()->get()->pluck('branch_id')->unique()->filter()->count();
             $canExternal = $managedDistinctBranches >= 2 && Branch::query()->count() >= 2;
-        } elseif ($this->branchFilterIds() === null) {
-            $externalPickMode = 'single_list';
-            $externalQuery = Location::query()
-                ->with('branch:id,name')
-                ->whereIn('kind', $warehouseKinds)
-                ->orderBy('name');
-            $externalLocations = $this->mapLocationOptions($externalQuery->get());
         } else {
             $extFromQ = Location::query()
                 ->with('branch:id,name')
@@ -213,9 +208,9 @@ class StockTransferController extends Controller
         }
 
         if (! $user?->isStockManager()) {
-            $canExternal = $this->branchFilterIds() === null
-                ? Branch::query()->count() >= 2
-                : (count($externalFromLocations) > 0 && count($externalToLocations) > 0);
+            $canExternal = Branch::query()->count() >= 2
+                && count($externalFromLocations) > 0
+                && count($externalToLocations) > 0;
         }
 
         return view('stock_transfers.create', compact(
@@ -282,7 +277,7 @@ class StockTransferController extends Controller
                         'transfer_scope' => 'Aucun entrepôt d’une autre branche n’est disponible pour un transfert externe.',
                     ]);
                 }
-            } elseif ($this->branchFilterIds() !== null) {
+            } elseif ($this->branchFilterIds() !== []) {
                 $hasRemoteWarehouse = Location::query()
                     ->whereIn('kind', [Location::KIND_MAIN, Location::KIND_STORAGE])
                     ->whereNotIn('branch_id', $this->branchFilterIds())
@@ -300,7 +295,7 @@ class StockTransferController extends Controller
                 if (! in_array($fromId, $this->locationIdsForUser(), true)) {
                     abort(403, 'Emplacement source non autorisé.');
                 }
-            } elseif ($this->branchFilterIds() !== null) {
+            } elseif ($this->branchFilterIds() !== []) {
                 $allowedLocationIds = $this->locationIdsForUser();
                 foreach ([$fromId, $toId] as $lid) {
                     if (! in_array($lid, $allowedLocationIds, true)) {
@@ -359,7 +354,7 @@ class StockTransferController extends Controller
                 if ($toBranchManaged && ! in_array($toId, $allowedLocationIds, true)) {
                     abort(403, 'Emplacement destination non autorisé.');
                 }
-            } elseif ($this->branchFilterIds() !== null) {
+            } elseif ($this->branchFilterIds() !== []) {
                 $allowedBranches = $this->branchFilterIds();
                 $allowedLocationIds = $this->locationIdsForUser();
                 $fromBranchMine = in_array((int) $from->branch_id, $allowedBranches, true);
@@ -464,7 +459,7 @@ class StockTransferController extends Controller
 
         $fromId = (int) $stockTransfer->from_location_id;
 
-        if ($this->managedLocationIdsForUser() !== null || $this->branchFilterIds() !== null) {
+        if ($this->managedLocationIdsForUser() !== null || $this->branchFilterIds() !== []) {
             $productQuery = Product::query()->whereKey($productId);
             $this->applyProductBranchScope($productQuery);
             abort_unless($productQuery->exists(), 403, 'Produit non autorisé.');
@@ -553,7 +548,7 @@ class StockTransferController extends Controller
         $occurredOn = $stockTransfer->transferred_at->copy()->startOfDay();
 
         foreach ($stockTransfer->items as $item) {
-            if ($this->managedLocationIdsForUser() !== null || $this->branchFilterIds() !== null) {
+            if ($this->managedLocationIdsForUser() !== null || $this->branchFilterIds() !== []) {
                 $productQuery = Product::query()->whereKey($item->product_id);
                 $this->applyProductBranchScope($productQuery);
                 abort_unless($productQuery->exists(), 403, 'Produit non autorisé.');
@@ -752,13 +747,7 @@ class StockTransferController extends Controller
             ->orderBy('name');
 
         $branchIds = $this->branchFilterIds();
-        if ($user?->canBypassBranchScope()) {
-            // All warehouses available.
-        } elseif ($user?->isStockManager()) {
-            // Magasinier may appear on either side of an external transfer.
-        } elseif ($branchIds === null) {
-            // All warehouses.
-        } elseif ($branchIds === []) {
+        if ($branchIds === []) {
             $externalToQuery->whereRaw('1 = 0');
         } else {
             $externalToQuery->whereNotIn('branch_id', $branchIds);
@@ -813,9 +802,6 @@ class StockTransferController extends Controller
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             $query->whereRaw('1 = 0');
 
@@ -842,9 +828,6 @@ class StockTransferController extends Controller
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             abort(403, 'Accès non autorisé.');
         }

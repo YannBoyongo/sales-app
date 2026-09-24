@@ -58,7 +58,7 @@ class SaleItemController extends Controller
             return redirect()->route('pos-terminal.workspace', [$branch, $terminals->first()]);
         }
 
-        $canPickAnotherBranch = $this->branchesForUser()->count() > 1;
+        $canPickAnotherBranch = $this->selectableBranchesForUser()->count() > 1;
         $openTerminalIds = $this->openPosTerminalIds($terminals);
         $openIds = array_flip($openTerminalIds);
 
@@ -88,7 +88,7 @@ class SaleItemController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $canPickAnotherBranch = $this->branchesForUser()->count() > 1;
+        $canPickAnotherBranch = $this->selectableBranchesForUser()->count() > 1;
 
         return view('sale_entry.choose-department', compact('branch', 'posTerminal', 'pointOfSale', 'departments', 'canPickAnotherBranch'));
     }

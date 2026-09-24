@@ -31,11 +31,9 @@ class PurchaseOrderController extends Controller
             ->with(['location:id,name,branch_id', 'creator:id,name'])
             ->latest();
 
-        if ($this->branchFilterIds() !== null) {
-            $query->whereHas('location', function ($q) {
-                $this->applyBranchFilter($q);
-            });
-        }
+        $query->whereHas('location', function ($q) {
+            $this->applyBranchFilter($q);
+        });
 
         $purchaseOrders = $query->simplePaginate(20);
 

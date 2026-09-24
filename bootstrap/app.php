@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveBranch;
 use App\Http\Middleware\EnsureAccounting;
 use App\Http\Middleware\EnsureAccountingOrCashier;
 use App\Http\Middleware\EnsureAdmin;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
+            'active_branch' => EnsureActiveBranch::class,
             'admin' => EnsureAdmin::class,
             'super_admin' => EnsureSuperAdmin::class,
             'accounting' => EnsureAccounting::class,

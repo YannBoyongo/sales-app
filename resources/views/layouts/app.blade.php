@@ -303,14 +303,23 @@
                     <div class="flex items-center gap-2">
                         @php
                             $authUser = Auth::user();
-                            $authUser?->loadMissing('branch');
-                            $topbarBranchLabel = $authUser?->branch?->name
-                                ?? ($authUser?->canBypassBranchScope() ? 'Siège' : null);
+                            $activeBranch = \App\Support\ActiveBranch::branch();
+                            $canSwitchBranch = $authUser && \App\Support\ActiveBranch::selectableBranches($authUser)->count() > 1;
                         @endphp
-                        @if ($topbarBranchLabel)
-                            <span class="max-w-[8rem] truncate rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 sm:max-w-[10rem]" title="{{ $topbarBranchLabel }}">
-                                {{ $topbarBranchLabel }}
-                            </span>
+                        @if ($activeBranch)
+                            @if ($canSwitchBranch)
+                                <a
+                                    href="{{ route('active-branch.select') }}"
+                                    class="max-w-[10rem] truncate rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200 sm:max-w-[12rem]"
+                                    title="Changer de branche — {{ $activeBranch->name }}"
+                                >
+                                    {{ $activeBranch->name }}
+                                </a>
+                            @else
+                                <span class="max-w-[10rem] truncate rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 sm:max-w-[12rem]" title="{{ $activeBranch->name }}">
+                                    {{ $activeBranch->name }}
+                                </span>
+                            @endif
                         @endif
                         <span class="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
                             {{ $authUser?->roles()->pluck('name')->first() ?? 'Utilisateur' }}

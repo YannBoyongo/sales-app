@@ -14,14 +14,19 @@
                         </h1>
                         <p class="mt-3 max-w-3xl text-sm leading-relaxed text-white/85 sm:text-base">
                             @if ($isAdmin)
-                                Vous voyez les indicateurs sur <span class="font-semibold text-white">toutes les branches</span>.
-                                Gérez la structure (branches, départements, utilisateurs), les clients crédit, la comptabilité et les paramètres boutique.
-                                @if ($branchesCount !== null)
-                                    <span class="text-white/70">- {{ $branchesCount }} branche{{ $branchesCount > 1 ? 's' : '' }}.</span>
+                                Indicateurs pour
+                                @if ($userBranch)
+                                    la branche <span class="font-semibold text-white">{{ $userBranch->name }}</span>.
+                                @else
+                                    votre périmètre actuel.
                                 @endif
+                                Gérez la structure, les clients crédit, la comptabilité et les paramètres boutique.
                             @elseif ($isAccountant)
-                                Vue <span class="font-semibold text-white">finances</span> sur toutes les branches : clients (crédit), comptabilité et indicateurs agrégés.
-                                Les réglages structurels et la gestion des utilisateurs restent réservés aux administrateurs.
+                                Vue <span class="font-semibold text-white">finances</span>
+                                @if ($userBranch)
+                                    pour <span class="font-semibold text-white">{{ $userBranch->name }}</span>
+                                @endif
+                                : clients (crédit), comptabilité et indicateurs de la branche active.
                             @else
                                 Espace <span class="font-semibold text-white">point de vente et stock</span>
                                 @if ($userBranch)
@@ -35,10 +40,6 @@
                     @if ($userBranch)
                         <span class="inline-flex shrink-0 items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur-sm">
                             {{ $userBranch->name }}
-                        </span>
-                    @elseif ($isAdmin && $branchesCount !== null)
-                        <span class="inline-flex shrink-0 items-center rounded-full border border-white/25 bg-white/15 px-4 py-1.5 text-sm font-semibold text-white backdrop-blur-sm">
-                            {{ $branchesCount }} branche{{ $branchesCount > 1 ? 's' : '' }}
                         </span>
                     @endif
                 </div>
@@ -111,7 +112,10 @@
                                 <h2 class="font-semibold">Analyse des ventes</h2>
                                 <p class="mt-0.5 text-xs text-white/70">
                                     {{ $monthlySalesTrend['month_label'] }} - {{ $monthlySalesTrend['total_count'] }} vente{{ $monthlySalesTrend['total_count'] > 1 ? 's' : '' }}
-                                    · {{ \App\Support\Money::usd($monthlySalesTrend['total_amount']) }} (toutes branches)
+                                    · {{ \App\Support\Money::usd($monthlySalesTrend['total_amount']) }}
+                                    @if ($userBranch)
+                                        ({{ $userBranch->name }})
+                                    @endif
                                 </p>
                             </div>
                             <form method="GET" action="{{ route('dashboard') }}" class="flex flex-wrap items-end gap-2">
@@ -177,8 +181,13 @@
 
                         <section class="app-panel overflow-hidden border-primary/15">
                             <div class="dashboard-chart-header">
-                                <h3 class="font-semibold">Ventes par branche</h3>
-                                <p class="mt-0.5 text-xs text-white/70">Répartition des ventes du mois sélectionné</p>
+                                <h3 class="font-semibold">Ventes par mode de paiement</h3>
+                                <p class="mt-0.5 text-xs text-white/70">
+                                    Répartition du mois sélectionné
+                                    @if ($userBranch)
+                                        — {{ $userBranch->name }}
+                                    @endif
+                                </p>
                             </div>
                             <div class="app-panel-body space-y-4">
                                 <div class="flex flex-wrap gap-x-6 gap-y-2 rounded-lg border border-primary/10 bg-primary-soft/60 px-3 py-2.5 text-xs text-neutral-600">
@@ -186,7 +195,7 @@
                                         <span class="mt-1.5 h-3 w-3 shrink-0 rounded-full bg-primary" aria-hidden="true"></span>
                                         <div>
                                             <p class="font-semibold text-neutral-800">Parts du camembert</p>
-                                            <p class="text-neutral-500">Chaque part = une branche, proportionnelle au montant des ventes</p>
+                                            <p class="text-neutral-500">Chaque part = un mode de paiement (espèces, crédit, etc.)</p>
                                         </div>
                                     </div>
                                     <div class="flex items-start gap-2">
@@ -207,7 +216,7 @@
                                 <div class="relative mx-auto h-72 w-full max-w-md">
                                     <canvas
                                         id="branch-sales-chart"
-                                        aria-label="Graphique camembert des ventes par branche"
+                                        aria-label="Graphique camembert des ventes par mode de paiement"
                                         role="img"
                                     ></canvas>
                                 </div>
@@ -398,7 +407,13 @@
                 <div class="dashboard-stat-card border-t-4 border-t-primary">
                     <p class="text-xs font-semibold uppercase tracking-wide text-primary-dark">Ventes (7 jours)</p>
                     <p class="mt-2 text-3xl font-semibold text-primary">{{ $weekSalesCount }}</p>
-                    <p class="mt-1 text-sm text-neutral-600">Sur votre périmètre</p>
+                    <p class="mt-1 text-sm text-neutral-600">
+                        @if ($userBranch)
+                            Branche {{ $userBranch->name }}
+                        @else
+                            Sur votre périmètre
+                        @endif
+                    </p>
                 </div>
                 <div class="dashboard-stat-card dashboard-stat-card--soft border-t-4 border-t-primary-light">
                     <p class="text-xs font-semibold uppercase tracking-wide text-primary-dark">Ventes aujourd’hui</p>
@@ -416,7 +431,10 @@
                         @if ($lowStocksCount > 0)
                             Sous le seuil - action requise
                         @else
-                            Aucune alerte @if (! $seesAllBranches) (votre branche) @endif
+                            Aucune alerte
+                            @if ($userBranch)
+                                ({{ $userBranch->name }})
+                            @endif
                         @endif
                     </p>
                     <a href="{{ route('stocks.index') }}" class="mt-2 inline-block text-sm font-medium @if ($lowStocksCount > 0) text-red-800 underline decoration-red-300 hover:text-red-950 @else text-primary hover:underline @endif">Stocks →</a>
@@ -425,14 +443,25 @@
                     <div class="dashboard-stat-card dashboard-stat-card--dark">
                         <p class="text-xs font-semibold uppercase tracking-wide text-white/75">Caisse comptable (cumul)</p>
                         <p class="mt-2 text-2xl font-semibold tabular-nums text-white">{{ \App\Support\Money::usd($accountingCaisse) }}</p>
-                        <p class="mt-1 text-sm text-white/80">Débit − crédit (toutes écritures)</p>
+                        <p class="mt-1 text-sm text-white/80">
+                            Débit − crédit
+                            @if ($userBranch)
+                                ({{ $userBranch->name }})
+                            @endif
+                        </p>
                         <a href="{{ route('accounting.index') }}" class="mt-2 inline-block text-sm font-medium text-white/90 hover:text-white hover:underline">Comptabilité →</a>
                     </div>
                 @else
                     <div class="dashboard-stat-card dashboard-stat-card--accent border-t-4 border-t-primary-dark">
                         <p class="text-xs font-semibold uppercase tracking-wide text-primary-dark">Produits (périmètre)</p>
                         <p class="mt-2 text-3xl font-semibold text-primary-dark">{{ $productsCount }}</p>
-                        <p class="mt-1 text-sm text-neutral-600">{{ $seesAllBranches ? 'Vue agrégée (toutes branches)' : 'Liés à votre branche' }}</p>
+                        <p class="mt-1 text-sm text-neutral-600">
+                            @if ($userBranch)
+                                Branche {{ $userBranch->name }}
+                            @else
+                                Liés à votre périmètre
+                            @endif
+                        </p>
                         <a href="{{ route('products.index') }}" class="mt-2 inline-block text-sm font-medium text-primary hover:underline">Produits →</a>
                     </div>
                 @endif

@@ -88,7 +88,7 @@ class StockMovementController extends Controller
         ]);
 
         $allowedLocationIds = $this->locationIdsForUser();
-        if ($this->branchFilterIds() !== null) {
+        if ($this->branchFilterIds() !== []) {
             foreach (['from_location_id', 'to_location_id'] as $field) {
                 if (! empty($data[$field]) && ! in_array((int) $data[$field], $allowedLocationIds, true)) {
                     abort(403, 'Emplacement non autorisé.');

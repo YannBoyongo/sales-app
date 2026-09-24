@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
+use App\Support\ActiveBranch;
 use App\Models\AccountingTransaction;
 use App\Models\CashVoucher;
 use App\Models\ChartOfAccount;
@@ -140,6 +141,10 @@ class CashVoucherController extends Controller
     /** @return Collection<int, PosTerminal> */
     private function posTerminalsForCashVoucherFilter(?int $branchId = null): Collection
     {
+        if ($branchId === null) {
+            $branchId = ActiveBranch::id();
+        }
+
         $user = auth()->user();
         if ($user?->isPosUser() || ($user?->isCashier() && $user->posTerminals()->exists())) {
             $assigned = $this->posTerminalsForUser(null, true);

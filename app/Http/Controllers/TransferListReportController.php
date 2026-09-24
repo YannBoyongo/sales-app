@@ -137,9 +137,6 @@ class TransferListReportController extends Controller
         }
 
         $ids = $this->branchFilterIds();
-        if ($ids === null) {
-            return;
-        }
         if ($ids === []) {
             $query->whereRaw('1 = 0');
 

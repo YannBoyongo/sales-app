@@ -199,6 +199,12 @@ trait RespectsUserBranch
 
             return;
         }
+
+        $model = $query->getModel();
+        if ($model instanceof Branch && $column === 'branch_id') {
+            $column = $model->getTable().'.id';
+        }
+
         $query->whereIn($column, $ids);
     }
 

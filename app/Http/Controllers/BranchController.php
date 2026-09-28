@@ -15,7 +15,7 @@ class BranchController extends Controller
     public function index(): View
     {
         $query = Branch::query()->withCount('locations')->orderBy('name');
-        $this->applyBranchFilter($query);
+        $this->applyBranchFilter($query, 'id');
 
         $branches = $query->paginate(15);
 

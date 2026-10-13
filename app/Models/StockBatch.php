@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\StockQuantity;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Collection;
@@ -26,7 +27,7 @@ class StockBatch extends Model
     {
         return [
             'unit_cost' => 'decimal:2',
-            'quantity' => 'integer',
+            'quantity' => 'decimal:3',
         ];
     }
 
@@ -60,12 +61,13 @@ class StockBatch extends Model
         int $locationId,
         string $batchNumber,
         float $unitCost,
-        int $quantity,
+        float|int|string $quantity,
         ?int $purchaseOrderId = null,
         ?int $purchaseOrderItemId = null,
         ?int $purchaseOrderReceptionId = null,
     ): self {
-        if ($quantity <= 0) {
+        $quantity = StockQuantity::normalize($quantity);
+        if (! StockQuantity::isPositive($quantity)) {
             throw new RuntimeException('La quantité du lot doit être positive.');
         }
 
@@ -82,7 +84,7 @@ class StockBatch extends Model
 
         if ($batch) {
             $batch->update([
-                'quantity' => (int) $batch->quantity + $quantity,
+                'quantity' => StockQuantity::add($batch->quantity, $quantity),
                 'purchase_order_id' => $purchaseOrderId ?? $batch->purchase_order_id,
                 'purchase_order_item_id' => $purchaseOrderItemId ?? $batch->purchase_order_item_id,
                 'purchase_order_reception_id' => $purchaseOrderReceptionId ?? $batch->purchase_order_reception_id,
@@ -106,9 +108,10 @@ class StockBatch extends Model
     /**
      * Remove qty from a specific batch layer.
      */
-    public static function reverseReceive(int $stockBatchId, int $quantity): void
+    public static function reverseReceive(int $stockBatchId, float|int|string $quantity): void
     {
-        if ($quantity <= 0) {
+        $quantity = StockQuantity::normalize($quantity);
+        if (! StockQuantity::isPositive($quantity)) {
             return;
         }
 
@@ -117,12 +120,12 @@ class StockBatch extends Model
             return;
         }
 
-        $newQty = (int) $batch->quantity - $quantity;
-        if ($newQty < 0) {
+        $newQty = StockQuantity::sub($batch->quantity, $quantity);
+        if (StockQuantity::comp($newQty, 0) < 0) {
             throw new RuntimeException('Stock lot insuffisant pour annuler cette réception.');
         }
 
-        if ($newQty === 0) {
+        if (StockQuantity::isZero($newQty)) {
             $batch->delete();
 
             return;
@@ -133,13 +136,13 @@ class StockBatch extends Model
 
     /**
      * FIFO consume tracked batches, then untracked (legacy) qty.
-     * Aggregate stocks.quantity must already cover the request (caller decrements stocks).
      *
-     * @return Collection<int, array{stock_batch_id: ?int, batch_number: ?string, unit_cost: ?float, quantity: int}>
+     * @return Collection<int, array{stock_batch_id: ?int, batch_number: ?string, unit_cost: ?float, quantity: string}>
      */
-    public static function consumeFifo(int $productId, int $locationId, int $quantity): Collection
+    public static function consumeFifo(int $productId, int $locationId, float|int|string $quantity): Collection
     {
-        if ($quantity <= 0) {
+        $quantity = StockQuantity::normalize($quantity);
+        if (! StockQuantity::isPositive($quantity)) {
             return collect();
         }
 
@@ -155,17 +158,17 @@ class StockBatch extends Model
             ->get();
 
         foreach ($batches as $batch) {
-            if ($remaining <= 0) {
+            if (StockQuantity::isZero($remaining)) {
                 break;
             }
 
-            $take = min($remaining, (int) $batch->quantity);
+            $take = StockQuantity::min($remaining, $batch->quantity);
             $batchId = (int) $batch->id;
             $batchNumber = $batch->batch_number;
             $unitCost = round((float) $batch->unit_cost, 2);
-            $newQty = (int) $batch->quantity - $take;
+            $newQty = StockQuantity::sub($batch->quantity, $take);
 
-            if ($newQty === 0) {
+            if (StockQuantity::isZero($newQty)) {
                 $batch->delete();
             } else {
                 $batch->update(['quantity' => $newQty]);
@@ -178,11 +181,10 @@ class StockBatch extends Model
                 'quantity' => $take,
             ]);
 
-            $remaining -= $take;
+            $remaining = StockQuantity::sub($remaining, $take);
         }
 
-        if ($remaining > 0) {
-            // Legacy / unbatched stock — sellable, cost unknown.
+        if (StockQuantity::isPositive($remaining)) {
             $chunks->push([
                 'stock_batch_id' => null,
                 'batch_number' => null,
@@ -195,21 +197,19 @@ class StockBatch extends Model
     }
 
     /**
-     * FIFO move from source location batches onto destination location layers.
-     *
      * @return Collection<int, array{
      *     source_stock_batch_id: ?int,
      *     destination_stock_batch_id: ?int,
      *     batch_number: ?string,
      *     unit_cost: ?float,
-     *     quantity: int
+     *     quantity: string
      * }>
      */
     public static function transferFifo(
         int $productId,
         int $fromLocationId,
         int $toLocationId,
-        int $quantity,
+        float|int|string $quantity,
     ): Collection {
         return self::consumeFifo($productId, $fromLocationId, $quantity)
             ->map(function (array $chunk) use ($productId, $toLocationId) {
@@ -242,7 +242,7 @@ class StockBatch extends Model
         ?int $destinationStockBatchId,
         ?string $batchNumber,
         ?float $unitCost,
-        int $quantity,
+        float|int|string $quantity,
     ): void {
         if ($destinationStockBatchId) {
             self::reverseReceive($destinationStockBatchId, $quantity);
@@ -258,43 +258,42 @@ class StockBatch extends Model
         );
     }
 
-    /**
-     * Restore qty onto a batch after sale deletion (or create layer again).
-     */
     public static function restore(
         int $productId,
         int $locationId,
         ?int $stockBatchId,
         ?string $batchNumber,
         ?float $unitCost,
-        int $quantity,
+        float|int|string $quantity,
     ): void {
-        if ($quantity <= 0) {
+        $quantity = StockQuantity::normalize($quantity);
+        if (! StockQuantity::isPositive($quantity)) {
             return;
         }
 
         if ($stockBatchId) {
             $batch = static::query()->whereKey($stockBatchId)->lockForUpdate()->first();
             if ($batch) {
-                $batch->update(['quantity' => (int) $batch->quantity + $quantity]);
+                $batch->update(['quantity' => StockQuantity::add($batch->quantity, $quantity)]);
 
                 return;
             }
         }
 
         if ($batchNumber === null || $unitCost === null) {
-            // Legacy sale — only aggregate stock is restored by caller.
             return;
         }
 
         self::receive($productId, $locationId, $batchNumber, $unitCost, $quantity);
     }
 
-    public static function batchedQuantity(int $productId, int $locationId): int
+    public static function batchedQuantity(int $productId, int $locationId): string
     {
-        return (int) static::query()
+        $sum = static::query()
             ->where('product_id', $productId)
             ->where('location_id', $locationId)
             ->sum('quantity');
+
+        return StockQuantity::normalize($sum);
     }
 }

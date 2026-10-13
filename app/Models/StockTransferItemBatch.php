@@ -20,7 +20,7 @@ class StockTransferItemBatch extends Model
     {
         return [
             'unit_cost' => 'decimal:2',
-            'quantity' => 'integer',
+            'quantity' => 'decimal:3',
         ];
     }
 

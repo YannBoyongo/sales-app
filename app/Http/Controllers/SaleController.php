@@ -10,6 +10,7 @@ use App\Models\ClientCautionUsage;
 use App\Models\Payment;
 use App\Models\AccountingTransaction;
 use App\Models\Sale;
+use App\Support\StockQuantity;
 use App\Models\Setting;
 use App\Models\Stock;
 use App\Models\StockMovement;
@@ -142,7 +143,7 @@ class SaleController extends Controller
                 $saleReference = (string) $sale->reference;
 
                 foreach ($sale->items as $item) {
-                    Stock::modifyQuantity((int) $item->product_id, (int) $item->location_id, (int) $item->quantity);
+                    Stock::modifyQuantity((int) $item->product_id, (int) $item->location_id, StockQuantity::normalize($item->quantity));
                     \App\Models\StockBatch::restore(
                         (int) $item->product_id,
                         (int) $item->location_id,

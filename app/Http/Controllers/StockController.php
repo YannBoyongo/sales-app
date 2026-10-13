@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\Stock;
+use App\Support\StockQuantity;
 use App\Models\StockBatch;
 use App\Models\StockMovement;
 use Illuminate\Http\JsonResponse;
@@ -627,12 +628,12 @@ class StockController extends Controller
             'location_id' => ['required', 'integer', 'exists:locations,id'],
         ]);
 
-        $qty = (int) (Stock::query()
+        $qty = StockQuantity::normalize(Stock::query()
             ->where('product_id', $data['product_id'])
             ->where('location_id', $data['location_id'])
             ->value('quantity') ?? 0);
 
-        return response()->json(['quantity' => $qty]);
+        return response()->json(['quantity' => StockQuantity::format($qty)]);
     }
 
     public function applyAdjustment(Request $request): RedirectResponse|JsonResponse
@@ -640,13 +641,13 @@ class StockController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer', 'exists:products,id'],
             'location_id' => ['required', 'integer', 'exists:locations,id'],
-            'quantity' => ['required', 'integer', 'min:0'],
+            'quantity' => StockQuantity::validationRules(),
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
                 $productId = (int) $data['product_id'];
                 $locationId = (int) $data['location_id'];
-                $newQty = (int) $data['quantity'];
+                $newQty = StockQuantity::normalize($data['quantity']);
         $wantsJson = $request->expectsJson();
 
         try {
@@ -658,9 +659,9 @@ class StockController extends Controller
                     ->first();
 
                 $oldQty = $stock?->quantity ?? 0;
-                $delta = $newQty - $oldQty;
+                $delta = StockQuantity::sub($newQty, $oldQty);
 
-                if ($delta === 0) {
+                if (StockQuantity::isZero($delta)) {
                     $stock = $stock ?? Stock::query()
                         ->with(['product:id,minimum_stock'])
                         ->where('product_id', $productId)
@@ -669,7 +670,7 @@ class StockController extends Controller
 
                     return [
                         'adjusted' => false,
-                        'quantity' => $oldQty,
+                        'quantity' => StockQuantity::format($oldQty),
                         'below_minimum' => $this->stockCellBelowMinimum($stock, $productId),
                     ];
                 }
@@ -683,7 +684,7 @@ class StockController extends Controller
                 StockMovement::create([
                     'type' => 'adjustment',
                     'product_id' => $productId,
-                    'quantity' => abs($delta),
+                    'quantity' => StockQuantity::abs($delta),
                     'from_location_id' => $locationId,
                     'to_location_id' => null,
                     'user_id' => $request->user()->id,
@@ -698,7 +699,7 @@ class StockController extends Controller
 
                 return [
                     'adjusted' => true,
-                    'quantity' => $newQty,
+                    'quantity' => StockQuantity::format($newQty),
                     'below_minimum' => $this->stockCellBelowMinimum($stock, $productId),
                 ];
             });
@@ -762,7 +763,7 @@ class StockController extends Controller
         }
 
         $data = $request->validate([
-            'minimum_stock' => ['nullable', 'integer', 'min:0'],
+            'minimum_stock' => ['nullable', ...StockQuantity::validationRules(required: false)],
         ]);
 
         $stock->update([

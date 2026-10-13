@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Product;
 use App\Models\Stock;
+use App\Support\StockQuantity;
 use App\Models\StockMovement;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -81,7 +82,7 @@ class StockMovementController extends Controller
         $data = $request->validate([
             'type' => ['required', 'in:entry,exit,transfer'],
             'product_id' => ['required', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1'],
+            'quantity' => StockQuantity::validationRules(allowZero: false),
             'from_location_id' => ['nullable', 'exists:locations,id'],
             'to_location_id' => ['nullable', 'exists:locations,id'],
             'notes' => ['nullable', 'string', 'max:500'],
@@ -129,7 +130,7 @@ class StockMovementController extends Controller
             throw new RuntimeException('L’emplacement de destination est requis pour une entrée.');
         }
 
-        Stock::modifyQuantity((int) $data['product_id'], (int) $data['to_location_id'], (int) $data['quantity']);
+        Stock::modifyQuantity((int) $data['product_id'], (int) $data['to_location_id'], StockQuantity::normalize($data['quantity']));
 
         StockMovement::create([
             'type' => 'entry',
@@ -148,7 +149,7 @@ class StockMovementController extends Controller
             throw new RuntimeException('L’emplacement source est requis pour une sortie.');
         }
 
-        Stock::modifyQuantity((int) $data['product_id'], (int) $data['from_location_id'], -(int) $data['quantity']);
+        Stock::modifyQuantity((int) $data['product_id'], (int) $data['from_location_id'], StockQuantity::sub(0, $data['quantity']));
 
         StockMovement::create([
             'type' => 'exit',
@@ -171,8 +172,8 @@ class StockMovementController extends Controller
             throw new RuntimeException('Les emplacements doivent être différents.');
         }
 
-        Stock::modifyQuantity((int) $data['product_id'], (int) $data['from_location_id'], -(int) $data['quantity']);
-        Stock::modifyQuantity((int) $data['product_id'], (int) $data['to_location_id'], (int) $data['quantity']);
+        Stock::modifyQuantity((int) $data['product_id'], (int) $data['from_location_id'], StockQuantity::sub(0, $data['quantity']));
+        Stock::modifyQuantity((int) $data['product_id'], (int) $data['to_location_id'], StockQuantity::normalize($data['quantity']));
 
         StockMovement::create([
             'type' => 'transfer',

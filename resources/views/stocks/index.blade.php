@@ -145,7 +145,8 @@
                                             if ($stock) {
                                                 $warn = $stock->isBelowMinimum();
                                             } else {
-                                                $warn = $product->minimum_stock !== null && $qty < (int) $product->minimum_stock;
+                                                $warn = $product->minimum_stock !== null
+                                                    && \App\Support\StockQuantity::comp($qty, $product->minimum_stock) < 0;
                                             }
                                         @endphp
                                         <td
@@ -161,7 +162,7 @@
                                             <input
                                                 type="number"
                                                 min="0"
-                                                step="1"
+                                                step="0.001"
                                                 class="hidden w-full min-w-[3.5rem] rounded border border-primary bg-white px-2 py-1 text-right text-sm tabular-nums shadow-sm focus:border-primary focus:ring-1 focus:ring-primary"
                                                 data-qty-input
                                                 @if ($showStockAdjustment)
@@ -170,7 +171,7 @@
                                                     @blur="commitCellEdit($event)"
                                                 @endif
                                             >
-                                            <span data-qty-display @class(['font-semibold' => $warn])>{{ $qty }}</span>
+                                            <span data-qty-display @class(['font-semibold' => $warn])>{{ \App\Support\StockQuantity::format($qty) }}</span>
                                         </td>
                                     @endforeach
                                     @php
@@ -286,7 +287,7 @@
                                     name="quantity"
                                     type="number"
                                     min="0"
-                                    step="1"
+                                    step="0.001"
                                     required
                                     class="mt-1 block w-full rounded-lg border-neutral-300 text-sm shadow-sm focus:border-primary focus:ring-primary"
                                     x-model="newQty"
@@ -418,7 +419,7 @@
                                 }
                                 let sum = 0;
                                 row.querySelectorAll('[data-stock-cell] [data-qty-display]').forEach((el) => {
-                                    sum += parseInt(el.textContent?.trim() || '0', 10);
+                                    sum += parseFloat(el.textContent?.trim() || '0') || 0;
                                 });
                                 const qtyEl = totalCell.querySelector('[data-row-total-qty]');
                                 if (qtyEl) {
@@ -452,8 +453,15 @@
                                     return;
                                 }
 
-                                const newQty = parseInt(raw, 10);
-                                if (String(newQty) === previous) {
+                                const parsed = parseFloat(String(raw).replace(',', '.'));
+                                if (!Number.isFinite(parsed) || parsed < 0) {
+                                    this.cellError = 'Quantité invalide (max. 3 décimales).';
+                                    this.finishCellEditUi(td, previous);
+                                    this.editingCellKey = null;
+                                    return;
+                                }
+                                const newQty = Math.round(parsed * 1000) / 1000;
+                                if (String(newQty) === previous || String(newQty) === String(parseFloat(previous))) {
                                     this.finishCellEditUi(td, previous);
                                     this.editingCellKey = null;
                                     return;

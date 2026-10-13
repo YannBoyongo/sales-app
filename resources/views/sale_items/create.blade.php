@@ -207,12 +207,12 @@
                                         >
                                             <span>
                                                 <span class="font-medium text-neutral-900" x-text="p.name || p.label"></span>
-                                                <span class="mt-0.5 block text-xs text-neutral-500" x-text="formatUsd(p.unit_price) + ' · stock ' + stockRemainingForProduct(p.id)"></span>
+                                                <span class="mt-0.5 block text-xs text-neutral-500" x-text="formatUsd(p.unit_price) + ' · stock ' + formatStockQty(stockRemainingForProduct(p.id))"></span>
                                             </span>
                                             <span
                                                 class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
                                                 :class="stockRemainingForProduct(p.id) <= 0 ? 'bg-red-100 text-red-800' : 'bg-neutral-100 text-neutral-700'"
-                                                x-text="stockRemainingForProduct(p.id)"
+                                                x-text="formatStockQty(stockRemainingForProduct(p.id))"
                                             ></span>
                                         </button>
                                     </template>
@@ -225,12 +225,12 @@
                                     <p class="font-semibold text-neutral-900" x-text="pendingProduct?.name || pendingProduct?.label"></p>
                                     <p class="text-xs text-neutral-600">
                                         Catalogue : <span x-text="formatUsd(pendingProduct?.unit_price)"></span>
-                                        · dispo <span x-text="stockRemainingForProduct(pendingProduct?.id)"></span>
+                                        · dispo <span x-text="formatStockQty(stockRemainingForProduct(pendingProduct?.id))"></span>
                                     </p>
                                 </div>
                                 <div class="w-24">
                                     <label class="text-xs font-semibold text-neutral-600">Qté</label>
-                                    <input type="number" min="1" x-model.number="addQuantity" class="mt-1 block w-full rounded-lg border-neutral-200 text-sm focus:border-primary focus:ring-primary" />
+                                    <input type="number" min="0.001" step="0.001" x-model.number="addQuantity" class="mt-1 block w-full rounded-lg border-neutral-200 text-sm focus:border-primary focus:ring-primary" />
                                 </div>
                                 <button type="button" @click="addLine()" class="rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95">
                                     Ajouter
@@ -289,12 +289,12 @@
                                                     >
                                                         <span>
                                                             <span class="font-medium text-neutral-900" x-text="p.name || p.label"></span>
-                                                            <span class="mt-0.5 block text-xs text-neutral-500" x-text="(p.department_name ? p.department_name + ' · ' : '') + 'Offert · stock ' + stockRemainingForProduct(p.id)"></span>
+                                                            <span class="mt-0.5 block text-xs text-neutral-500" x-text="(p.department_name ? p.department_name + ' · ' : '') + 'Offert · stock ' + formatStockQty(stockRemainingForProduct(p.id))"></span>
                                                         </span>
                                                         <span
                                                             class="shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold"
                                                             :class="stockRemainingForProduct(p.id) <= 0 ? 'bg-red-100 text-red-800' : 'bg-sky-100 text-sky-800'"
-                                                            x-text="stockRemainingForProduct(p.id)"
+                                                            x-text="formatStockQty(stockRemainingForProduct(p.id))"
                                                         ></span>
                                                     </button>
                                                 </template>
@@ -313,7 +313,7 @@
                                                 <p class="mt-1 text-sm text-emerald-700 font-medium">Gratuit</p>
                                                 <p class="mt-0.5 text-xs text-neutral-500">
                                                     <span x-text="pendingAddon?.department_name || '—'"></span>
-                                                    · dispo <span x-text="stockRemainingForProduct(pendingAddon?.id)"></span>
+                                                    · dispo <span x-text="formatStockQty(stockRemainingForProduct(pendingAddon?.id))"></span>
                                                 </p>
                                             </div>
                                             <button type="button" @click="clearAddonPick()" class="text-xs font-medium text-neutral-500 hover:text-primary">
@@ -326,7 +326,8 @@
                                                 <input
                                                     id="sale-addon-qty"
                                                     type="number"
-                                                    min="1"
+                                                    min="0.001"
+                                                    step="0.001"
                                                     x-ref="addonQtyInput"
                                                     x-model.number="addonAddQuantity"
                                                     @keydown.enter.prevent="addAddonLine()"
@@ -378,7 +379,8 @@
                                                 <label class="text-xs font-semibold text-neutral-600">Quantité</label>
                                                 <input
                                                     type="number"
-                                                    min="1"
+                                                    min="0.001"
+                                                    step="0.001"
                                                     x-model.number="row.quantity"
                                                     class="mt-1 block w-full rounded-lg border-neutral-200 text-sm tabular-nums focus:border-primary focus:ring-primary"
                                                 />
@@ -480,7 +482,8 @@
                                             <td class="px-2 py-2 text-right">
                                                 <input
                                                     type="number"
-                                                    min="1"
+                                                    min="0.001"
+                                                    step="0.001"
                                                     x-model.number="row.quantity"
                                                     class="ml-auto block w-16 rounded-md border-neutral-200 py-1 text-right text-sm tabular-nums focus:border-primary focus:ring-primary"
                                                 />
@@ -784,7 +787,28 @@
                 stockRemainingForProduct(productId) {
                     const p = this.findProduct(productId);
                     if (!p) return 0;
-                    return Math.max(0, (Number(p.stock_qty) || 0) - this.qtyInCartForProduct(productId));
+                    const remaining = (Number(p.stock_qty) || 0) - this.qtyInCartForProduct(productId);
+
+                    return Math.max(0, Math.round(remaining * 1000) / 1000);
+                },
+
+                formatStockQty(value) {
+                    const n = Number(value);
+                    if (!Number.isFinite(n)) {
+                        return '0';
+                    }
+                    const fixed = (Math.round(n * 1000) / 1000).toFixed(3);
+
+                    return fixed.replace(/\.?0+$/, '') || '0';
+                },
+
+                parseStockQty(raw) {
+                    const parsed = parseFloat(String(raw).replace(',', '.'));
+                    if (!Number.isFinite(parsed) || parsed < 0.001) {
+                        return null;
+                    }
+
+                    return Math.round(parsed * 1000) / 1000;
                 },
 
                 get filteredProducts() {
@@ -959,16 +983,16 @@
                         this.addLineError = 'Choisissez un produit dans la liste.';
                         return;
                     }
-                    const qty = parseInt(String(this.addQuantity), 10);
-                    if (!Number.isFinite(qty) || qty < 1) {
-                        this.addLineError = 'Quantité invalide (minimum 1).';
+                    const qty = this.parseStockQty(this.addQuantity);
+                    if (qty === null) {
+                        this.addLineError = 'Quantité invalide (minimum 0,001).';
                         return;
                     }
                     const avail = this.stockRemainingForProduct(this.pendingProduct.id);
-                    if (qty > avail) {
+                    if (qty > avail + 0.0005) {
                         this.addLineError = avail <= 0
                             ? 'Stock insuffisant.'
-                            : `Stock disponible : ${avail}.`;
+                            : `Stock disponible : ${this.formatStockQty(avail)}.`;
                         return;
                     }
                     const catalogPrice = Number(this.pendingProduct.unit_price) || 0;
@@ -1030,16 +1054,16 @@
                         this.addAddonLineError = 'Choisissez un article complémentaire.';
                         return;
                     }
-                    const qty = parseInt(String(this.addonAddQuantity), 10);
-                    if (!Number.isFinite(qty) || qty < 1) {
-                        this.addAddonLineError = 'Quantité invalide (minimum 1).';
+                    const qty = this.parseStockQty(this.addonAddQuantity);
+                    if (qty === null) {
+                        this.addAddonLineError = 'Quantité invalide (minimum 0,001).';
                         return;
                     }
                     const avail = this.stockRemainingForProduct(this.pendingAddon.id);
-                    if (qty > avail) {
+                    if (qty > avail + 0.0005) {
                         this.addAddonLineError = avail <= 0
                             ? 'Stock insuffisant.'
-                            : `Stock disponible : ${avail}.`;
+                            : `Stock disponible : ${this.formatStockQty(avail)}.`;
                         return;
                     }
                     const catalogPrice = Number(this.pendingAddon.unit_price) || 0;

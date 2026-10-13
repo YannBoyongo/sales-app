@@ -26,6 +26,7 @@ class StockMovement extends Model
     {
         return [
             'occurred_on' => 'date',
+            'quantity' => 'decimal:3',
         ];
     }
 

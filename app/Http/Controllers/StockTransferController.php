@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Models\Branch;
+use App\Support\StockQuantity;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\Stock;
@@ -451,11 +452,11 @@ class StockTransferController extends Controller
 
         $data = $request->validate([
             'product_id' => ['required', 'exists:products,id'],
-            'quantity' => ['required', 'integer', 'min:1'],
+            'quantity' => StockQuantity::validationRules(allowZero: false),
         ]);
 
         $productId = (int) $data['product_id'];
-        $qty = (int) $data['quantity'];
+        $qty = StockQuantity::normalize($data['quantity']);
 
         $fromId = (int) $stockTransfer->from_location_id;
 
@@ -475,21 +476,21 @@ class StockTransferController extends Controller
                     ->lockForUpdate()
                     ->first();
 
-                $newTotal = ($item?->quantity ?? 0) + $qty;
+                $newTotal = StockQuantity::add($item?->quantity ?? 0, $qty);
 
                 $stock = Stock::query()
                     ->where('product_id', $productId)
                     ->where('location_id', $fromId)
                     ->lockForUpdate()
                     ->first();
-                $available = (int) ($stock?->quantity ?? 0);
+                $available = StockQuantity::normalize($stock?->quantity ?? 0);
 
-                if ($newTotal > $available) {
+                if (StockQuantity::comp($newTotal, $available) === 1) {
                     throw new RuntimeException('Stock insuffisant à l’emplacement source pour cette quantité.');
                 }
 
                 if ($item) {
-                    $item->update(['quantity' => $item->quantity + $qty]);
+                    $item->update(['quantity' => $newTotal]);
                 } else {
                     StockTransferItem::create([
                         'stock_transfer_id' => $stockTransfer->id,
@@ -574,9 +575,9 @@ class StockTransferController extends Controller
 
                 foreach ($items as $item) {
                     $pid = (int) $item->product_id;
-                    $q = (int) $item->quantity;
+                    $q = StockQuantity::normalize($item->quantity);
 
-                    Stock::modifyQuantity($pid, $fromId, -$q);
+                    Stock::modifyQuantity($pid, $fromId, StockQuantity::sub(0, $q));
                     Stock::modifyQuantity($pid, $toId, $q);
 
                     $chunks = StockBatch::transferFifo($pid, $fromId, $toId, $q);
@@ -646,7 +647,7 @@ class StockTransferController extends Controller
 
                     foreach ($items as $item) {
                         $pid = (int) $item->product_id;
-                        $q = (int) $item->quantity;
+                        $q = StockQuantity::normalize($item->quantity);
 
                         foreach ($item->batches as $batchLine) {
                             StockBatch::reverseTransferChunk(
@@ -656,12 +657,12 @@ class StockTransferController extends Controller
                                 $batchLine->destination_stock_batch_id,
                                 $batchLine->batch_number,
                                 $batchLine->unit_cost !== null ? (float) $batchLine->unit_cost : null,
-                                (int) $batchLine->quantity,
+                                $batchLine->quantity,
                             );
                         }
 
                         Stock::modifyQuantity($pid, $fromId, $q);
-                        Stock::modifyQuantity($pid, $toId, -$q);
+                        Stock::modifyQuantity($pid, $toId, StockQuantity::sub(0, $q));
                     }
 
                     StockMovement::query()

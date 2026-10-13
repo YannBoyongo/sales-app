@@ -32,6 +32,7 @@ class SaleItem extends Model
     {
         return [
             'is_addon' => 'boolean',
+            'quantity' => 'decimal:3',
             'unit_price' => 'decimal:2',
             'unit_cost' => 'decimal:2',
             'cost_total' => 'decimal:2',

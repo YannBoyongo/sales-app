@@ -14,6 +14,7 @@ class Product extends Model
     {
         return [
             'unit_price' => 'decimal:2',
+            'minimum_stock' => 'decimal:3',
             'sellable_as_addon' => 'boolean',
         ];
     }

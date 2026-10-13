@@ -15,6 +15,7 @@ use App\Models\SaleItem;
 use App\Models\Stock;
 use App\Models\StockMovement;
 use App\Support\Money;
+use App\Support\StockQuantity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -132,7 +133,7 @@ class SaleItemController extends Controller
                 'name' => $p->name,
                 'label' => $p->name.' — '.Money::usd($p->unit_price),
                 'unit_price' => (float) $p->unit_price,
-                'stock_qty' => (int) ($stockAtPos[$p->id] ?? 0),
+                'stock_qty' => StockQuantity::normalize($stockAtPos[$p->id] ?? 0),
             ])->values()->all(),
         ]];
 
@@ -162,7 +163,7 @@ class SaleItemController extends Controller
             'name' => $p->name,
             'label' => $p->name.' — '.Money::usd($p->unit_price),
             'unit_price' => (float) $p->unit_price,
-            'stock_qty' => (int) ($addonStockAtPos[$p->id] ?? 0),
+            'stock_qty' => StockQuantity::normalize($addonStockAtPos[$p->id] ?? 0),
         ])->values()->all();
 
         $clients = Client::query()
@@ -241,7 +242,7 @@ class SaleItemController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.department_id' => ['required', 'integer', 'exists:departments,id'],
             'items.*.product_id' => ['required', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => StockQuantity::validationRules(allowZero: false),
             'items.*.is_addon' => ['sometimes', 'boolean'],
             'items.*.unit_price' => [
                 Rule::requiredIf(fn () => $request->has('allow_line_discount')
@@ -367,8 +368,8 @@ class SaleItemController extends Controller
 
                     $product = $productQuery->firstOrFail();
 
-                    $qty = (int) $row['quantity'];
-                    Stock::modifyQuantity($product->id, $pointOfSale->id, -$qty);
+                    $qty = StockQuantity::normalize($row['quantity']);
+                    Stock::modifyQuantity($product->id, $pointOfSale->id, StockQuantity::sub(0, $qty));
 
                     $catalogUnit = (string) $product->unit_price;
                     if ($isAddon) {
@@ -385,7 +386,7 @@ class SaleItemController extends Controller
                     $chunks = \App\Models\StockBatch::consumeFifo($product->id, $pointOfSale->id, $qty);
 
                     foreach ($chunks as $chunk) {
-                        $chunkQty = (int) $chunk['quantity'];
+                        $chunkQty = StockQuantity::normalize($chunk['quantity']);
                         $catalogLineTotal = $isAddon
                             ? '0.00'
                             : bcmul($catalogUnit, (string) $chunkQty, 2);
@@ -703,7 +704,7 @@ class SaleItemController extends Controller
             return [
                 'department_id' => $deptId,
                 'product_id' => $hasProductId ? (string) $productIdRaw : '',
-                'quantity' => (int) ($row['quantity'] ?? 1),
+                'quantity' => StockQuantity::normalize($row['quantity'] ?? 1),
                 'is_addon' => filter_var($row['is_addon'] ?? false, FILTER_VALIDATE_BOOLEAN),
                 'product_name' => $product?->name,
                 'unit_price' => $unitPrice,

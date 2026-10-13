@@ -8,7 +8,7 @@ use App\Http\Controllers\ChartOfAccountController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ClientCautionController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\PendingActionController;
+use App\Http\Controllers\AdminActivityLogController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\LocationController;
 use App\Http\Controllers\PosShiftController;
@@ -101,7 +101,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('rapports/benefices/pdf', [BenefitReportController::class, 'pdf'])->name('reports.benefits.pdf');
     });
 
-    Route::get('/pending-actions', PendingActionController::class)->name('pending-actions.index');
+    Route::middleware('super_admin')->group(function () {
+        Route::get('/pending-actions', [AdminActivityLogController::class, 'index'])->name('pending-actions.index');
+        Route::delete('/pending-actions', [AdminActivityLogController::class, 'destroyMany'])->name('pending-actions.destroy-many');
+    });
 
     Route::get('products/export/pdf', [ProductController::class, 'exportPdf'])->name('products.export.pdf');
     Route::get('products/export/excel', [ProductController::class, 'exportExcel'])->name('products.export.excel');

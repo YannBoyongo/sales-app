@@ -8,6 +8,7 @@ use App\Http\Controllers\Concerns\RespectsUserBranch;
 use App\Imports\ProductsImport;
 use App\Models\Department;
 use App\Models\Product;
+use App\Services\AdminActivityLogger;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -86,10 +87,17 @@ class ProductController extends Controller
             'sellable_as_addon' => ['sometimes', 'boolean'],
         ]);
 
-        Product::create([
+        $product = Product::create([
             ...$data,
             'sellable_as_addon' => $request->boolean('sellable_as_addon'),
         ]);
+
+        AdminActivityLogger::log(
+            'product.created',
+            'Création produit « '.$product->name.' »',
+            null,
+            $product,
+        );
 
         return redirect()->route('products.index')->with('success', 'Produit créé.');
     }
@@ -126,6 +134,13 @@ class ProductController extends Controller
             'sellable_as_addon' => $request->boolean('sellable_as_addon'),
         ]);
 
+        AdminActivityLogger::log(
+            'product.updated',
+            'Mise à jour produit « '.$product->name.' »',
+            null,
+            $product,
+        );
+
         return redirect()->route('products.index')->with('success', 'Produit mis à jour.');
     }
 
@@ -135,7 +150,13 @@ class ProductController extends Controller
 
         $this->ensureProductAccessibleForBranchUser($product);
 
+        $name = $product->name;
         $product->delete();
+
+        AdminActivityLogger::log(
+            'product.deleted',
+            'Suppression produit « '.$name.' »',
+        );
 
         return redirect()->route('products.index')->with('success', 'Produit supprimé.');
     }

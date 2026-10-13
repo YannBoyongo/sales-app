@@ -6,6 +6,7 @@ use App\Enums\UserRole;
 use App\Models\Branch;
 use App\Models\Role;
 use App\Models\User;
+use App\Services\AdminActivityLogger;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,6 +85,14 @@ class UserManagementController extends Controller
             'branch_id' => $branchId,
         ]);
         $user->roles()->sync($this->roleIdsFromSlugs($roleSlugs));
+
+        AdminActivityLogger::log(
+            'user.created',
+            sprintf('Création utilisateur %s (%s)', $user->name, $user->username),
+            $branchId ? (int) $branchId : null,
+            $user,
+            ['roles' => $roleSlugs],
+        );
 
         return redirect()->route('users.index')->with('success', 'Utilisateur créé.');
     }
@@ -182,6 +191,14 @@ class UserManagementController extends Controller
         $user->save();
         $user->roles()->sync($this->roleIdsFromSlugs($newRoleSlugs));
 
+        AdminActivityLogger::log(
+            'user.updated',
+            sprintf('Mise à jour utilisateur %s (%s)', $user->name, $user->username),
+            $user->branch_id ? (int) $user->branch_id : null,
+            $user,
+            ['roles' => $newRoleSlugs],
+        );
+
         return redirect()->route('users.index')->with('success', 'Utilisateur mis à jour.');
     }
 
@@ -220,7 +237,16 @@ class UserManagementController extends Controller
             }
         }
 
+        $name = $user->name;
+        $username = $user->username;
+        $branchId = $user->branch_id ? (int) $user->branch_id : null;
         $user->delete();
+
+        AdminActivityLogger::log(
+            'user.deleted',
+            sprintf('Suppression utilisateur %s (%s)', $name, $username),
+            $branchId,
+        );
 
         return redirect()->route('users.index')->with('success', 'Utilisateur supprimé.');
     }

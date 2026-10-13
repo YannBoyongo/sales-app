@@ -10,6 +10,7 @@ use App\Models\ClientCautionUsage;
 use App\Models\Payment;
 use App\Models\AccountingTransaction;
 use App\Models\Sale;
+use App\Services\AdminActivityLogger;
 use App\Support\StockQuantity;
 use App\Models\Setting;
 use App\Models\Stock;
@@ -135,6 +136,8 @@ class SaleController extends Controller
         $this->ensureUserCanAccessBranchModel($branch);
         abort_unless((int) $sale->branch_id === (int) $branch->id, 404);
 
+        $saleReferenceForLog = (string) $sale->reference;
+
         try {
             DB::transaction(function () use ($sale) {
                 $sale->load('items');
@@ -189,6 +192,14 @@ class SaleController extends Controller
                 ->route('sales.overview')
                 ->withErrors(['sale' => $e->getMessage()]);
         }
+
+        AdminActivityLogger::log(
+            'sale.deleted',
+            'Suppression de la vente '.$saleReferenceForLog,
+            (int) $branch->id,
+            null,
+            ['sale_reference' => $saleReferenceForLog],
+        );
 
         return redirect()
             ->route('sales.overview')
@@ -252,6 +263,14 @@ class SaleController extends Controller
             $sale->syncLinePaymentTypesForBalance();
             $sale->recordInitialPosPaymentIfNeeded($request->user());
         });
+
+        AdminActivityLogger::log(
+            'sale.discount_approved',
+            sprintf('Remise approuvée sur la vente %s : %s', $sale->reference, $requested),
+            (int) $branch->id,
+            $sale,
+            ['amount' => (string) $requested],
+        );
 
         return redirect()
             ->route('sales.show', [$branch, $sale])
@@ -325,6 +344,13 @@ class SaleController extends Controller
                 $sale->recordInitialPosPaymentIfNeeded($request->user());
             }
         });
+
+        AdminActivityLogger::log(
+            'sale.discount_rejected',
+            'Remise refusée sur la vente '.$sale->reference,
+            (int) $branch->id,
+            $sale,
+        );
 
         return redirect()
             ->route('sales.show', [$branch, $sale])

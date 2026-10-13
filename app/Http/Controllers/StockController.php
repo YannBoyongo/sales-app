@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\Location;
 use App\Models\Product;
 use App\Models\Stock;
+use App\Services\AdminActivityLogger;
 use App\Support\StockQuantity;
 use App\Models\StockBatch;
 use App\Models\StockMovement;
@@ -700,6 +701,7 @@ class StockController extends Controller
                 return [
                     'adjusted' => true,
                     'quantity' => StockQuantity::format($newQty),
+                    'old_quantity' => StockQuantity::format($oldQty),
                     'below_minimum' => $this->stockCellBelowMinimum($stock, $productId),
                 ];
             });
@@ -711,6 +713,28 @@ class StockController extends Controller
             return redirect()
                 ->route('stocks.index', $this->stockIndexRedirectParams($request))
                 ->withErrors(['adjustment' => $e->getMessage()]);
+        }
+
+        if ($result['adjusted'] ?? false) {
+            $location = Location::query()->find($locationId);
+            $productName = Product::query()->whereKey($productId)->value('name') ?? ('#'.$productId);
+            AdminActivityLogger::log(
+                'stock.adjustment',
+                sprintf(
+                    'Ajustement inventaire « %s » : %s → %s',
+                    $productName,
+                    $result['old_quantity'] ?? '',
+                    $result['quantity'],
+                ),
+                $location?->branch_id ? (int) $location->branch_id : null,
+                null,
+                [
+                    'product_id' => $productId,
+                    'location_id' => $locationId,
+                    'old_quantity' => $result['old_quantity'] ?? null,
+                    'new_quantity' => $result['quantity'],
+                ],
+            );
         }
 
         if ($wantsJson) {
@@ -769,6 +793,18 @@ class StockController extends Controller
         $stock->update([
             'minimum_stock' => $data['minimum_stock'] ?? null,
         ]);
+
+        $stock->loadMissing('product', 'location');
+        AdminActivityLogger::log(
+            'stock.minimum_threshold',
+            sprintf(
+                'Seuil d’alerte stock « %s » : %s',
+                $stock->product?->name ?? ('#'.$stock->product_id),
+                $data['minimum_stock'] ?? '—',
+            ),
+            $stock->location?->branch_id ? (int) $stock->location->branch_id : null,
+            $stock,
+        );
 
         return redirect()
             ->route('stocks.index', $this->stockIndexRedirectParams($request))

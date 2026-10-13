@@ -89,10 +89,10 @@
                         <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.75 6A2.25 2.25 0 016 3.75h3A2.25 2.25 0 0111.25 6v3A2.25 2.25 0 019 11.25H6A2.25 2.25 0 013.75 9V6zM12.75 6A2.25 2.25 0 0115 3.75h3A2.25 2.25 0 0120.25 6v3A2.25 2.25 0 0118 11.25h-3a2.25 2.25 0 01-2.25-2.25V6zM3.75 15A2.25 2.25 0 016 12.75h3a2.25 2.25 0 012.25 2.25v3a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25v-3zM12.75 15a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25v3A2.25 2.25 0 0118 20.25h-3a2.25 2.25 0 01-2.25-2.25v-3z"/></svg>
                         <span>Tableau de bord</span>
                     </a>
-                    @if (Auth::user()->hasApplicationAdminAccess())
-                        <a href="{{ route('pending-actions.index') }}" class="app-nav-link {{ request()->routeIs('pending-actions.*') ? 'app-nav-link-active' : '' }}" title="Pending actions">
-                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m0 3.75h.008v.008H12v-.008zm9-3.758A9 9 0 1112 3a9 9 0 019 8.242z"/></svg>
-                            <span>Pending actions</span>
+                    @if (Auth::user()->isSuperAdmin())
+                        <a href="{{ route('pending-actions.index') }}" class="app-nav-link {{ request()->routeIs('pending-actions.*') ? 'app-nav-link-active' : '' }}" title="Journal administrateurs">
+                            <svg class="h-5 w-5 shrink-0 opacity-90" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            <span>Journal admins</span>
                         </a>
                     @endif
                     @if (Auth::user()->canManageApplication())

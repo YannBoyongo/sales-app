@@ -14,6 +14,7 @@ use App\Models\Sale;
 use App\Models\SaleItem;
 use App\Models\Stock;
 use App\Models\StockMovement;
+use App\Services\AdminActivityLogger;
 use App\Support\Money;
 use App\Support\StockQuantity;
 use Illuminate\Http\RedirectResponse;
@@ -265,6 +266,8 @@ class SaleItemController extends Controller
         ]);
 
         $pendingDiscountAfterSave = false;
+        /** @var array{sale_id: int, reference: string, branch_id: int, total_amount: string, discount_amount: ?string, discount_kind: ?string}|null $adminActivityLog */
+        $adminActivityLog = null;
 
         $hasMainLine = collect($data['items'])->contains(
             fn (array $row) => ! filter_var($row['is_addon'] ?? false, FILTER_VALIDATE_BOOLEAN)
@@ -276,7 +279,7 @@ class SaleItemController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request, $branch, $departmentId, $pointOfSale, $posTerminal, $openShift, $data, &$pendingDiscountAfterSave) {
+            DB::transaction(function () use ($request, $branch, $departmentId, $pointOfSale, $posTerminal, $openShift, $data, &$pendingDiscountAfterSave, &$adminActivityLog) {
                 $openShift = PosShift::query()
                     ->whereKey($openShift->id)
                     ->where('pos_terminal_id', $posTerminal->id)
@@ -651,9 +654,68 @@ class SaleItemController extends Controller
                         ->where('sale_id', $sale->id)
                         ->update(['payment_type' => 'cash', 'client_id' => $clientId]);
                 }
+
+                if (AdminActivityLogger::shouldLogFor($request->user())) {
+                    $sale->refresh();
+                    $loggedDiscount = $sale->discount_amount;
+                    $discountKind = null;
+                    if ($loggedDiscount !== null && bccomp((string) $loggedDiscount, '0', 2) === 1) {
+                        $discountKind = $applyDiscount ? 'sale' : ($allowLineDiscount ? 'line' : null);
+                    }
+
+                    $adminActivityLog = [
+                        'sale_id' => (int) $sale->id,
+                        'reference' => (string) $sale->reference,
+                        'branch_id' => (int) $branch->id,
+                        'total_amount' => (string) $sale->total_amount,
+                        'discount_amount' => $loggedDiscount !== null && bccomp((string) $loggedDiscount, '0', 2) === 1
+                            ? (string) $loggedDiscount
+                            : null,
+                        'discount_kind' => $discountKind,
+                    ];
+                }
             });
         } catch (RuntimeException $e) {
             return back()->withInput()->withErrors(['sale' => $e->getMessage()]);
+        }
+
+        if ($adminActivityLog !== null) {
+            $loggedSale = Sale::query()->find($adminActivityLog['sale_id']);
+            AdminActivityLogger::log(
+                'sale.created',
+                sprintf(
+                    'Vente POS %s — total %s',
+                    $adminActivityLog['reference'],
+                    $adminActivityLog['total_amount'],
+                ),
+                $adminActivityLog['branch_id'],
+                $loggedSale,
+                [
+                    'payment_type' => $data['payment_type'] ?? null,
+                    'customer_type' => $data['customer_type'] ?? null,
+                ],
+            );
+
+            if ($adminActivityLog['discount_amount'] !== null) {
+                $kindLabel = $adminActivityLog['discount_kind'] === 'sale'
+                    ? 'remise globale'
+                    : ($adminActivityLog['discount_kind'] === 'line' ? 'remise par ligne' : 'remise');
+                AdminActivityLogger::log(
+                    'sale.discount_applied',
+                    sprintf(
+                        '%s sur la vente %s : %s',
+                        ucfirst($kindLabel),
+                        $adminActivityLog['reference'],
+                        $adminActivityLog['discount_amount'],
+                    ),
+                    $adminActivityLog['branch_id'],
+                    $loggedSale,
+                    [
+                        'amount' => $adminActivityLog['discount_amount'],
+                        'kind' => $adminActivityLog['discount_kind'],
+                    ],
+                );
+            }
         }
 
         $success = $pendingDiscountAfterSave

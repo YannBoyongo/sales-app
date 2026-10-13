@@ -9,6 +9,7 @@ use App\Models\ClientCautionDeposit;
 use App\Models\ClientCautionUsage;
 use App\Models\Payment;
 use App\Models\Sale;
+use App\Services\AdminActivityLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,6 +93,14 @@ class ClientController extends Controller
             'name' => $data['name'],
             'phone' => $data['phone'] ?? null,
         ]);
+
+        AdminActivityLogger::log(
+            'client.created',
+            sprintf('Création client « %s »', $client->name),
+            (int) $branchId,
+            $client,
+            ['phone' => $client->phone],
+        );
 
         return redirect()->route('clients.show', $client)->with('success', 'Client créé.');
     }
@@ -207,8 +216,11 @@ class ClientController extends Controller
             ? 'Paiement enregistré par caution. Le solde caution du client a été réduit (aucun bon de caisse créé).'
             : 'Paiement enregistré. Un bon de caisse (entrée) a été créé — validez-le puis enregistrez-le en comptabilité depuis Bons de caisse.';
 
+        /** @var array{payment_id: int, client_name: string, branch_id: int, amount: string, method: string}|null $debtPaymentLog */
+        $debtPaymentLog = null;
+
         try {
-            DB::transaction(function () use ($request, $client, $paymentMethod, $amountStr, $data): void {
+            DB::transaction(function () use ($request, $client, $paymentMethod, $amountStr, $data, &$debtPaymentLog): void {
                 $lockedClient = Client::query()->whereKey($client->id)->lockForUpdate()->firstOrFail();
 
                 $currentDebt = (float) $lockedClient->debtBalance();
@@ -251,6 +263,14 @@ class ClientController extends Controller
                             : 'Paiement dette (paiement #'.$payment->id.')',
                     ]);
 
+                    $debtPaymentLog = [
+                        'payment_id' => (int) $payment->id,
+                        'client_name' => (string) $lockedClient->name,
+                        'branch_id' => (int) $lockedClient->branch_id,
+                        'amount' => $amountStr,
+                        'method' => 'caution',
+                    ];
+
                     return;
                 }
 
@@ -270,11 +290,38 @@ class ClientController extends Controller
                     'type' => 'entry',
                     'amount' => $amountStr,
                 ]);
+
+                $debtPaymentLog = [
+                    'payment_id' => (int) $payment->id,
+                    'client_name' => (string) $lockedClient->name,
+                    'branch_id' => (int) $lockedClient->branch_id,
+                    'amount' => $amountStr,
+                    'method' => 'cash',
+                ];
             });
         } catch (\RuntimeException $e) {
             return back()->withInput()->withErrors([
                 'amount' => $e->getMessage(),
             ]);
+        }
+
+        if ($debtPaymentLog !== null) {
+            $methodLabel = $debtPaymentLog['method'] === 'caution' ? 'caution' : 'espèces';
+            AdminActivityLogger::log(
+                'client.debt_paid',
+                sprintf(
+                    'Paiement dette — %s : %s (%s)',
+                    $debtPaymentLog['client_name'],
+                    $debtPaymentLog['amount'],
+                    $methodLabel,
+                ),
+                $debtPaymentLog['branch_id'],
+                Payment::query()->find($debtPaymentLog['payment_id']),
+                [
+                    'amount' => $debtPaymentLog['amount'],
+                    'payment_method' => $debtPaymentLog['method'],
+                ],
+            );
         }
 
         return redirect()
@@ -292,17 +339,20 @@ class ClientController extends Controller
         ]);
 
         $amount = (float) $data['amount'];
+        $amountStr = number_format($amount, 2, '.', '');
 
-        DB::transaction(function () use ($request, $client, $amount, $data) {
+        /** @var array{deposit_id: int, client_name: string, branch_id: int, amount: string}|null $cautionDepositLog */
+        $cautionDepositLog = null;
+
+        DB::transaction(function () use ($request, $client, $amountStr, $data, &$cautionDepositLog) {
             $deposit = ClientCautionDeposit::create([
                 'client_id' => $client->id,
                 'user_id' => $request->user()->id,
-                'amount' => number_format($amount, 2, '.', ''),
+                'amount' => $amountStr,
                 'deposited_at' => now(),
                 'note' => $data['note'] ?? null,
             ]);
 
-            $amountStr = number_format($amount, 2, '.', '');
             $description = sprintf(
                 'Entrée caisse — dépôt caution — %s',
                 $client->name
@@ -319,7 +369,28 @@ class ClientController extends Controller
                 'type' => 'entry',
                 'amount' => $amountStr,
             ]);
+
+            $cautionDepositLog = [
+                'deposit_id' => (int) $deposit->id,
+                'client_name' => (string) $client->name,
+                'branch_id' => (int) $client->branch_id,
+                'amount' => $amountStr,
+            ];
         });
+
+        if ($cautionDepositLog !== null) {
+            AdminActivityLogger::log(
+                'client.caution_deposited',
+                sprintf(
+                    'Dépôt caution — %s : %s',
+                    $cautionDepositLog['client_name'],
+                    $cautionDepositLog['amount'],
+                ),
+                $cautionDepositLog['branch_id'],
+                ClientCautionDeposit::query()->find($cautionDepositLog['deposit_id']),
+                ['amount' => $cautionDepositLog['amount']],
+            );
+        }
 
         return redirect()
             ->route('clients.show', $client)

@@ -8,6 +8,7 @@ use App\Models\AccountingTransaction;
 use App\Models\CashVoucher;
 use App\Models\ChartOfAccount;
 use App\Models\PosTerminal;
+use App\Services\AdminActivityLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -196,6 +197,13 @@ class CashVoucherController extends Controller
             'approved_at' => now(),
             'approved_by' => $request->user()->id,
         ]);
+
+        AdminActivityLogger::log(
+            'cash_voucher.approved',
+            sprintf('Approbation bon de caisse %s (%s)', $cashVoucher->voucher_no, $cashVoucher->amount),
+            (int) $cashVoucher->branch_id,
+            $cashVoucher,
+        );
 
         $cashVoucher->refresh()->load([
             'branch:id,name',
@@ -460,6 +468,14 @@ class CashVoucherController extends Controller
             ]);
         });
 
+        AdminActivityLogger::log(
+            'cash_voucher.accounted',
+            sprintf('Comptabilisation bon de caisse %s → compte %s', $cashVoucher->voucher_no, $accountCode),
+            (int) $cashVoucher->branch_id,
+            $cashVoucher,
+            ['account_code' => $accountCode],
+        );
+
         return redirect()
             ->route('cash-vouchers.index')
             ->with('success', 'Bon de caisse enregistré en comptabilité.');
@@ -504,7 +520,15 @@ class CashVoucherController extends Controller
                 ->with('warning', 'Impossible de supprimer un bon déjà comptabilisé.');
         }
 
+        $voucherNo = $cashVoucher->voucher_no;
+        $branchId = (int) $cashVoucher->branch_id;
         $cashVoucher->delete();
+
+        AdminActivityLogger::log(
+            'cash_voucher.deleted',
+            'Suppression bon de caisse '.$voucherNo,
+            $branchId,
+        );
 
         return redirect()
             ->route('cash-vouchers.index')
